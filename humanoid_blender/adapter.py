@@ -2,7 +2,7 @@
 
 from math import isfinite
 
-from .core import HumanoidMesh
+from .core import HumanoidMesh, Skeleton
 
 
 def _populate_mesh(data, part, coordinate_scale):
@@ -12,13 +12,14 @@ def _populate_mesh(data, part, coordinate_scale):
     data.update()
 
 
-def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None):
-    """Create a collection, an Empty root, and one editable object per part.
+def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleton=None):
+    """Create a collection, Empty root, editable parts, and an optional rigid rig.
 
     Returns the root object. Source coordinates are converted from centimeters
     using the scene's meters-per-unit scale. Existing objects, unit settings,
     cursor, and selection are preserved. On failure only resources created by
-    this call are removed. Requires execution inside Blender.
+    this call are removed. A skeleton requires the active scene in Object Mode.
+    Requires execution inside Blender.
     """
     if not isinstance(mesh, HumanoidMesh):
         raise TypeError("mesh must be HumanoidMesh")
@@ -27,6 +28,14 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None):
     import bpy
 
     scene = bpy.context.scene if scene is None else scene
+    if skeleton is not None:
+        if not isinstance(skeleton, Skeleton):
+            raise TypeError("skeleton must be Skeleton")
+        bindings = {bone.part_name for bone in skeleton.bones if bone.part_name is not None}
+        if bindings != {part.name for part in mesh.parts}:
+            raise ValueError("skeleton must bind every mesh part exactly once")
+        if scene != bpy.context.scene or bpy.context.mode != "OBJECT":
+            raise ValueError("rig creation requires the active scene in Object Mode")
     meters_per_unit = scene.unit_settings.scale_length
     if not isfinite(meters_per_unit) or meters_per_unit <= 0:
         raise ValueError("scene unit scale must be positive and finite")
@@ -52,6 +61,9 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None):
             obj["body_part"] = part.name
             collection.objects.link(obj)
         scene.collection.children.link(collection)
+        if skeleton is not None:
+            from .rigging import attach_rig
+            attach_rig(root, skeleton, coordinate_scale)
         return root
     except Exception:
         for obj in reversed(created_objects):

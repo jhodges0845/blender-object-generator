@@ -31,14 +31,18 @@ with tempfile.TemporaryDirectory() as directory:
         scene.unit_settings.system = "METRIC"
         scene.humanoid_settings.body_type = "average"
         assert bpy.ops.humanoid.generate_blockout() == {"FINISHED"}
-        character = bpy.context.view_layer.objects.active
-        assert len(character.children) == 15
-        assert sum(len(obj.data.vertices) for obj in character.children) == 272
+        rig = bpy.context.view_layer.objects.active
+        assert rig.type == "ARMATURE"
+        assert len(rig.data.bones) == 16
+        character = rig.parent
+        meshes = [obj for obj in character.children if obj.type == "MESH"]
+        assert len(meshes) == 15
+        assert sum(len(obj.data.vertices) for obj in meshes) == 272
         bpy.context.view_layer.update()
         heights = [(obj.matrix_world @ vertex.co).z
-                   for obj in character.children for vertex in obj.data.vertices]
+                   for obj in meshes for vertex in obj.data.vertices]
         assert abs(max(heights) - min(heights) - 1.8) < 1e-5
-        assert all(not obj.data.validate() for obj in character.children)
+        assert all(not obj.data.validate() for obj in meshes)
         camera_data = bpy.data.cameras.new("Preview Camera")
         camera = bpy.data.objects.new("Preview Camera", camera_data)
         scene.collection.objects.link(camera)
@@ -67,6 +71,6 @@ with tempfile.TemporaryDirectory() as directory:
                     area.spaces.active.region_3d.view_rotation = camera.rotation_euler.to_quaternion()
         bpy.ops.wm.save_as_mainfile(filepath=str(output / "blockout-preview.blend"))
         bpy.ops.render.render(write_still=True)
-        print("PACKAGED_ADDON_OK: isolated ZIP registered and generated 15 editable parts")
+        print("PACKAGED_ADDON_OK: isolated ZIP registered and generated 15 editable parts and a 16-bone rig")
     finally:
         humanoid_blender.unregister()

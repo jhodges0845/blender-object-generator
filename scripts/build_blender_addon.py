@@ -16,6 +16,7 @@ def build_addon():
             for source in sorted((root / package).rglob("*.py")):
                 archive.write(source, (destination / source.relative_to(root / package)).as_posix())
         archive.write(root / "docs" / "blender.md", "humanoid_blender/README.md")
+        archive.write(root / "docs" / "rigging.md", "humanoid_blender/rigging.md")
     return output
 
 

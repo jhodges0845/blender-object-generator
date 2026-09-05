@@ -11,18 +11,20 @@ Python 3.9; no separate Python installation is needed to use the add-on.
 3. Enable **Add Mesh: Object Generator**.
 4. In the 3D Viewport, switch to Object Mode, press N, and open **Generator**.
 5. Choose **Object Type: Humanoid**, set Height (cm), Weight (kg), and Body Type,
-   then click **Generate Blockout**.
+   leave **Basic Rig** enabled for a poseable character, then click **Generate Blockout**.
 6. Use View > Frame Selected (numpad decimal) to see the generated character.
 
 Generation places a new character at the 3D cursor. It selects the new character
-and its parts. The Humanoid collection contains an Empty parent and 15 editable
-mesh objects. Move the Empty to move the whole character; select an individual
+and its parts. With Basic Rig enabled, the active object is the armature.
+The Humanoid collection contains an Empty parent, 15 editable mesh objects, and
+an optional 16-bone armature. Move the Empty to move the whole character; select an individual
 part to edit its geometry. Repeated generation creates another collection and
 preserves existing characters and scene objects. Move characters apart to compare
 them. Inputs affect the next generation; they do not update existing models.
 
 Undo is enabled on the generation operator. Disabling the add-on removes its UI,
-not generated objects. This remains an unrigged blockout with separate parts.
+not generated objects. The rig uses rigid weights and separate parts; see
+[posing and rig limitations](rigging.md).
 
 ## Uninstall or temporarily disable
 
@@ -37,9 +39,10 @@ not generated objects. This remains an unrigged blockout with separate parts.
 Disabling or removing the add-on removes its sidebar and controls. Generated
 collections and editable meshes stay in your scene, including their custom
 metadata. Saved blend files, this source repository, and the downloaded ZIP
-are unaffected. No separate Python packages were installed by the ZIP.
+are unaffected. Generated rigs and weights also remain usable after removal. No separate Python
+packages were installed by the ZIP.
 
-## Update from Humanoid Blockout 0.2.0
+## Update from an earlier version
 
 Save your scene, remove the old add-on using the steps above, and restart Blender.
 Install the rebuilt `dist/humanoid_blockout.zip`, then enable **Object Generator**.

@@ -17,3 +17,6 @@ MIN_HEIGHT_CM = _rules.MIN_HEIGHT_CM
 MAX_HEIGHT_CM = _rules.MAX_HEIGHT_CM
 MIN_WEIGHT_KG = _rules.MIN_WEIGHT_KG
 MAX_WEIGHT_KG = _rules.MAX_WEIGHT_KG
+
+Skeleton = _core.Skeleton
+generate_skeleton = _core.generate_skeleton

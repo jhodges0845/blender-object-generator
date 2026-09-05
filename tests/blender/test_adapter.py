@@ -8,7 +8,7 @@ try:
 except ModuleNotFoundError:
     bpy = None
 
-from humanoid_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
+from humanoid_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions, generate_skeleton
 from humanoid_blender.adapter import create_character
 
 
@@ -18,6 +18,7 @@ class BlenderAdapterTests(unittest.TestCase):
         self.scene = bpy.data.scenes.new("AdapterTest")
         self.objects_before = set(bpy.data.objects)
         self.meshes_before = set(bpy.data.meshes)
+        self.armatures_before = set(bpy.data.armatures)
         self.collections_before = set(bpy.data.collections)
         self.mesh = generate_mesh(generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE)))
 
@@ -28,6 +29,8 @@ class BlenderAdapterTests(unittest.TestCase):
             bpy.data.meshes.remove(mesh)
         for collection in set(bpy.data.collections) - self.collections_before:
             bpy.data.collections.remove(collection)
+        for data in set(bpy.data.armatures) - self.armatures_before:
+            bpy.data.armatures.remove(data)
         bpy.data.scenes.remove(self.scene)
 
     def test_editable_parts_match_source_and_scene_units(self):
@@ -92,11 +95,19 @@ class BlenderAdapterTests(unittest.TestCase):
             for preset in BodyType:
                 self.scene.humanoid_settings.body_type = preset.value
                 self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
-                root = bpy.context.view_layer.objects.active
+                armature = bpy.context.view_layer.objects.active
+                self.assertEqual(armature.type, "ARMATURE")
+                root = armature.parent
                 self.assertEqual(root["object_type"], "humanoid")
                 self.assertEqual(root["body_type"], preset.value)
                 self.assertEqual(tuple(root.location), (2, 3, 4))
-                self.assertEqual(len(root.children), 15)
+                self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 15)
+            self.scene.humanoid_settings.add_rig = False
+            self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
+            unrigged = bpy.context.view_layer.objects.active
+            self.assertEqual(unrigged.type, "EMPTY")
+            self.assertEqual(len(unrigged.children), 15)
+            self.assertTrue(all(obj.type == "MESH" for obj in unrigged.children))
             self.assertTrue(bpy.types.HUMANOID_PT_panel.is_registered)
             generated_objects = set(self.scene.objects)
             generated_meshes = {obj.data for obj in self.scene.objects if obj.type == "MESH"}
@@ -109,3 +120,64 @@ class BlenderAdapterTests(unittest.TestCase):
         self.assertTrue(generated_meshes.issubset(set(bpy.data.meshes)))
         humanoid_blender.register()
         humanoid_blender.unregister()
+
+    def test_rig_rest_pose_and_limb_movement(self):
+        previous_scene = bpy.context.window.scene
+        bpy.context.window.scene = self.scene
+        try:
+            skeleton = generate_skeleton(generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE)))
+            for scale in (1.0, 0.01):
+                self.scene.unit_settings.scale_length = scale
+                root = create_character(self.mesh, scene=self.scene, skeleton=skeleton)
+                root.location = (2, 3, 4)
+                rig = next(obj for obj in root.children if obj.type == "ARMATURE")
+                parts = {obj["body_part"]: obj for obj in root.children if obj.type == "MESH"}
+                self.assertEqual(len(rig.data.bones), 16)
+                for bone in skeleton.bones:
+                    actual = rig.data.bones[bone.name]
+                    self.assertEqual(actual.parent.name if actual.parent else None, bone.parent)
+                    for a, b in zip(actual.head_local, bone.head):
+                        self.assertAlmostEqual(a * scale, b * 0.01, places=5)
+                bpy.context.view_layer.update()
+                graph = bpy.context.evaluated_depsgraph_get()
+
+                def evaluated_points(obj):
+                    evaluated = obj.evaluated_get(graph)
+                    return [evaluated.matrix_world @ v.co for v in evaluated.data.vertices]
+
+                for obj in parts.values():
+                    self.assertEqual(len(obj.vertex_groups), 1)
+                    self.assertEqual(len(obj.modifiers), 1)
+                    self.assertIs(obj.modifiers[0].object, rig)
+                    for actual, vertex in zip(evaluated_points(obj), obj.data.vertices):
+                        self.assertLess((actual - obj.matrix_world @ vertex.co).length * scale, 1e-5)
+                        self.assertEqual(obj.vertex_groups[0].weight(vertex.index), 1.0)
+                hand_before = evaluated_points(parts['hand.left'])
+                torso_before = evaluated_points(parts['torso'])
+                rig.pose.bones['upper_arm.left'].rotation_mode = 'XYZ'
+                rig.pose.bones['upper_arm.left'].rotation_euler.z = 0.5
+                bpy.context.view_layer.update()
+                hand_after = evaluated_points(parts['hand.left'])
+                self.assertGreater((hand_after[0] - hand_before[0]).length * scale, 0.01)
+                self.assertLess((evaluated_points(parts['torso'])[0] - torso_before[0]).length, 1e-5)
+                # Full weights preserve distances within each rigid part.
+                self.assertAlmostEqual((hand_before[1] - hand_before[0]).length * scale,
+                                       (hand_after[1] - hand_after[0]).length * scale, places=5)
+        finally:
+            bpy.context.window.scene = previous_scene
+
+    def test_rig_failure_cleans_up_and_restores_context(self):
+        import humanoid_blender.rigging as rigging
+        previous_scene = bpy.context.window.scene
+        bpy.context.window.scene = self.scene
+        skeleton = generate_skeleton(generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE)))
+        before = (set(bpy.data.objects), set(bpy.data.meshes), set(bpy.data.armatures), set(bpy.data.collections))
+        try:
+            with patch.object(rigging, '_populate_bones', side_effect=RuntimeError('injected rig failure')):
+                with self.assertRaisesRegex(RuntimeError, 'injected'):
+                    create_character(self.mesh, scene=self.scene, skeleton=skeleton)
+            self.assertEqual(before, (set(bpy.data.objects), set(bpy.data.meshes),
+                                      set(bpy.data.armatures), set(bpy.data.collections)))
+            self.assertEqual(bpy.context.mode, 'OBJECT')
+        finally:
+            bpy.context.window.scene = previous_scene

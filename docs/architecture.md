@@ -49,5 +49,10 @@ The input contract, proportion generator, and blockout mesh generator are implem
 data lives in `models/proportions.py`; calibration and calculation live in the
 `proportions` package. Mesh data lives in `models/mesh.py`; mesh construction
 lives in `geometry`. Geometry consumes proportions and does not recalculate
-them from the input specification. Rigging and animation remain reserved. Blender translation lives in
+them from the input specification. Rigging generates independent bone data and rigid part assignments. Animation
+remains reserved. Blender translation lives in
 `humanoid_blender/adapter.py`; its sidebar lives in `ui.py`.
+
+The mesh and skeleton share joint coordinates from `proportions/landmarks.py`.
+The Blender rig adapter turns core bone data into an armature and full weights;
+it does not calculate body dimensions or joint placement.

@@ -1,10 +1,10 @@
 """Blender sidebar and operator. Generation is delegated to the core."""
 
 import bpy
-from bpy.props import EnumProperty, FloatProperty, PointerProperty
+from bpy.props import BoolProperty, EnumProperty, FloatProperty, PointerProperty
 
 from .adapter import create_character
-from .core import (BodyType, HumanoidSpec, generate_mesh, generate_proportions,
+from .core import (BodyType, HumanoidSpec, generate_mesh, generate_proportions, generate_skeleton,
                    MIN_HEIGHT_CM, MAX_HEIGHT_CM, MIN_WEIGHT_KG, MAX_WEIGHT_KG)
 
 
@@ -13,6 +13,8 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
         name="Object Type", default="humanoid",
         items=[("humanoid", "Humanoid", "Generate a stylized humanoid blockout")],
     )
+    add_rig: BoolProperty(name="Basic Rig", default=True,
+                          description="Make separate parts poseable with rigid bone weights")
     height_cm: FloatProperty(name="Height (cm)", default=180,
                              min=MIN_HEIGHT_CM, max=MAX_HEIGHT_CM, precision=1)
     weight_kg: FloatProperty(name="Weight (kg)", default=95,
@@ -39,8 +41,10 @@ class HUMANOID_OT_generate(bpy.types.Operator):
             return {"CANCELLED"}
         try:
             spec = HumanoidSpec(settings.height_cm, settings.weight_kg, BodyType(settings.body_type))
-            mesh = generate_mesh(generate_proportions(spec))
-            root = create_character(mesh, scene=context.scene)
+            proportions = generate_proportions(spec)
+            mesh = generate_mesh(proportions)
+            skeleton = generate_skeleton(proportions) if settings.add_rig else None
+            root = create_character(mesh, scene=context.scene, skeleton=skeleton)
         except (ValueError, TypeError, RuntimeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
@@ -54,8 +58,9 @@ class HUMANOID_OT_generate(bpy.types.Operator):
         for obj in root.children:
             obj.select_set(True)
         root.select_set(True)
-        context.view_layer.objects.active = root
-        self.report({"INFO"}, "Created 15 editable blockout parts")
+        armature = next((obj for obj in root.children if obj.type == "ARMATURE"), None)
+        context.view_layer.objects.active = armature or root
+        self.report({"INFO"}, "Created poseable blockout" if armature else "Created 15 editable blockout parts")
         return {"FINISHED"}
 
 
@@ -74,8 +79,9 @@ class HUMANOID_PT_panel(bpy.types.Panel):
             layout.prop(settings, "height_cm")
             layout.prop(settings, "weight_kg")
             layout.prop(settings, "body_type")
+            layout.prop(settings, "add_rig")
             layout.operator("humanoid.generate_blockout", icon="OUTLINER_OB_MESH")
-            layout.label(text="Separate parts; no rig yet")
+            layout.label(text="Rigid joints; separate parts")
 
 
 _CLASSES = (HUMANOID_PG_settings, HUMANOID_OT_generate, HUMANOID_PT_panel)

@@ -1,9 +1,9 @@
-# Humanoid core — pieces 1 through 4
+# Humanoid core — pieces 1 through 5
 
 A small, software-independent foundation for generating editable character
 starting points for artists. The core defines validated inputs and calculates
-stylized adult body proportions and a low-poly humanoid blockout mesh. The Blender adapter creates editable scene objects. Rigging and animation are
-not implemented yet.
+stylized adult body proportions and a low-poly humanoid blockout mesh. The Blender adapter creates editable scene objects and an optional rigid rig.
+Automatic animation and smooth joint deformation are not implemented yet.
 
 ## Use
 
@@ -47,7 +47,8 @@ The ready-to-install archive is `dist/humanoid_blockout.zip`. In Blender 2.92,
 use Edit > Preferences > Add-ons > Install, select the ZIP, and enable
 **Add Mesh: Object Generator**. In Object Mode, open the 3D Viewport sidebar
 with N, open **Generator**, choose **Object Type: Humanoid**, set the inputs,
-and click **Generate Blockout**.
+leave **Basic Rig** enabled, and click **Generate Blockout**. Switch the active
+armature to Pose Mode to rotate bones. See [posing instructions](docs/rigging.md).
 
 See [installation, updating, uninstalling, and Blender testing](docs/blender.md)
 for details. Rebuild with
@@ -69,7 +70,7 @@ humanoid_core/             Independent generation library
         spec.py           HumanoidSpec and BodyType
     proportions/          Measurement-to-proportion rules and generator
     geometry/             Blockout generator and mesh primitives
-    rigging/              Skeletons and skin weights (reserved)
+    rigging/              Independent skeleton generation
     animation/            Motion generation (reserved)
 humanoid_blender/         Blender translation, sidebar, and add-on entry point
 tests/
@@ -77,12 +78,14 @@ tests/
         models/           Input validation tests
         proportions/      Proportion generation tests
         geometry/         Mesh validity, symmetry, and scaling tests
+        rigging/          Bone hierarchy and mesh alignment tests
     blender/              Real Blender integration tests
 docs/
     architecture.md       Dependency rules and extension guidance
     proportions.md        Measurements, formulas, and supported inputs
     geometry.md           Mesh structure, axes, and blockout limitations
     blender.md            Installation and integration testing
+    rigging.md            Rigid rig contracts and posing instructions
 examples/                 Runnable core demonstrations
 scripts/                  Add-on packaging and Blender test runners
 dist/                     Generated add-on ZIP (ignored by Git)
@@ -101,7 +104,7 @@ and animation data. The Blender adapter translates mesh data into Blender object
 code must not import Blender's `bpy` module. Generated assets should remain
 editable through ordinary artist workflows.
 
-The next step is reviewing the blockout in Blender before starting basic rigging.
+The next step is reviewing the poseable blockout before adding a basic animation.
 
 ## Git
 

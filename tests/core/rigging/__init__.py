@@ -1,0 +1,1 @@
+"""Independent skeleton tests."""

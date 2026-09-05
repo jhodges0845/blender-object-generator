@@ -1,13 +1,9 @@
 """Generate a symmetric low-poly A-pose blockout from proportions."""
 
-from math import cos, radians, sin
-
 from ..models import HumanoidProportions
 from ..models.mesh import HumanoidMesh
 from .primitives import limb, vertical_loft
-
-
-ARM_ANGLE_FROM_VERTICAL_DEGREES = 30.0
+from ..proportions.landmarks import generate_landmarks
 
 
 def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
@@ -19,12 +15,12 @@ def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
     if not isinstance(proportions, HumanoidProportions):
         raise TypeError("proportions must be HumanoidProportions")
     p = proportions
-    ankle_z = p.foot_height_cm
-    knee_z = ankle_z + p.lower_leg_length_cm
-    hip_z = knee_z + p.upper_leg_length_cm
-    shoulder_z = hip_z + p.torso_length_cm
-    chin_z = shoulder_z + p.neck_length_cm
-    crown_z = chin_z + p.head_height_cm
+    points = generate_landmarks(p)
+    ankle_z = points["ankle.left"][2]
+    hip_z = points["hip_center"][2]
+    shoulder_z = points["shoulder_center"][2]
+    chin_z = points["chin"][2]
+    crown_z = points["crown"][2]
 
     parts = [
         vertical_loft("torso", (
@@ -45,12 +41,11 @@ def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
         )),
     ]
 
-    angle = radians(ARM_ANGLE_FROM_VERTICAL_DEGREES)
-    for side, sign in (("left", 1), ("right", -1)):
-        leg_x = sign * p.hip_width_cm * 0.25
-        ankle = (leg_x, 0.0, ankle_z)
-        knee = (leg_x, 0.0, knee_z)
-        hip = (leg_x, 0.0, hip_z)
+    for side in ("left", "right"):
+        ankle = points["ankle." + side]
+        knee = points["knee." + side]
+        hip = points["hip." + side]
+        leg_x = hip[0]
         parts.extend((
             limb(f"upper_leg.{side}", knee, hip,
                  p.thigh_thickness_cm * 0.7, p.thigh_thickness_cm),
@@ -62,14 +57,10 @@ def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
             ), center_x=leg_x, center_y=p.foot_length_cm * 0.25),
         ))
 
-        def advance(point, length):
-            return (point[0] + sign * sin(angle) * length, 0.0,
-                    point[2] - cos(angle) * length)
-
-        shoulder = (sign * p.shoulder_width_cm * 0.5, 0.0, shoulder_z)
-        elbow = advance(shoulder, p.upper_arm_length_cm)
-        wrist = advance(elbow, p.forearm_length_cm)
-        fingertips = advance(wrist, p.hand_length_cm)
+        shoulder = points["shoulder." + side]
+        elbow = points["elbow." + side]
+        wrist = points["wrist." + side]
+        fingertips = points["fingertips." + side]
         parts.extend((
             limb(f"upper_arm.{side}", shoulder, elbow,
                  p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.8),

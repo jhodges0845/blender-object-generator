@@ -3,7 +3,7 @@
 bl_info = {
     "name": "Object Generator",
     "author": "Humanoid Blockout contributors",
-    "version": (0, 3, 0),
+    "version": (0, 4, 0),
     "blender": (2, 92, 0),
     "location": "3D View > Sidebar > Generator",
     "description": "Generate editable humanoid blockouts from height, weight, and body type",
