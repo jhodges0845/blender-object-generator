@@ -15,13 +15,14 @@ implementation lives. The specification now lives in `models/spec.py`.
 
 ## Adapters
 
-`humanoid_blender` will translate core data into Blender objects and provide
+`humanoid_blender` translates core data into Blender objects and provides
 Blender UI integration. Blender-specific code belongs here. It may import the
 core; the core must never import it. Future software adapters should be sibling
 packages with the same dependency direction.
 
 Importing the core must never require Blender or initialize a scene. The Blender
-package is currently a placeholder, not an installable Blender add-on.
+package provides an add-on entry point and sidebar operator. Its ZIP bundles
+the independent core automatically, without a manually maintained second copy.
 
 ## Tests
 
@@ -48,4 +49,5 @@ The input contract, proportion generator, and blockout mesh generator are implem
 data lives in `models/proportions.py`; calibration and calculation live in the
 `proportions` package. Mesh data lives in `models/mesh.py`; mesh construction
 lives in `geometry`. Geometry consumes proportions and does not recalculate
-them from the input specification. Rigging, animation, and Blender remain reserved.
+them from the input specification. Rigging and animation remain reserved. Blender translation lives in
+`humanoid_blender/adapter.py`; its sidebar lives in `ui.py`.

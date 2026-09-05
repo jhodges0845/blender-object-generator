@@ -2,7 +2,7 @@
 
 from math import cos, sin, pi, hypot
 
-from humanoid_core.models.mesh import MeshPart
+from ..models.mesh import MeshPart
 
 
 RING_SIDES = 8

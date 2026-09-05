@@ -1,1 +1,21 @@
-"""Reserved for the Blender adapter; no Blender integration implemented yet."""
+"""Blender add-on entry point. Importing this package does not require Blender."""
+
+bl_info = {
+    "name": "Humanoid Blockout",
+    "author": "Humanoid Blockout contributors",
+    "version": (0, 2, 0),
+    "blender": (2, 92, 0),
+    "location": "3D View > Sidebar > Humanoid",
+    "description": "Generate editable humanoid blockouts from height, weight, and body type",
+    "category": "Add Mesh",
+}
+
+
+def register():
+    from . import ui
+    ui.register()
+
+
+def unregister():
+    from . import ui
+    ui.unregister()

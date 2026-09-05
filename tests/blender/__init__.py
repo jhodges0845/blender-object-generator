@@ -1,1 +1,1 @@
-"""Reserved for Blender adapter tests."""
+"""Real Blender adapter integration tests."""

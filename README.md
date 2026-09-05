@@ -1,13 +1,13 @@
-# Humanoid core — pieces 1 through 3
+# Humanoid core — pieces 1 through 4
 
 A small, software-independent foundation for generating editable character
 starting points for artists. The core defines validated inputs and calculates
-stylized adult body proportions and a low-poly humanoid blockout mesh. Rigging,
-animation, and the Blender adapter are not implemented yet.
+stylized adult body proportions and a low-poly humanoid blockout mesh. The Blender adapter creates editable scene objects. Rigging and animation are
+not implemented yet.
 
 ## Use
 
-Requires Python 3.9 or newer. From this folder:
+Supports Python 3.7 or newer (tested with standalone Python 3.9 and Blender 2.92's Python 3.7.7). From this folder:
 
 ```python
 from humanoid_core import BodyType, HumanoidSpec, generate_proportions, generate_mesh
@@ -41,6 +41,16 @@ Generate and inspect a blockout with
 closed parts in an A-pose; it is not yet suitable for skinning. See
 [mesh conventions and limitations](docs/geometry.md) for details and JSON output.
 
+## Blender add-on
+
+The ready-to-install archive is `dist/humanoid_blockout.zip`. In Blender 2.92,
+use Edit > Preferences > Add-ons > Install, select the ZIP, and enable
+**Add Mesh: Humanoid Blockout**. In Object Mode, open the 3D Viewport sidebar
+with N, select **Humanoid**, and click **Generate Blockout**.
+
+See [installation and Blender testing](docs/blender.md) for details. Rebuild with
+`python -m scripts.build_blender_addon`.
+
 ## Test
 
 No Blender installation or third-party test dependencies are needed:
@@ -59,18 +69,22 @@ humanoid_core/             Independent generation library
     geometry/             Blockout generator and mesh primitives
     rigging/              Skeletons and skin weights (reserved)
     animation/            Motion generation (reserved)
-humanoid_blender/         Blender adapter (reserved)
+humanoid_blender/         Blender translation, sidebar, and add-on entry point
 tests/
     core/
         models/           Input validation tests
         proportions/      Proportion generation tests
         geometry/         Mesh validity, symmetry, and scaling tests
-    blender/              Adapter tests (reserved)
+    blender/              Real Blender integration tests
 docs/
     architecture.md       Dependency rules and extension guidance
     proportions.md        Measurements, formulas, and supported inputs
     geometry.md           Mesh structure, axes, and blockout limitations
+    blender.md            Installation and integration testing
 examples/                 Runnable core demonstrations
+scripts/                  Add-on packaging and Blender test runners
+dist/                     Generated add-on ZIP (ignored by Git)
+artifacts/                Generated previews (ignored by Git)
 pyproject.toml            Package configuration
 ```
 
@@ -81,8 +95,14 @@ without installing the project. Reserved packages contain documentation only.
 ## Architecture direction
 
 The core owns proportions and mesh data, and will own skeletons, skin weights,
-and animation data. A future Blender adapter will translate those into Blender objects. Core
+and animation data. The Blender adapter translates mesh data into Blender objects. Core
 code must not import Blender's `bpy` module. Generated assets should remain
 editable through ordinary artist workflows.
 
-The next piece is the Blender adapter, so artists can view and edit the blockout.
+The next step is reviewing the blockout in Blender before starting basic rigging.
+
+## Git
+
+The local Git repository uses `main`. Generated archives, previews, and caches
+are ignored. No remote is configured. Use `git status` and `git log --oneline`
+to inspect changes and commit history.

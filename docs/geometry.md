@@ -75,4 +75,5 @@ python -m examples.mesh --body-type muscular --output blockout.json
 The optional JSON file includes units and axis conventions as well as every
 part's vertices and faces. The output's parent folder must already exist; an
 existing output file will be replaced. This is a debugging example, not a stable
-interchange format. Viewing/editing generated parts in Blender is piece 4.
+interchange format. The Blender adapter from piece 4 creates editable objects; see
+[installation](blender.md).

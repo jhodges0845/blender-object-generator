@@ -2,8 +2,8 @@
 
 from math import cos, radians, sin
 
-from humanoid_core.models import HumanoidProportions
-from humanoid_core.models.mesh import HumanoidMesh
+from ..models import HumanoidProportions
+from ..models.mesh import HumanoidMesh
 from .primitives import limb, vertical_loft
 
 

@@ -2,7 +2,7 @@
 
 from math import sqrt
 
-from humanoid_core.models import HumanoidProportions, HumanoidSpec
+from ..models import HumanoidProportions, HumanoidSpec
 from .rules import (
     GIRTH_RATIOS, LENGTH_RATIOS, MAX_HEIGHT_CM, MAX_WEIGHT_KG,
     MIN_HEIGHT_CM, MIN_WEIGHT_KG, REFERENCE_HEIGHT_CM,

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from humanoid_core.models import BodyType
+from ..models import BodyType
 
 
 MIN_HEIGHT_CM = 120.0
