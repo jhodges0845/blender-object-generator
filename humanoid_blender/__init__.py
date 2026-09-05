@@ -1,11 +1,11 @@
 """Blender add-on entry point. Importing this package does not require Blender."""
 
 bl_info = {
-    "name": "Humanoid Blockout",
+    "name": "Object Generator",
     "author": "Humanoid Blockout contributors",
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
     "blender": (2, 92, 0),
-    "location": "3D View > Sidebar > Humanoid",
+    "location": "3D View > Sidebar > Generator",
     "description": "Generate editable humanoid blockouts from height, weight, and body type",
     "category": "Add Mesh",
 }

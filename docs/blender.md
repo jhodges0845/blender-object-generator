@@ -8,9 +8,10 @@ Python 3.9; no separate Python installation is needed to use the add-on.
 
 1. In Blender 2.92, open Edit > Preferences > Add-ons > Install.
 2. Select `dist/humanoid_blockout.zip` from the project folder; do not unzip it.
-3. Enable **Add Mesh: Humanoid Blockout**.
-4. In the 3D Viewport, switch to Object Mode, press N, and open **Humanoid**.
-5. Set Height (cm), Weight (kg), and Body Type, then click **Generate Blockout**.
+3. Enable **Add Mesh: Object Generator**.
+4. In the 3D Viewport, switch to Object Mode, press N, and open **Generator**.
+5. Choose **Object Type: Humanoid**, set Height (cm), Weight (kg), and Body Type,
+   then click **Generate Blockout**.
 6. Use View > Frame Selected (numpad decimal) to see the generated character.
 
 Generation places a new character at the 3D cursor. It selects the new character
@@ -22,6 +23,32 @@ them. Inputs affect the next generation; they do not update existing models.
 
 Undo is enabled on the generation operator. Disabling the add-on removes its UI,
 not generated objects. This remains an unrigged blockout with separate parts.
+
+## Uninstall or temporarily disable
+
+1. Open **Edit > Preferences > Add-ons**.
+2. Search for **Object Generator** (or **Humanoid Blockout** for version 0.2.0).
+3. Uncheck the add-on to disable it immediately.
+4. To uninstall its files, expand its entry with the arrow, click **Remove**,
+   and confirm the removal.
+5. If Auto-Save Preferences is off, choose **Save Preferences** from the
+   Preferences menu. Restart Blender to finish clearing loaded modules.
+
+Disabling or removing the add-on removes its sidebar and controls. Generated
+collections and editable meshes stay in your scene, including their custom
+metadata. Saved blend files, this source repository, and the downloaded ZIP
+are unaffected. No separate Python packages were installed by the ZIP.
+
+## Update from Humanoid Blockout 0.2.0
+
+Save your scene, remove the old add-on using the steps above, and restart Blender.
+Install the rebuilt `dist/humanoid_blockout.zip`, then enable **Object Generator**.
+The ZIP and internal module names stay the same so this is an update to the same
+add-on. The visible name and sidebar have changed. Existing models are preserved.
+
+The sidebar now starts with **Object Type**. Humanoid is currently the only
+implemented option. Its settings appear below the dropdown. Future object types
+can add their own settings and generation path without another sidebar tab.
 
 ## Build
 
@@ -87,17 +114,3 @@ registers the bundled add-on, and generates a character. It saves
 `artifacts/blockout-preview.blend` and `artifacts/blockout-preview.png` for visual
 review. These generated files are ignored by Git. Existing preview outputs are
 replaced. The preview scene is editable even without installing the add-on.
-
-## Check the release ZIP
-
-After building, run the isolated package check in a separate Blender process:
-
-```powershell
-& 'C:\Program Files\Blender Foundation\Blender 2.92\blender.exe' --background --factory-startup --python-exit-code 1 --python scripts/test_blender_package.py
-```
-
-This extracts the ZIP into a temporary folder, removes checkout import access,
-registers the bundled add-on, and generates a character. It saves
-`artifacts/blockout-preview.blend` and `artifacts/blockout-preview.png` for review.
-These files are ignored by Git. Existing preview outputs are replaced. The
-preview scene is editable even without installing the add-on.

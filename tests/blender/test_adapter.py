@@ -83,18 +83,29 @@ class BlenderAdapterTests(unittest.TestCase):
         bpy.context.window.scene = self.scene
         humanoid_blender.register()
         try:
+            self.assertEqual(self.scene.humanoid_settings.object_type, "humanoid")
+            options = self.scene.humanoid_settings.bl_rna.properties["object_type"].enum_items
+            self.assertEqual([(item.identifier, item.name) for item in options], [("humanoid", "Humanoid")])
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Object Generator")
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
             self.scene.cursor.location = (2, 3, 4)
             for preset in BodyType:
                 self.scene.humanoid_settings.body_type = preset.value
                 self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
                 root = bpy.context.view_layer.objects.active
+                self.assertEqual(root["object_type"], "humanoid")
                 self.assertEqual(root["body_type"], preset.value)
                 self.assertEqual(tuple(root.location), (2, 3, 4))
                 self.assertEqual(len(root.children), 15)
             self.assertTrue(bpy.types.HUMANOID_PT_panel.is_registered)
+            generated_objects = set(self.scene.objects)
+            generated_meshes = {obj.data for obj in self.scene.objects if obj.type == "MESH"}
         finally:
             humanoid_blender.unregister()
             bpy.context.window.scene = previous_scene
         self.assertFalse(hasattr(bpy.types.Scene, "humanoid_settings"))
+        self.assertFalse(hasattr(bpy.types, "HUMANOID_PT_panel"))
+        self.assertEqual(set(self.scene.objects), generated_objects)
+        self.assertTrue(generated_meshes.issubset(set(bpy.data.meshes)))
         humanoid_blender.register()
         humanoid_blender.unregister()

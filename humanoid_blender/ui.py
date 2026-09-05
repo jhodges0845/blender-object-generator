@@ -9,6 +9,10 @@ from .core import (BodyType, HumanoidSpec, generate_mesh, generate_proportions,
 
 
 class HUMANOID_PG_settings(bpy.types.PropertyGroup):
+    object_type: EnumProperty(
+        name="Object Type", default="humanoid",
+        items=[("humanoid", "Humanoid", "Generate a stylized humanoid blockout")],
+    )
     height_cm: FloatProperty(name="Height (cm)", default=180,
                              min=MIN_HEIGHT_CM, max=MAX_HEIGHT_CM, precision=1)
     weight_kg: FloatProperty(name="Weight (kg)", default=95,
@@ -30,6 +34,9 @@ class HUMANOID_OT_generate(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.scene.humanoid_settings
+        if settings.object_type != "humanoid":
+            self.report({"ERROR"}, "This object type does not have a generator yet")
+            return {"CANCELLED"}
         try:
             spec = HumanoidSpec(settings.height_cm, settings.weight_kg, BodyType(settings.body_type))
             mesh = generate_mesh(generate_proportions(spec))
@@ -37,6 +44,7 @@ class HUMANOID_OT_generate(bpy.types.Operator):
         except (ValueError, TypeError, RuntimeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
+        root["object_type"] = settings.object_type
         root["height_cm"] = spec.height_cm
         root["weight_kg"] = spec.weight_kg
         root["body_type"] = spec.body_type.value
@@ -52,20 +60,22 @@ class HUMANOID_OT_generate(bpy.types.Operator):
 
 
 class HUMANOID_PT_panel(bpy.types.Panel):
-    bl_label = "Humanoid Blockout"
+    bl_label = "Object Generator"
     bl_idname = "HUMANOID_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Humanoid"
+    bl_category = "Generator"
 
     def draw(self, context):
         layout = self.layout
         settings = context.scene.humanoid_settings
-        layout.prop(settings, "height_cm")
-        layout.prop(settings, "weight_kg")
-        layout.prop(settings, "body_type")
-        layout.operator("humanoid.generate_blockout", icon="OUTLINER_OB_MESH")
-        layout.label(text="Separate parts; no rig yet")
+        layout.prop(settings, "object_type")
+        if settings.object_type == "humanoid":
+            layout.prop(settings, "height_cm")
+            layout.prop(settings, "weight_kg")
+            layout.prop(settings, "body_type")
+            layout.operator("humanoid.generate_blockout", icon="OUTLINER_OB_MESH")
+            layout.label(text="Separate parts; no rig yet")
 
 
 _CLASSES = (HUMANOID_PG_settings, HUMANOID_OT_generate, HUMANOID_PT_panel)

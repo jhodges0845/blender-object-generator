@@ -45,10 +45,12 @@ closed parts in an A-pose; it is not yet suitable for skinning. See
 
 The ready-to-install archive is `dist/humanoid_blockout.zip`. In Blender 2.92,
 use Edit > Preferences > Add-ons > Install, select the ZIP, and enable
-**Add Mesh: Humanoid Blockout**. In Object Mode, open the 3D Viewport sidebar
-with N, select **Humanoid**, and click **Generate Blockout**.
+**Add Mesh: Object Generator**. In Object Mode, open the 3D Viewport sidebar
+with N, open **Generator**, choose **Object Type: Humanoid**, set the inputs,
+and click **Generate Blockout**.
 
-See [installation and Blender testing](docs/blender.md) for details. Rebuild with
+See [installation, updating, uninstalling, and Blender testing](docs/blender.md)
+for details. Rebuild with
 `python -m scripts.build_blender_addon`.
 
 ## Test
