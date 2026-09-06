@@ -74,6 +74,13 @@ restart Blender after updating an already loaded add-on to avoid stale modules.
 
 ## Test
 
+GitHub Actions runs the Python 3.9–3.12 matrix and a separate Blender 2.92.0
+job on pull requests, pushes to main, and manual runs. The Blender job downloads
+the official Linux archive, verifies its SHA-256 checksum, and runs
+`scripts/test_blender.py` headlessly with factory settings. Test failures return
+a nonzero exit code. Only the standalone Python subprocess check is skipped
+inside Blender; the ordinary Python matrix covers that check.
+
 Ordinary Python tests skip Blender integration tests explicitly:
 
 ```powershell
