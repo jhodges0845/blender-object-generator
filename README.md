@@ -9,6 +9,10 @@ Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitt
 under [the license](LICENSE); see [notices](NOTICE). Generated models do not need
 to use the GPL merely because they were created with this program.
 
+> **Development roadmap:** Contributors and Codex should use [docs/roadmap.md](docs/roadmap.md)
+> as the working source of truth for current priorities, TODOs, milestone definitions and
+> engineering guardrails.
+
 ## Blender workflow
 
 Tested with Blender 2.92. Newer Blender versions have not yet been verified.
@@ -56,7 +60,7 @@ skeleton = generate_skeleton(proportions)
 
 Presets are slim, average, muscular, overweight, and obese. They are artistic
 controls, not medical classifications. The initial proportion generator supports
-120â€“240 cm and 30â€“300 kg. [Proportion rules](docs/proportions.md).
+120–240 cm and 30–300 kg. [Proportion rules](docs/proportions.md).
 
 ## Tests
 
@@ -83,7 +87,7 @@ humanoid_blender/    Blender objects, five-tab UI, rigging, and scene inspection
 tests/              Core and Blender tests
 scripts/            Add-on build and Blender test runners
 examples/           Standalone core examples
-docs/               Architecture, measurements, workflow, and installation
+docs/               Architecture, measurements, workflow, installation, and roadmap
 dist/               Generated ZIP; ignored by Git
 artifacts/          Generated previews; ignored by Git
 ```
