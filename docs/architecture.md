@@ -112,3 +112,8 @@ The UI's Static/Rigged/Animated selection creates a local profile copy. Cura
 always uses static geometry validation. The bundled-core import bridge supports
 both checkout and ZIP installations. No core generator changes are needed to add
 another target adapter.
+
+The five workflow panels share a layout mixin with a fixed stage per panel.
+Each registers its own Blender sidebar category (Generator, Rigging, Animations,
+Validation, Export). The old workflow_tab setting remains for saved-file/script
+compatibility but no longer controls visible navigation.

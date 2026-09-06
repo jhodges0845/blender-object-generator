@@ -9,8 +9,8 @@ Python 3.9; no separate Python installation is needed to use the add-on.
 1. In Blender 2.92, open Edit > Preferences > Add-ons > Install.
 2. Select `dist/object_generator.zip` from the project folder; do not unzip it.
 3. Enable **Add Mesh: Object Generator**.
-4. In the 3D Viewport, switch to Object Mode, press N, and open **Generator**.
-5. Open **Model**, choose **Object Type: Humanoid**, set Height (cm), Weight (kg),
+4. In the 3D Viewport, switch to Object Mode, press N, and open the **Generator** sidebar tab.
+5. In **Generator**, choose **Object Type: Humanoid**, set Height (cm), Weight (kg),
    and Body Type, then click **Generate Model**.
 6. Use View > Frame Selected (numpad decimal) to see the generated character.
 7. Open **Rigging** and click **Add Basic Rig**, then **Enter Pose Mode**.
@@ -52,7 +52,8 @@ The ZIP is now named object_generator.zip. The internal Blender module ID remain
 humanoid_blender so saved settings still load. The core is now object_core.
 Existing models are preserved; older humanoid generator metadata is recognized.
 
-The panel contains Model, Rigging, Animation, Validation, and Export tabs.
+The 3D Viewport sidebar has separate Generator, Rigging, Animations, Validation,
+and Export tabs. There is no internal stage-button row.
 See [file export instructions](targets.md) for Godot, Cura, Unity and Unreal.
 Export Asset opens a file browser once its target checklist is satisfied. Humanoid is
 joined by Box in Object Type. Box has dimension controls and uses static validation.

@@ -42,6 +42,7 @@ class HUMANOID_PG_result(bpy.types.PropertyGroup):
 
 
 class HUMANOID_PG_settings(bpy.types.PropertyGroup):
+    # Retained for saved files/scripts; visible navigation uses sidebar categories.
     workflow_tab: EnumProperty(name="Stage", default="MODEL", items=[
         ("MODEL", "Model", "Create a model"),
         ("RIGGING", "Rigging", "Rig an existing character"),
@@ -291,20 +292,32 @@ class HUMANOID_OT_export(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
-class HUMANOID_PT_panel(bpy.types.Panel):
-    bl_label = "Object Generator"
-    bl_idname = "HUMANOID_PT_panel"
+def _needs_attention(context, stage):
+    codes = {
+        'MODEL': {'geometry', 'target_geometry', 'cura_solid', 'export_transform', 'export_units', 'export_modifier'},
+        'RIGGING': {'rig', 'target_rig'},
+        'ANIMATION': {'animation', 'target_animation', 'export_nla', 'fbx_animation_range', 'export_constraints'},
+    }.get(stage)
+    return any(issue.status in ('ERROR', 'WARN') and (codes is None or issue.code in codes)
+               for issue in _export_issues(context))
+
+
+class _WorkflowPanel:
+    """Shared stage layout; each registered panel owns a fixed sidebar category."""
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Generator"
+    stage = "MODEL"
+
+    def draw_header(self, context):
+        attention = _needs_attention(context, self.stage)
+        self.layout.label(text='', icon='ERROR' if attention else 'CHECKMARK')
 
     def draw(self, context):
         layout = self.layout
         settings = context.scene.humanoid_settings
-        layout.row(align=True).prop(settings, "workflow_tab", expand=True)
         if context.mode != "OBJECT":
             layout.operator("object.mode_set", text="Return to Object Mode").mode = "OBJECT"
-        stage = settings.workflow_tab
+        stage = self.stage
         if stage == "MODEL":
             layout.prop(settings, "object_type")
             for field in get_provider(settings.object_type).parameters:
@@ -357,17 +370,21 @@ class HUMANOID_PT_panel(bpy.types.Panel):
             else:
                 layout.prop(settings, "asset_use")
                 layout.prop(settings, "require_textures")
-                layout.operator("humanoid.prepare_materials", icon="MATERIAL")
-            layout.operator("humanoid.validate_character", icon="CHECKMARK")
+                if stage == 'VALIDATION':
+                    layout.operator("humanoid.prepare_materials", icon="MATERIAL")
+            if stage == 'VALIDATION':
+                layout.operator("humanoid.validate_character", icon="CHECKMARK")
             rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
             if stage == 'EXPORT':
                 ready = is_ready(rows)
-                layout.label(text='Ready to export.' if ready else 'Resolve the checklist below to enable Export.')
+                layout.label(text='Ready to export.' if ready else 'Needs attention: see Validation.',
+                             icon='CHECKMARK' if ready else 'ERROR')
                 row = layout.row()
                 row.enabled = ready
                 row.operator('humanoid.export_asset', icon='EXPORT')
                 if settings.last_export:
                     layout.label(text='Saved: ' + settings.last_export)
+                return
 
             if rows:
                 errors = sum(row.status == "ERROR" for row in rows)
@@ -384,9 +401,45 @@ class HUMANOID_PT_panel(bpy.types.Panel):
                         box.label(text=line)
 
 
+class HUMANOID_PT_panel(_WorkflowPanel, bpy.types.Panel):
+    bl_label = "Object Generator"
+    bl_idname = "HUMANOID_PT_panel"
+    bl_category = "Generator"
+    stage = "MODEL"
+
+
+class HUMANOID_PT_rigging(_WorkflowPanel, bpy.types.Panel):
+    bl_label = "Rigging"
+    bl_idname = "HUMANOID_PT_rigging"
+    bl_category = "Rigging"
+    stage = "RIGGING"
+
+
+class HUMANOID_PT_animations(_WorkflowPanel, bpy.types.Panel):
+    bl_label = "Animations"
+    bl_idname = "HUMANOID_PT_animations"
+    bl_category = "Animations"
+    stage = "ANIMATION"
+
+
+class HUMANOID_PT_validation(_WorkflowPanel, bpy.types.Panel):
+    bl_label = "Validation"
+    bl_idname = "HUMANOID_PT_validation"
+    bl_category = "Validation"
+    stage = "VALIDATION"
+
+
+class HUMANOID_PT_export(_WorkflowPanel, bpy.types.Panel):
+    bl_label = "Export"
+    bl_idname = "HUMANOID_PT_export"
+    bl_category = "Export"
+    stage = "EXPORT"
+
+
 _CLASSES = (HUMANOID_PG_result, HUMANOID_PG_settings, HUMANOID_OT_generate,
             HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_preview, HUMANOID_OT_validate,
-            HUMANOID_OT_prepare_materials, HUMANOID_OT_export, HUMANOID_PT_panel)
+            HUMANOID_OT_prepare_materials, HUMANOID_OT_export, HUMANOID_PT_panel,
+            HUMANOID_PT_rigging, HUMANOID_PT_animations, HUMANOID_PT_validation, HUMANOID_PT_export)
 
 
 def register():

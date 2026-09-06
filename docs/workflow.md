@@ -1,13 +1,14 @@
 # Workflow and asset readiness
 
-Version 0.8 provides five tabs within the Generator sidebar panel. Generation,
+Version 0.8.1 provides five vertical sidebar tabs: Generator, Rigging, Animations,
+Validation and Export. The internal stage-button row has been removed. Generation,
 rigging, animation, and validation are separate actions on one chosen character.
 
 | Tab | Current behavior |
 | --- | --- |
-| Model | Choose Humanoid for a character or Box for a static prop; each has its own inputs. |
+| Generator | Choose Humanoid for a character or Box for a static prop; each has its own inputs. |
 | Rigging | Add the 16-bone rigid rig to that character, then use Enter Pose Mode. Existing rigs are preserved. |
-| Animation | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
+| Animations | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
 | Validation | Run target-specific checks for the selected intended use and texture requirements. |
 | Export | Choose the destination, prepare missing materials, resolve the live checklist and export through the file browser. |
 
