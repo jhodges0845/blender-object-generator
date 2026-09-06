@@ -35,9 +35,9 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
     else:
         add("animation", "PASS", "Changing animation curves found; review playback and deformation." if snapshot.has_animation else "Animation is not required for this use.")
     if snapshot.missing_materials:
-        add("materials", "WARN", "Assign materials here or in the game engine: " + ", ".join(snapshot.missing_materials))
+        add("materials", "ERROR", "Assign materials before export: " + ", ".join(snapshot.missing_materials))
     else:
-        add("materials", "PASS", "Material assignments found.")
+        add("materials", "PASS", "No missing material assignments reported.")
     if snapshot.missing_images:
         add("textures", "ERROR", "Missing texture data: " + "; ".join(snapshot.missing_images))
     elif require_textures and not snapshot.texture_count:
@@ -54,6 +54,6 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
     for warning in snapshot.transform_warnings:
         add("transforms", "WARN", warning)
     if snapshot.is_blockout:
-        add("blockout", "WARN", "Separate blockout parts: review joint gaps, intersections, and deformation.")
-    add("export_review", "WARN", "Target-engine export, polygon budget, shading, and animation quality need manual review.")
+        add("blockout", "INFO", "Separate blockout parts: review joint gaps, intersections, and deformation.")
+    add("export_review", "INFO", "Target-engine export, polygon budget, shading, and animation quality need manual review.")
     return tuple(results)

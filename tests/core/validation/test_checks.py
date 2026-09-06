@@ -38,8 +38,8 @@ class ValidationTests(unittest.TestCase):
     def test_blockout_and_export_review_never_claim_production_readiness(self):
         snapshot = AssetSnapshot(mesh_count=15, has_rig=True, has_animation=True)
         results = self.statuses(snapshot, asset_use="ANIMATED")
-        self.assertEqual(results["blockout"], "WARN")
-        self.assertEqual(results["export_review"], "WARN")
+        self.assertEqual(results["blockout"], "INFO")
+        self.assertEqual(results["export_review"], "INFO")
         self.assertEqual(validate_asset(snapshot), validate_asset(snapshot))
 
     def test_invalid_requests_fail_clearly(self):
@@ -47,3 +47,7 @@ class ValidationTests(unittest.TestCase):
             validate_asset(None)
         with self.assertRaises(ValueError):
             validate_asset(AssetSnapshot(), asset_use="UNKNOWN")
+
+    def test_missing_materials_require_preparation(self):
+        self.assertEqual(self.statuses(AssetSnapshot(mesh_count=1, missing_materials=('mesh',)),
+                                       asset_use='STATIC')['materials'], 'ERROR')

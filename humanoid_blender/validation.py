@@ -21,11 +21,16 @@ def _image_nodes(tree, seen=None):
 
 
 def inspect_character(root):
+    """Preserve the UI's direct-child inspection scope."""
+    return inspect_objects([root] + list(root.children) if root is not None else [])
+
+
+def inspect_objects(objects):
+    """Inspect an explicit scope without modifying scene data."""
     import bpy
-    if root is None:
-        return AssetSnapshot()
-    meshes = [obj for obj in root.children if obj.type == "MESH"]
-    rigs = [obj for obj in root.children if obj.type == "ARMATURE"]
+    objects = tuple(objects)
+    meshes = [obj for obj in objects if obj.type == "MESH"]
+    rigs = [obj for obj in objects if obj.type == "ARMATURE"]
     invalid, materials_missing, uv_missing = [], [], []
     missing_images, texture_warnings, transform_warnings, rig_errors = [], [], [], []
     images, materials = {}, {}
@@ -68,7 +73,7 @@ def inspect_character(root):
                 rig_errors.append(obj.name + ": vertices lack bone weights.")
     has_animation = False
     animation_errors = []
-    for obj in [root] + list(root.children):
+    for obj in objects:
         animation = obj.animation_data
         if animation:
             actions = ([animation.action] if animation.action else [])
@@ -116,5 +121,6 @@ def inspect_character(root):
         missing_images=tuple(sorted(set(missing_images))), texture_warnings=tuple(texture_warnings),
         texture_count=len(images), has_rig=bool(rigs), rig_errors=tuple(rig_errors),
         has_animation=has_animation, animation_errors=tuple(sorted(set(animation_errors))),
-        transform_warnings=tuple(transform_warnings), is_blockout=True,
+        transform_warnings=tuple(transform_warnings),
+        is_blockout=len(meshes) > 1 and any(obj.get("stage") == "blockout" for obj in objects),
     )

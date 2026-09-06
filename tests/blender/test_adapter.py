@@ -93,7 +93,7 @@ class BlenderAdapterTests(unittest.TestCase):
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Object Generator")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
             tabs = self.scene.humanoid_settings.bl_rna.properties["workflow_tab"].enum_items
-            self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION"])
+            self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION", "EXPORT"])
             self.scene.cursor.location = (2, 3, 4)
             for preset in BodyType:
                 self.scene.humanoid_settings.body_type = preset.value

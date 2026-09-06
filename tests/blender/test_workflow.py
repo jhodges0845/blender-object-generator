@@ -189,6 +189,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertGreater(max((a-b).length for a, b in zip(hand, points('hand.left'))) * scale, 0.02)
             self.assertLess(max((a-b).length for a, b in zip(foot, points('foot.left'))) * scale, 1e-5)
             settings.asset_use = 'ANIMATED'
+            bpy.ops.humanoid.prepare_materials()
             bpy.ops.humanoid.validate_character()
             self.assertFalse(any(row.status == 'ERROR' for row in settings.validation_results))
             rig.data.pose_position = 'REST'
@@ -213,6 +214,7 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(len(root.children), 1)
             self.assertEqual(settings.asset_use, 'STATIC')
             self.assertAlmostEqual(root.children[0].dimensions.x, 2)
+            bpy.ops.humanoid.prepare_materials()
             bpy.ops.humanoid.validate_character()
             self.assertFalse(any(row.status == 'ERROR' for row in settings.validation_results))
             with self.assertRaisesRegex(ValueError, 'static object'):

@@ -52,7 +52,9 @@ The ZIP is now named object_generator.zip. The internal Blender module ID remain
 humanoid_blender so saved settings still load. The core is now object_core.
 Existing models are preserved; older humanoid generator metadata is recognized.
 
-The panel contains Model, Rigging, Animation, and Validation tabs. Humanoid is
+The panel contains Model, Rigging, Animation, Validation, and Export tabs.
+See [file export instructions](targets.md) for Godot, Cura, Unity and Unreal.
+Export Asset opens a file browser once its target checklist is satisfied. Humanoid is
 joined by Box in Object Type. Box has dimension controls and uses static validation.
 The Animation tab can generate a looping idle
 on a fresh rig; see [animation instructions](animation.md). See

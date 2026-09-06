@@ -75,3 +75,40 @@ image nodes, modifiers, and actions lives in `humanoid_blender/validation.py`.
 The UI stores validation snapshots separately from generated mesh data.
 `workflow.py` operates on an existing chosen character; rigging rolls back its
 own partial resources on failure without deleting that character.
+
+
+## Target adapters
+
+`Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
+
+`object_core/targets.py` owns destination profiles and `validate_for_target()`.
+`humanoid_blender/targets.py` owns a shared `BlenderOutputAdapter` lifecycle,
+Godot, Unity, Unreal and Cura adapters, registry lookup, and immutable
+`ExportResult`. Unity and Unreal share FBX option construction while keeping
+separate axis configurations. Cura reads evaluated geometry and writes binary
+STL through `printing.py`, converting scene units to millimetres. `PRINT_3D`
+remains an alias for the Cura core profile so existing callers keep working.
+
+Game adapters snapshot the exact root hierarchy through `inspect_objects()`.
+Cura builds a geometry-only `AssetSnapshot` from the evaluated current pose;
+materials, rigs and clips are not requirements for its STL payload. It checks
+closed oriented geometry, volume, connected components and non-adjacent face
+intersections. It does not claim a complete printability proof. All adapters run
+core validation before host-specific checks, without importing Blender into core.
+
+`prepare()` remains read-only. The UI exposes a separate undoable material
+preparation operator, which fills missing assignments and copies shared mesh data
+when needed. It preserves existing materials. Export temporarily selects the
+hierarchy and restores selection, active object and frame in `finally`.
+
+The Export tab evaluates current readiness, and the operator checks again on
+execution after file selection. Stored Validation results do not authorize an
+export. ERROR and WARN block export; INFO contains design notes and destination
+review guidance, never false PASS claims. Missing game materials are now errors.
+Blockout metadata only produces an informational note for actual multipart
+blockouts; the Box is not flagged as a multipart character.
+
+The UI's Static/Rigged/Animated selection creates a local profile copy. Cura
+always uses static geometry validation. The bundled-core import bridge supports
+both checkout and ZIP installations. No core generator changes are needed to add
+another target adapter.
