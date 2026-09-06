@@ -107,8 +107,8 @@ Choose a destination in **Export**:
 | Unity | FBX with rig/animation and supported textures |
 | Unreal Engine | FBX with rig/animation and supported textures |
 
-Click **Add Missing Materials** for game assets, resolve the checklist, then
-**Export Asset** opens Blender's file browser. No console commands or custom
+In **Validation**, click **Add Missing Materials** for game assets and resolve the checklist, then
+open **Export**. **Export Asset** opens Blender's file browser. No console commands or custom
 engine import scripts are needed. The button remains disabled while requirements
 are unmet and export revalidates after the file browser closes. Blockout design
 notes and post-import reminders are informational; missing materials, geometry,
