@@ -49,6 +49,10 @@ with tempfile.TemporaryDirectory() as directory:
                    for obj in meshes for vertex in obj.data.vertices]
         assert abs(max(heights) - min(heights) - 1.8) < 1e-5
         assert all(not obj.data.validate() for obj in meshes)
+        scene.humanoid_settings.workflow_tab = "ANIMATION"
+        assert bpy.ops.humanoid.generate_idle() == {"FINISHED"}
+        assert rig.animation_data.action is not None
+        scene.humanoid_settings.asset_use = "ANIMATED"
         scene.humanoid_settings.workflow_tab = "VALIDATION"
         assert bpy.ops.humanoid.validate_character() == {"FINISHED"}
         assert not any(row.status == "ERROR" for row in scene.humanoid_settings.validation_results)

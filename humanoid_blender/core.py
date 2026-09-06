@@ -23,3 +23,4 @@ Skeleton = _core.Skeleton
 generate_skeleton = _core.generate_skeleton
 AssetSnapshot = import_module(_core_name + ".models.validation").AssetSnapshot
 validate_asset = import_module(_core_name + ".validation").validate_asset
+generate_idle = import_module(_core_name + ".animation.idle").generate_idle

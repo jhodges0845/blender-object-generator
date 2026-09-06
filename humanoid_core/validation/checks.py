@@ -29,7 +29,7 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
     else:
         add("rig", "PASS", "Rig and vertex weights found." if snapshot.has_rig else "Rig is not required for static use.")
     if asset_use == "ANIMATED" and not snapshot.has_animation:
-        add("animation", "ERROR", "No keyed animation clip found. Animation generation is not implemented yet.")
+        add("animation", "ERROR", "No keyed animation clip found. Generate an idle in Animation or add your own clip.")
     else:
         add("animation", "PASS", "Keyed clip found; review its motion." if snapshot.has_animation else "Animation is not required for this use.")
     if snapshot.missing_materials:

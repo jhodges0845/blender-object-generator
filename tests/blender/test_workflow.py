@@ -121,3 +121,41 @@ class WorkflowTests(unittest.TestCase):
             self.assertTrue(inspect_character(self.root).has_animation)
         finally:
             humanoid_blender.unregister()
+
+    def test_idle_moves_upper_body_loops_and_preserves_existing_action(self):
+        from humanoid_blender.animation import add_idle
+        rig = add_basic_rig(self.root, bpy.context)
+        self.scene.render.fps = 30
+        self.scene.render.fps_base = 1.001
+        action, end = add_idle(self.root, self.scene)
+        period = 4 * self.scene.render.fps / self.scene.render.fps_base
+        for curve in action.fcurves:
+            self.assertAlmostEqual(curve.keyframe_points[-1].co.x, 1 + period, places=4)
+            self.assertAlmostEqual(curve.evaluate(12), curve.evaluate(12 + period), places=5)
+        self.scene.frame_set(1)
+        first = rig.pose.bones['head'].matrix.copy()
+        foot = rig.pose.bones['foot.left'].matrix.copy()
+        self.scene.frame_set(60)
+        self.assertNotEqual(first, rig.pose.bones['head'].matrix)
+        self.assertEqual(foot, rig.pose.bones['foot.left'].matrix)
+        self.assertTrue(inspect_character(self.root).has_animation)
+        actions = set(bpy.data.actions)
+        with self.assertRaisesRegex(ValueError, 'Existing animation'):
+            add_idle(self.root, self.scene)
+        self.assertEqual(rig.animation_data.action, action)
+        self.assertEqual(actions, set(bpy.data.actions))
+
+    def test_idle_rejects_pose_and_rolls_back_creation_failure(self):
+        from humanoid_blender.animation import add_idle
+        rig = add_basic_rig(self.root, bpy.context)
+        bone = rig.pose.bones['head']
+        bone.rotation_quaternion = (0.99, 0.1, 0, 0)
+        with self.assertRaisesRegex(ValueError, 'rest pose'):
+            add_idle(self.root, self.scene)
+        bone.rotation_quaternion = (1, 0, 0, 0)
+        before = set(bpy.data.actions)
+        with patch('mathutils.Quaternion', side_effect=RuntimeError('injected failure')):
+            with self.assertRaisesRegex(RuntimeError, 'injected failure'):
+                add_idle(self.root, self.scene)
+        self.assertEqual(before, set(bpy.data.actions))
+        self.assertIsNone(rig.animation_data)

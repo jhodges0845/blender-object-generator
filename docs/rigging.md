@@ -4,7 +4,7 @@ A generated humanoid can now include a 16-bone skeleton: one root control and
 15 bones matching the separate mesh parts. Parent relationships let the hand
 follow the forearm and upper arm, and the foot follow the lower and upper leg.
 This is forward kinematics: rotate bones directly to pose the character.
-There are no IK controls, joint limits, automatic animation, or smooth joints yet.
+There are no IK controls, joint limits, or smooth joints yet. A basic [idle animation](animation.md) is available.
 
 ## Try it in Blender
 
@@ -46,7 +46,7 @@ skeleton = generate_skeleton(proportions)
 bound part name. `Skeleton` validates a single-root tree in parent-before-child
 order, unique names, nonzero bone lengths, finite coordinates, and unique part
 bindings. These immutable models contain no Blender data. Bone roll is currently
-chosen by Blender; portable animation orientation is not defined in this step.
+chosen by Blender; the animation adapter converts rest armature axes into each bone's local coordinates.
 
 `proportions/landmarks.py` is the shared source of joint positions for geometry
 and rigging. Mesh generation remains unchanged in appearance. The skeleton uses

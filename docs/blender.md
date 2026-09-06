@@ -52,8 +52,9 @@ The ZIP and internal module names stay the same so this is an update to the same
 add-on. The visible name and sidebar have changed. Existing models are preserved.
 
 The panel contains Model, Rigging, Animation, and Validation tabs. Humanoid is
-currently the only Object Type. Animation generation is clearly marked as not
-implemented. See [workflow and validation](workflow.md) for the current checks.
+currently the only Object Type. The Animation tab can generate a looping idle
+on a fresh rig; see [animation instructions](animation.md). See
+[workflow and validation](workflow.md) for the current checks.
 
 ## Build
 

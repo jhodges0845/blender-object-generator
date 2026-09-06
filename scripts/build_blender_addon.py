@@ -19,6 +19,7 @@ def build_addon():
         archive.write(root / "docs" / "blender.md", "humanoid_blender/README.md")
         archive.write(root / "docs" / "rigging.md", "humanoid_blender/rigging.md")
         archive.write(root / "docs" / "workflow.md", "humanoid_blender/workflow.md")
+        archive.write(root / "docs" / "animation.md", "humanoid_blender/animation.md")
         archive.write(root / "LICENSE", "humanoid_blender/LICENSE")
         archive.write(root / "NOTICE", "humanoid_blender/NOTICE")
     return output

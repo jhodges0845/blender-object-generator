@@ -15,10 +15,10 @@ The Generator panel has four tabs:
 
 | Model | Rigging | Animation | Validation |
 | --- | --- | --- | --- |
-| Generate a humanoid blockout | Rig that existing model and enter Pose Mode | Not implemented yet; idle clip is next | Inspect geometry, weights, clips, materials, UVs, and texture references |
+| Generate a humanoid blockout | Rig that existing model and enter Pose Mode | Generate and preview a looping idle | Inspect geometry, weights, clips, materials, UVs, and texture references |
 
 The current model has 15 separate parts and an optional 16-bone rigid rig.
-Smooth joints, automatic animation, materials, UV generation, and textures are
+See [idle animation instructions](docs/animation.md). Smooth joints, materials, UV generation, and textures are
 future work. [Workflow and validation scope](docs/workflow.md) explains what a
 static, rigged, or animated game asset needs and what is actually checked today.
 
@@ -74,7 +74,7 @@ humanoid_core/
     proportions/     Dimensions and shared joint locations
     geometry/        Mesh generation
     rigging/         Skeleton generation
-    animation/       Reserved for animation generation
+    animation/       Portable idle rotation tracks and generation
     validation/      Host-independent readiness rules
 humanoid_blender/    Blender objects, four-tab UI, rigging, and scene inspection
 tests/              Core and Blender tests

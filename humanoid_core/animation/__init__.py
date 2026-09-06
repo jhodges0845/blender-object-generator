@@ -1,2 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Future software-independent animation generation."""
+"""Software-independent animation generation."""
+
+from .idle import IdleClip, RotationTrack, generate_idle

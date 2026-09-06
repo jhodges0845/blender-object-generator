@@ -10,6 +10,7 @@ from .core import (BodyType, HumanoidSpec, generate_mesh, generate_proportions, 
                    MIN_HEIGHT_CM, MAX_HEIGHT_CM, MIN_WEIGHT_KG, MAX_WEIGHT_KG)
 from .workflow import add_basic_rig, find_character
 from .validation import inspect_character
+from .animation import add_idle
 
 
 def _clear_report(settings, context):
@@ -62,6 +63,9 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
     require_textures: BoolProperty(name="Image Textures Expected", default=False, update=_clear_report,
                                    description="Require image textures and UV maps; leave off for material-only assets")
     validation_results: CollectionProperty(type=HUMANOID_PG_result)
+    idle_duration: FloatProperty(name="Cycle (seconds)", default=4, min=1, max=20)
+    idle_strength: FloatProperty(name="Motion Strength", default=1, min=0.1, max=2)
+    idle_set_range: BoolProperty(name="Set Playback Range", default=True)
 
 
 class HUMANOID_OT_generate(bpy.types.Operator):
@@ -133,6 +137,30 @@ class HUMANOID_OT_pose(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class HUMANOID_OT_idle(bpy.types.Operator):
+    bl_idname = "humanoid.generate_idle"
+    bl_label = "Generate Idle"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and context.mode == "OBJECT" and _character(context) is not None
+
+    def execute(self, context):
+        settings = context.scene.humanoid_settings
+        try:
+            action, end = add_idle(_character(context), context.scene, settings.idle_duration, settings.idle_strength)
+        except (ValueError, TypeError, RuntimeError) as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        if settings.idle_set_range:
+            context.scene.frame_end = end
+        context.scene.frame_set(context.scene.frame_start)
+        settings.validation_results.clear()
+        self.report({"INFO"}, "Idle created. Press Play to preview.")
+        return {"FINISHED"}
+
+
 class HUMANOID_OT_validate(bpy.types.Operator):
     bl_idname = "humanoid.validate_character"
     bl_label = "Run Validation"
@@ -193,13 +221,16 @@ class HUMANOID_PT_panel(bpy.types.Panel):
                 layout.label(text="Uses saved generation dimensions.")
             layout.label(text="Rigid parts; no smooth joints yet.")
         elif stage == "ANIMATION":
-            layout.label(text="Animation generation: not built yet.")
-            layout.label(text="Next feature: a looping idle clip.")
             if not has_rig:
                 layout.label(text="Add a rig before animating.")
             else:
-                layout.operator("humanoid.enter_pose_mode")
-            layout.label(text="Manual clips can be validated.")
+                layout.prop(settings, "idle_duration")
+                layout.prop(settings, "idle_strength")
+                layout.prop(settings, "idle_set_range")
+                layout.operator("humanoid.generate_idle")
+                layout.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
+                layout.label(text="Requires a fresh rig in rest pose.")
+                layout.label(text="Existing animation is preserved.")
         else:
             layout.prop(settings, "asset_use")
             layout.prop(settings, "require_textures")
@@ -220,7 +251,7 @@ class HUMANOID_PT_panel(bpy.types.Panel):
 
 
 _CLASSES = (HUMANOID_PG_result, HUMANOID_PG_settings, HUMANOID_OT_generate,
-            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_validate, HUMANOID_PT_panel)
+            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_validate, HUMANOID_PT_panel)
 
 
 def register():

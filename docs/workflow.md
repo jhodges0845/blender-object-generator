@@ -1,14 +1,13 @@
 # Four-stage workflow and asset readiness
 
-Version 0.5 adds four tabs within the Generator sidebar panel. Generation,
-rigging, and validation are separate actions on one chosen character. Animation
-generation is not implemented; its tab states this explicitly.
+Version 0.6 provides four tabs within the Generator sidebar panel. Generation,
+rigging, animation, and validation are separate actions on one chosen character.
 
 | Tab | Current behavior |
 | --- | --- |
 | Model | Choose Humanoid, enter measurements and body type, and generate 15 editable mesh parts. |
 | Rigging | Add the 16-bone rigid rig to that character, then use Enter Pose Mode. Existing rigs are preserved. |
-| Animation | Explains the upcoming idle animation feature. Manual Blender animation is still possible. |
+| Animation | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
 | Validation | Run read-only checks for the selected intended use and texture requirements. |
 
 The Character field identifies which generated character Rigging and Validation
@@ -79,10 +78,9 @@ does not silently repair files or label the current blockout production-ready.
 
 ## Remaining roadmap
 
-1. A looping idle animation with independent animation data and Blender keyframes.
-2. A basic material and UV workflow, followed by optional image textures/baking.
-3. Mesh topology and blended weights for smoother joints where needed.
-4. A selected engine/export format, with round-trip tests and art-budget checks.
+1. A basic material and UV workflow, followed by optional image textures/baking.
+2. Mesh topology and blended weights for smoother joints where needed.
+3. A selected engine/export format, with round-trip tests and art-budget checks.
 
 Polygon budgets, texture resolution/color space, bone conventions, and clip
 requirements must be decided for the target project rather than guessed globally.
