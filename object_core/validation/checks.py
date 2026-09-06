@@ -28,10 +28,12 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
         add("rig", "ERROR", "Add a rig in the Rigging tab.")
     else:
         add("rig", "PASS", "Rig and vertex weights found." if snapshot.has_rig else "Rig is not required for static use.")
-    if asset_use == "ANIMATED" and not snapshot.has_animation:
-        add("animation", "ERROR", "No keyed animation clip found. Generate an idle in Animation or add your own clip.")
+    if snapshot.animation_errors:
+        add('animation', 'ERROR', '; '.join(snapshot.animation_errors))
+    elif asset_use == "ANIMATED" and not snapshot.has_animation:
+        add("animation", "ERROR", "No changing, unmuted animation curves found. Generate an idle or add a moving clip.")
     else:
-        add("animation", "PASS", "Keyed clip found; review its motion." if snapshot.has_animation else "Animation is not required for this use.")
+        add("animation", "PASS", "Changing animation curves found; review playback and deformation." if snapshot.has_animation else "Animation is not required for this use.")
     if snapshot.missing_materials:
         add("materials", "WARN", "Assign materials here or in the game engine: " + ", ".join(snapshot.missing_materials))
     else:

@@ -2,15 +2,27 @@
 
 ## Core
 
-`humanoid_core` owns character generation and has no host application dependency.
+`object_core` owns object generation and has no host application dependency.
 Its `models` package defines shared data contracts. Proportions, geometry,
 rigging, and animation packages will implement their respective generation
 steps using those contracts. Shared models must not import generation code or
 adapters. No core module may import `humanoid_blender` or `bpy`.
 
-Keep the public entry points in `humanoid_core/__init__.py` small. They currently
+`objects.py` registers providers with parameter definitions, mesh generation,
+and explicit rig/idle capabilities. Humanoid wraps the existing proportion,
+geometry, skeleton and idle generators; Box supplies a static mesh. Blender
+constructs input controls from provider fields and dispatches using saved
+object_type metadata. Unsupported types fail explicitly. Add a provider and
+register it to add a type; no Blender body-generation rules are needed.
+
+The shared mesh contract is ObjectMesh. Python imports now use object_core;
+the former humanoid_core package was renamed. Blender's internal module ID and
+operator names remain stable for saved-file compatibility. New roots use
+object_generator metadata; legacy humanoid_blockout roots remain recognized.
+
+Keep the public entry points in `object_core/__init__.py` small. They currently
 export `BodyType`, `HumanoidSpec`, `HumanoidProportions`, `MeshPart`,
-`HumanoidMesh`, `generate_proportions`, and `generate_mesh`, so callers do not need to know where their
+`ObjectMesh`, `generate_proportions`, and `generate_mesh`, so callers do not need to know where their
 implementation lives. The specification now lives in `models/spec.py`.
 
 ## Adapters
@@ -57,7 +69,7 @@ The mesh and skeleton share joint coordinates from `proportions/landmarks.py`.
 The Blender rig adapter turns core bone data into an armature and full weights;
 it does not calculate body dimensions or joint placement.
 
-Readiness policy lives in `humanoid_core/validation`, operating on an
+Readiness policy lives in `object_core/validation`, operating on an
 `AssetSnapshot` data contract. Blender-specific inspection of material slots,
 image nodes, modifiers, and actions lives in `humanoid_blender/validation.py`.
 The UI stores validation snapshots separately from generated mesh data.

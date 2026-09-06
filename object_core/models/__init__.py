@@ -3,7 +3,7 @@
 
 from .spec import BodyType, HumanoidSpec
 from .proportions import HumanoidProportions
-from .mesh import HumanoidMesh, MeshPart
+from .mesh import ObjectMesh, MeshPart
 from .skeleton import Bone, Skeleton
 
-__all__ = ["BodyType", "HumanoidSpec", "HumanoidProportions", "HumanoidMesh", "MeshPart", "Bone", "Skeleton"]
+__all__ = ["BodyType", "HumanoidSpec", "HumanoidProportions", "ObjectMesh", "MeshPart", "Bone", "Skeleton"]

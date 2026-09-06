@@ -18,11 +18,11 @@ class RejectBlender:
         if fullname in ('bpy', 'mathutils', 'bmesh'):
             raise AssertionError('Unexpected host dependency: ' + fullname)
 sys.meta_path.insert(0, RejectBlender())
-import humanoid_core
+import object_core
 import humanoid_blender
 import humanoid_blender.adapter
-mesh = humanoid_core.generate_mesh(humanoid_core.generate_proportions(
-    humanoid_core.HumanoidSpec(180, 95, humanoid_core.BodyType.AVERAGE)))
+mesh = object_core.generate_mesh(object_core.generate_proportions(
+    object_core.HumanoidSpec(180, 95, object_core.BodyType.AVERAGE)))
 assert len(mesh.parts) == 15
 """
         result = subprocess.run([sys.executable, "-c", code],

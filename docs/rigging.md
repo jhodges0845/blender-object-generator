@@ -34,8 +34,8 @@ The stored measurements describe generation inputs, not live controls.
 ## Core contracts and generation
 
 ```python
-from humanoid_core import BodyType, HumanoidSpec
-from humanoid_core import generate_proportions, generate_mesh, generate_skeleton
+from object_core import BodyType, HumanoidSpec
+from object_core import generate_proportions, generate_mesh, generate_skeleton
 
 proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
 mesh = generate_mesh(proportions)

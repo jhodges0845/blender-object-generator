@@ -1,16 +1,16 @@
 # Four-stage workflow and asset readiness
 
-Version 0.6 provides four tabs within the Generator sidebar panel. Generation,
+Version 0.7 provides four tabs within the Generator sidebar panel. Generation,
 rigging, animation, and validation are separate actions on one chosen character.
 
 | Tab | Current behavior |
 | --- | --- |
-| Model | Choose Humanoid, enter measurements and body type, and generate 15 editable mesh parts. |
+| Model | Choose Humanoid for a character or Box for a static prop; each has its own inputs. |
 | Rigging | Add the 16-bone rigid rig to that character, then use Enter Pose Mode. Existing rigs are preserved. |
 | Animation | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
 | Validation | Run read-only checks for the selected intended use and texture requirements. |
 
-The Character field identifies which generated character Rigging and Validation
+The Object field identifies which generated object Rigging, Animation and Validation
 will operate on. It is set automatically after generation. Choose another root
 in that field to work on an older character. When the field is empty, a selected
 part or rig can identify its generated parent. New measurements affect only the
@@ -53,8 +53,10 @@ Expected only when your intended appearance requires image maps.
 - Rigging: checks armature/bone presence, enabled armature modifiers, and
   vertices with positive weights in deform-bone groups. It does not certify
   weight normalization, joint anatomy, or deformation quality.
-- Animation: checks for keyframes in object/rig actions or unmuted NLA strips.
-  It does not certify clip targets, playback behavior, loop quality, or export.
+- Animation: checks changing unmuted curves in actions or unmuted NLA strips,
+  missing targets, non-finite values, Rest Position and zero action influence.
+  It does not certify evaluated motion under arbitrary constraints, NLA blending,
+  loop quality, or export. Static props do not require animation or a rig.
 - Materials: reports missing assignments as warnings; materials may instead
   be assigned in the target engine.
 - Textures: checks connected image nodes in assigned materials and linked node

@@ -2,7 +2,7 @@
 from dataclasses import FrozenInstanceError, replace
 import unittest
 
-from humanoid_core import HumanoidMesh, MeshPart
+from object_core import ObjectMesh, MeshPart
 
 
 class MeshContractTests(unittest.TestCase):
@@ -32,18 +32,18 @@ class MeshContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 replace(self.part, **change)
         with self.assertRaises(ValueError):
-            HumanoidMesh(())
+            ObjectMesh(())
         with self.assertRaisesRegex(ValueError, "unique"):
-            HumanoidMesh((self.part, self.part))
+            ObjectMesh((self.part, self.part))
         with self.assertRaises(TypeError):
-            HumanoidMesh((None,))
+            ObjectMesh((None,))
 
     def test_copies_mutable_input_and_is_immutable(self):
         vertices = [[0, 0, 0], [1, 0, 0], [0, 1, 0]]
         faces = [[0, 1, 2]]
         part = MeshPart("triangle", vertices, faces)
         parts = [part]
-        mesh = HumanoidMesh(parts)
+        mesh = ObjectMesh(parts)
         vertices[0][0] = 99
         faces[0][0] = 99
         parts.clear()
@@ -52,7 +52,7 @@ class MeshContractTests(unittest.TestCase):
             part.name = "changed"
 
     def test_counts_and_bounds(self):
-        mesh = HumanoidMesh((self.part,))
+        mesh = ObjectMesh((self.part,))
         self.assertEqual(mesh.vertex_count, 3)
         self.assertEqual(mesh.face_count, 1)
         self.assertEqual(mesh.bounds_cm, ((0, 0, 0), (1, 1, 0)))

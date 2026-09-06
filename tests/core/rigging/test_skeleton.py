@@ -2,8 +2,8 @@
 from dataclasses import FrozenInstanceError, replace
 import unittest
 
-from humanoid_core import Bone, Skeleton, BodyType, HumanoidSpec
-from humanoid_core import generate_mesh, generate_proportions, generate_skeleton
+from object_core import Bone, Skeleton, BodyType, HumanoidSpec
+from object_core import generate_mesh, generate_proportions, generate_skeleton
 
 
 class SkeletonTests(unittest.TestCase):

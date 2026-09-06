@@ -1,7 +1,7 @@
 # Piece 3: humanoid blockout mesh
 
 ```python
-from humanoid_core import BodyType, HumanoidSpec, generate_proportions, generate_mesh
+from object_core import BodyType, HumanoidSpec, generate_proportions, generate_mesh
 
 spec = HumanoidSpec(180, 95, BodyType.OVERWEIGHT)
 mesh = generate_mesh(generate_proportions(spec))
@@ -11,7 +11,7 @@ for part in mesh.parts:
 
 ## Data and coordinates
 
-`HumanoidMesh` contains an immutable tuple of `MeshPart` objects. Each part has
+`ObjectMesh` contains an immutable tuple of `MeshPart` objects. Each part has
 a unique name, a tuple of XYZ vertices, and polygon faces containing zero-based
 indices into that part's vertices. Coordinates are centimeters in a right-handed
 system: Z is up, positive Y is forward, and positive X is the character's left.

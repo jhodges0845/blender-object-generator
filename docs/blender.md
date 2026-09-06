@@ -7,7 +7,7 @@ Blender versions have not yet been tested. The standalone core also runs with
 Python 3.9; no separate Python installation is needed to use the add-on.
 
 1. In Blender 2.92, open Edit > Preferences > Add-ons > Install.
-2. Select `dist/humanoid_blockout.zip` from the project folder; do not unzip it.
+2. Select `dist/object_generator.zip` from the project folder; do not unzip it.
 3. Enable **Add Mesh: Object Generator**.
 4. In the 3D Viewport, switch to Object Mode, press N, and open **Generator**.
 5. Open **Model**, choose **Object Type: Humanoid**, set Height (cm), Weight (kg),
@@ -47,12 +47,14 @@ packages were installed by the ZIP.
 ## Update from an earlier version
 
 Save your scene, remove the old add-on using the steps above, and restart Blender.
-Install the rebuilt `dist/humanoid_blockout.zip`, then enable **Object Generator**.
-The ZIP and internal module names stay the same so this is an update to the same
-add-on. The visible name and sidebar have changed. Existing models are preserved.
+Install the rebuilt `dist/object_generator.zip`, then enable **Object Generator**.
+The ZIP is now named object_generator.zip. The internal Blender module ID remains
+humanoid_blender so saved settings still load. The core is now object_core.
+Existing models are preserved; older humanoid generator metadata is recognized.
 
 The panel contains Model, Rigging, Animation, and Validation tabs. Humanoid is
-currently the only Object Type. The Animation tab can generate a looping idle
+joined by Box in Object Type. Box has dimension controls and uses static validation.
+The Animation tab can generate a looping idle
 on a fresh rig; see [animation instructions](animation.md). See
 [workflow and validation](workflow.md) for the current checks.
 
@@ -91,7 +93,7 @@ unit conversion, repeated generation, and cleanup after a simulated failure.
 
 ## Boundaries
 
-`humanoid_core` creates proportions and mesh data. `humanoid_blender/adapter.py`
+`object_core` creates proportions and mesh data. `humanoid_blender/adapter.py`
 only creates Blender data blocks from that mesh. `ui.py` handles the sidebar,
 artist inputs, cursor placement, and selection. Neither adapter module changes
 body-generation rules. Core imports are relative so the core can also live under

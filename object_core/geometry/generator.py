@@ -2,12 +2,12 @@
 """Generate a symmetric low-poly A-pose blockout from proportions."""
 
 from ..models import HumanoidProportions
-from ..models.mesh import HumanoidMesh
+from ..models.mesh import ObjectMesh
 from .primitives import limb, vertical_loft
 from ..proportions.landmarks import generate_landmarks
 
 
-def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
+def generate_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     """Return separate capped body parts in centimeters, with feet on Z=0.
 
     This blockout is deliberately not welded, UV-mapped, rigged, or skinned.
@@ -71,4 +71,4 @@ def generate_mesh(proportions: HumanoidProportions) -> HumanoidMesh:
                  p.forearm_thickness_cm * 0.8, p.forearm_thickness_cm * 0.65,
                  depth_ratio=0.5),
         ))
-    return HumanoidMesh(tuple(parts))
+    return ObjectMesh(tuple(parts))

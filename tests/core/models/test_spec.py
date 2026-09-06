@@ -2,7 +2,7 @@
 import unittest
 from dataclasses import FrozenInstanceError
 
-from humanoid_core import BodyType, HumanoidSpec
+from object_core import BodyType, HumanoidSpec
 
 
 class HumanoidSpecTests(unittest.TestCase):

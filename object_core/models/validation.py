@@ -17,6 +17,7 @@ class AssetSnapshot:
     has_rig: bool = False
     rig_errors: Tuple[str, ...] = ()
     has_animation: bool = False
+    animation_errors: Tuple[str, ...] = ()
     transform_warnings: Tuple[str, ...] = ()
     is_blockout: bool = True
 

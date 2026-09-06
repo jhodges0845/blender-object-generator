@@ -63,7 +63,7 @@ class MeshPart:
 
 
 @dataclass(frozen=True)
-class HumanoidMesh:
+class ObjectMesh:
     """Separate blockout parts; not a welded or deformation-ready surface."""
 
     parts: Tuple[MeshPart, ...]

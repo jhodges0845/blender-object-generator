@@ -2,8 +2,8 @@
 from dataclasses import replace
 import unittest
 
-from humanoid_core.models.validation import AssetSnapshot
-from humanoid_core.validation import validate_asset
+from object_core.models.validation import AssetSnapshot
+from object_core.validation import validate_asset
 
 
 class ValidationTests(unittest.TestCase):

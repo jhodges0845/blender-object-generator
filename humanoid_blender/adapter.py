@@ -3,7 +3,7 @@
 
 from math import isfinite
 
-from .core import HumanoidMesh, Skeleton
+from .core import ObjectMesh, Skeleton
 
 
 def _populate_mesh(data, part, coordinate_scale):
@@ -13,7 +13,7 @@ def _populate_mesh(data, part, coordinate_scale):
     data.update()
 
 
-def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleton=None):
+def create_character(mesh: ObjectMesh, *, name="Humanoid", scene=None, skeleton=None):
     """Create a collection, Empty root, editable parts, and an optional rigid rig.
 
     Returns the root object. Source coordinates are converted from centimeters
@@ -22,8 +22,8 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleto
     this call are removed. A skeleton requires the active scene in Object Mode.
     Requires execution inside Blender.
     """
-    if not isinstance(mesh, HumanoidMesh):
-        raise TypeError("mesh must be HumanoidMesh")
+    if not isinstance(mesh, ObjectMesh):
+        raise TypeError("mesh must be ObjectMesh")
     if not isinstance(name, str) or not name.strip():
         raise ValueError("name must be a nonempty string")
     import bpy
@@ -50,7 +50,7 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleto
         collection.objects.link(root)
         root.empty_display_type = "PLAIN_AXES"
         root.empty_display_size = 10 * coordinate_scale
-        root["generator"] = "humanoid_blockout"
+        root["generator"] = "object_generator"
         root["stage"] = "blockout"
         root["coordinate_scale"] = coordinate_scale
         for part in mesh.parts:
@@ -61,6 +61,7 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleto
             created_objects.append(obj)
             obj.parent = root
             obj["body_part"] = part.name
+            obj["part_name"] = part.name
             collection.objects.link(obj)
         scene.collection.children.link(collection)
         if skeleton is not None:

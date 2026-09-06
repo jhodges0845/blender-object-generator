@@ -6,7 +6,7 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from humanoid_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
+from object_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
 
 
 def main() -> None:

@@ -9,7 +9,7 @@ try:
 except ModuleNotFoundError:
     bpy = None
 
-from humanoid_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions, generate_skeleton
+from object_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions, generate_skeleton
 from humanoid_blender.adapter import create_character
 
 
@@ -89,7 +89,7 @@ class BlenderAdapterTests(unittest.TestCase):
         try:
             self.assertEqual(self.scene.humanoid_settings.object_type, "humanoid")
             options = self.scene.humanoid_settings.bl_rna.properties["object_type"].enum_items
-            self.assertEqual([(item.identifier, item.name) for item in options], [("humanoid", "Humanoid")])
+            self.assertEqual([(item.identifier, item.name) for item in options], [("humanoid", "Humanoid"), ("box", "Box")])
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Object Generator")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
             tabs = self.scene.humanoid_settings.bl_rna.properties["workflow_tab"].enum_items

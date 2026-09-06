@@ -28,8 +28,8 @@ def generate_idle(duration=4.0, strength=1.0):
         if not isfinite(value) or not lower <= value <= upper:
             raise ValueError(name + " must be between " + str(lower) + " and " + str(upper))
     tracks = []
-    for bone, degrees in (("torso", 1.5), ("head", -1.0),
-                          ("upper_arm.left", -2.0), ("upper_arm.right", -2.0)):
+    for bone, degrees in (("torso", 5.0), ("head", -3.0),
+                          ("upper_arm.left", -10.0), ("upper_arm.right", -10.0)):
         keys = tuple((duration * i / 32, 0.0 if i in (0, 32) else
                       radians(degrees) * strength * (1 - cos(2 * pi * i / 32)) / 2)
                      for i in range(33))
