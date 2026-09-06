@@ -12,9 +12,9 @@ to use the GPL merely because they were created with this program.
 ## Blender workflow
 
 Tested with Blender 2.92. Newer Blender versions have not yet been verified.
-The Generator panel has five tabs:
+The 3D Viewport sidebar (N) has five vertical tabs:
 
-| Model | Rigging | Animation | Validation | Export |
+| Generator | Rigging | Animations | Validation | Export |
 | --- | --- | --- | --- | --- |
 | Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose Godot, Cura, Unity or Unreal; prepare materials and export when ready |
 
@@ -33,7 +33,7 @@ python -m scripts.build_blender_addon
 
 In Blender, open Edit > Preferences > Add-ons > Install and select the generated
 `dist/object_generator.zip`. Enable **Add Mesh: Object Generator**. In Object
-Mode, press N in the 3D Viewport, then open **Generator > Model**.
+Mode, press N in the 3D Viewport, then open **Generator**.
 
 Generate your character, switch to **Rigging**, and click **Add Basic Rig**.
 Click **Enter Pose Mode** to try the bones. Validation checks the Object
@@ -98,7 +98,7 @@ The repository uses `main` and tracks
 
 `Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
 
-Choose a destination in **Generator > Export**:
+Choose a destination in **Export**:
 
 | Destination | File |
 | --- | --- |

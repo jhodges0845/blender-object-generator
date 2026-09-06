@@ -1,6 +1,6 @@
 # Export files from Blender
 
-No console commands are needed. In **Generator > Export**, choose the model and
+No console commands are needed. In **Export** in the 3D Viewport sidebar (N), choose the model and
 its destination. Export Asset opens Blender's standard file browser when the
 live checklist has no unresolved errors or warnings.
 
@@ -13,7 +13,7 @@ live checklist has no unresolved errors or warnings.
 
 ## Blender steps
 
-1. Install the rebuilt `dist/object_generator.zip` (version 0.8.0) and restart
+1. Install the rebuilt `dist/object_generator.zip` (version 0.8.1) and restart
    Blender if an older version was loaded.
 2. Generate or choose the model. For game assets, choose Static Asset, Rigged
    Asset or Animated Asset. Add a rig/idle from the corresponding stages when
