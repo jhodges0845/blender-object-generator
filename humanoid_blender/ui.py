@@ -292,11 +292,25 @@ class HUMANOID_OT_export(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
+def _needs_attention(context, stage):
+    codes = {
+        'MODEL': {'geometry', 'target_geometry', 'cura_solid', 'export_transform', 'export_units', 'export_modifier'},
+        'RIGGING': {'rig', 'target_rig'},
+        'ANIMATION': {'animation', 'target_animation', 'export_nla', 'fbx_animation_range', 'export_constraints'},
+    }.get(stage)
+    return any(issue.status in ('ERROR', 'WARN') and (codes is None or issue.code in codes)
+               for issue in _export_issues(context))
+
+
 class _WorkflowPanel:
     """Shared stage layout; each registered panel owns a fixed sidebar category."""
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     stage = "MODEL"
+
+    def draw_header(self, context):
+        attention = _needs_attention(context, self.stage)
+        self.layout.label(text='', icon='ERROR' if attention else 'CHECKMARK')
 
     def draw(self, context):
         layout = self.layout
@@ -356,17 +370,21 @@ class _WorkflowPanel:
             else:
                 layout.prop(settings, "asset_use")
                 layout.prop(settings, "require_textures")
-                layout.operator("humanoid.prepare_materials", icon="MATERIAL")
-            layout.operator("humanoid.validate_character", icon="CHECKMARK")
+                if stage == 'VALIDATION':
+                    layout.operator("humanoid.prepare_materials", icon="MATERIAL")
+            if stage == 'VALIDATION':
+                layout.operator("humanoid.validate_character", icon="CHECKMARK")
             rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
             if stage == 'EXPORT':
                 ready = is_ready(rows)
-                layout.label(text='Ready to export.' if ready else 'Resolve the checklist below to enable Export.')
+                layout.label(text='Ready to export.' if ready else 'Needs attention: see Validation.',
+                             icon='CHECKMARK' if ready else 'ERROR')
                 row = layout.row()
                 row.enabled = ready
                 row.operator('humanoid.export_asset', icon='EXPORT')
                 if settings.last_export:
                     layout.label(text='Saved: ' + settings.last_export)
+                return
 
             if rows:
                 errors = sum(row.status == "ERROR" for row in rows)
