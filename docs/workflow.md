@@ -1,6 +1,6 @@
-# Four-stage workflow and asset readiness
+# Workflow and asset readiness
 
-Version 0.7 provides four tabs within the Generator sidebar panel. Generation,
+Version 0.8 provides five tabs within the Generator sidebar panel. Generation,
 rigging, animation, and validation are separate actions on one chosen character.
 
 | Tab | Current behavior |
@@ -8,7 +8,8 @@ rigging, animation, and validation are separate actions on one chosen character.
 | Model | Choose Humanoid for a character or Box for a static prop; each has its own inputs. |
 | Rigging | Add the 16-bone rigid rig to that character, then use Enter Pose Mode. Existing rigs are preserved. |
 | Animation | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
-| Validation | Run read-only checks for the selected intended use and texture requirements. |
+| Validation | Run target-specific checks for the selected intended use and texture requirements. |
+| Export | Choose the destination, prepare missing materials, resolve the live checklist and export through the file browser. |
 
 The Object field identifies which generated object Rigging, Animation and Validation
 will operate on. It is set automatically after generation. Choose another root
@@ -39,8 +40,9 @@ packing/copying the images for delivery. Normal, roughness, metallic, and other
 maps are used as the art style and engine require; every model does not need
 every type of map. Blender procedural materials may need baking for export.
 
-This generator currently creates neither materials nor UV maps or textures.
-The validation tab reports that state; it does not create or repair those assets.
+Add Missing Materials creates neutral Principled materials for faces without assignments.
+Existing materials are preserved. UV maps and image texture authoring/baking are
+still manual. Cura STL does not require materials, UVs, rigs or animation.
 
 ## Validation options and scope
 
@@ -57,8 +59,8 @@ Expected only when your intended appearance requires image maps.
   missing targets, non-finite values, Rest Position and zero action influence.
   It does not certify evaluated motion under arbitrary constraints, NLA blending,
   loop quality, or export. Static props do not require animation or a rig.
-- Materials: reports missing assignments as warnings; materials may instead
-  be assigned in the target engine.
+- Materials: missing game-material assignments are errors. Use Add Missing Materials
+  or author suitable materials before export. Procedural shaders require baking.
 - Textures: checks connected image nodes in assigned materials and linked node
   groups. Missing image assignments or external files are errors. Packed images
   are accepted. Generated, unpacked images and movie/sequence images need review.
@@ -70,19 +72,22 @@ Expected only when your intended appearance requires image maps.
 
 Connected image-node detection is conservative: it is not a full shader graph
 evaluation, and connected nodes on unused shader branches may also be reported.
-The report always includes manual review for the blockout joints and the target
-engine. Separate closed parts are expected in this prototype; they do not mean
+Actual multipart blockouts and target import review have informational notes.
+These notes are separate from actionable warnings and do not claim verification. Separate closed parts are expected in this prototype; they do not mean
 the character is a single welded surface suitable for smooth skinning.
 
-Results are snapshots. Changing the target or requirements clears them; rerun
+Validation-tab results are snapshots. The Export tab evaluates current readiness
+and blocks export on unresolved errors or warnings; the operator rechecks at execution.
+[Export workflow](targets.md) explains formats and preparation. Validation snapshots
+are not permission to export after later edits. Changing the target or requirements clears them; rerun
 validation after geometry, rig, material, image, or animation edits. The validator
 does not silently repair files or label the current blockout production-ready.
 
 ## Remaining roadmap
 
-1. A basic material and UV workflow, followed by optional image textures/baking.
+1. UV authoring and optional image textures/baking beyond neutral materials.
 2. Mesh topology and blended weights for smoother joints where needed.
-3. A selected engine/export format, with round-trip tests and art-budget checks.
+3. Destination-application import testing and project-specific art-budget checks.
 
 Polygon budgets, texture resolution/color space, bone conventions, and clip
 requirements must be decided for the target project rather than guessed globally.

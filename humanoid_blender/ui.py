@@ -1,19 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Four-stage Blender workflow; generation and readiness rules live in the core."""
+"""Blender generation, preparation, validation and file export workflow."""
 
 import textwrap
 import bpy
+from bpy_extras.io_utils import ExportHelper
 from bpy.props import BoolProperty, CollectionProperty, EnumProperty, FloatProperty, PointerProperty, StringProperty
 
 from .adapter import create_character
-from .core import OBJECT_TYPES, get_provider, validate_asset
+from .core import OBJECT_TYPES, get_provider, ValidationIssue
 from .workflow import add_basic_rig, find_character, is_generated, provider_for
-from .validation import inspect_character
 from .animation import add_idle
+from .targets import get_adapter, is_ready
+from .materials import prepare_materials
 
 
 def _clear_report(settings, context):
     settings.validation_results.clear()
+    settings.last_export = ""
 
 
 def _character_poll(settings, obj):
@@ -44,7 +47,15 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
         ("RIGGING", "Rigging", "Rig an existing character"),
         ("ANIMATION", "Animation", "Animation workflow status"),
         ("VALIDATION", "Validation", "Check the selected character"),
+        ("EXPORT", "Export", "Prepare and export a file for the selected application"),
     ])
+    output_target: EnumProperty(name="Export To", default="GODOT", update=_clear_report, items=[
+        ("GODOT", "Godot (.glb)", "Meshes, materials, rig and animation in GLB"),
+        ("UNITY", "Unity (.fbx)", "Meshes, materials, rig and animation in FBX"),
+        ("UNREAL", "Unreal Engine (.fbx)", "Meshes, materials, rig and animation in FBX"),
+        ("CURA", "Cura (.stl)", "Current pose as a closed solid in millimetres"),
+    ])
+    last_export: StringProperty()
     target: PointerProperty(name="Object", type=bpy.types.Object, poll=_character_poll, update=_clear_report)
     object_type: EnumProperty(name="Object Type", default="humanoid", items=[
         (p.key, p.label, "Generate " + p.label) for p in OBJECT_TYPES.values()
@@ -204,13 +215,80 @@ class HUMANOID_OT_validate(bpy.types.Operator):
     def execute(self, context):
         settings = context.scene.humanoid_settings
         settings.validation_results.clear()
-        results = validate_asset(inspect_character(_character(context)), asset_use=settings.asset_use,
-                                 require_textures=settings.require_textures)
+        results = _export_issues(context)
         for issue in results:
             row = settings.validation_results.add()
             row.code, row.status, row.message = issue.code, issue.status, issue.message
         self.report({"INFO"}, "Validation snapshot updated; review the results below.")
         return {"FINISHED"}
+
+
+def _output_adapter(context):
+    settings = context.scene.humanoid_settings
+    return get_adapter(settings.output_target, asset_use=settings.asset_use,
+                       require_textures=settings.require_textures if settings.output_target != 'CURA' else False)
+
+
+def _export_issues(context):
+    try:
+        return _output_adapter(context).prepare(_character(context), context)
+    except (ValueError, TypeError, RuntimeError, AttributeError) as error:
+        return (ValidationIssue('preparation', 'ERROR', str(error)),)
+
+
+class HUMANOID_OT_prepare_materials(bpy.types.Operator):
+    bl_idname = 'humanoid.prepare_materials'
+    bl_label = 'Add Missing Materials'
+    bl_description = 'Assign a neutral exportable material only to faces without one; keep existing materials'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and context.mode == 'OBJECT' and _character(context) is not None
+
+    def execute(self, context):
+        prepare_materials(_character(context))
+        context.scene.humanoid_settings.validation_results.clear()
+        self.report({'INFO'}, 'Missing material assignments filled. Existing materials preserved.')
+        return {'FINISHED'}
+
+
+class HUMANOID_OT_export(bpy.types.Operator, ExportHelper):
+    bl_idname = 'humanoid.export_asset'
+    bl_label = 'Export Asset'
+    bl_description = 'Export the selected model after checking all requirements again'
+    filename_ext = ''
+    filter_glob: StringProperty(default='*.glb', options={'HIDDEN'})
+
+    @classmethod
+    def poll(cls, context):
+        if context.scene is None or context.mode != 'OBJECT' or _character(context) is None:
+            return False
+        # Never trust a stored report after the artist edits the scene.
+        return is_ready(_export_issues(context))
+
+    def invoke(self, context, event):
+        adapter = _output_adapter(context)
+        self.filter_glob = ';'.join('*' + extension for extension in adapter.extensions)
+        self.filepath = _character(context).name + adapter.default_extension
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        result = _output_adapter(context).export(_character(context), context, bpy.path.abspath(self.filepath))
+        settings = context.scene.humanoid_settings
+        settings.validation_results.clear()
+        for issue in result.issues:
+            row = settings.validation_results.add()
+            row.code, row.status, row.message = issue.code, issue.status, issue.message
+        if not result.success:
+            settings.last_export = ''
+            message = next((issue.message for issue in result.issues if issue.status in ('ERROR', 'WARN')), 'Export failed.')
+            self.report({'ERROR'}, message)
+            return {'CANCELLED'}
+        settings.last_export = result.filepath
+        self.report({'INFO'}, 'Exported: ' + result.filepath)
+        return {'FINISHED'}
 
 
 class HUMANOID_PT_panel(bpy.types.Panel):
@@ -273,26 +351,42 @@ class HUMANOID_PT_panel(bpy.types.Panel):
                 layout.label(text="Requires a fresh rig in rest pose.")
                 layout.label(text="Existing animation is preserved.")
         else:
-            layout.prop(settings, "asset_use")
-            layout.prop(settings, "require_textures")
+            layout.prop(settings, "output_target")
+            if settings.output_target == 'CURA':
+                layout.label(text='STL: current pose, millimetres, one solid.')
+            else:
+                layout.prop(settings, "asset_use")
+                layout.prop(settings, "require_textures")
+                layout.operator("humanoid.prepare_materials", icon="MATERIAL")
             layout.operator("humanoid.validate_character", icon="CHECKMARK")
-            rows = settings.validation_results
+            rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
+            if stage == 'EXPORT':
+                ready = is_ready(rows)
+                layout.label(text='Ready to export.' if ready else 'Resolve the checklist below to enable Export.')
+                row = layout.row()
+                row.enabled = ready
+                row.operator('humanoid.export_asset', icon='EXPORT')
+                if settings.last_export:
+                    layout.label(text='Saved: ' + settings.last_export)
+
             if rows:
                 errors = sum(row.status == "ERROR" for row in rows)
                 warnings = sum(row.status == "WARN" for row in rows)
                 layout.label(text=f"{errors} errors, {warnings} warnings")
-                layout.label(text="Snapshot: rerun after editing.")
+                if stage != 'EXPORT':
+                    layout.label(text="Snapshot: rerun after editing.")
                 width = max(24, int(context.region.width / 7) - 6)
                 for row in rows:
                     box = layout.box()
                     box.label(text=row.status + ": " + row.code.replace("_", " ").title(),
-                              icon={"ERROR": "ERROR", "WARN": "INFO", "PASS": "CHECKMARK"}[row.status])
+                              icon={"ERROR": "ERROR", "WARN": "INFO", "PASS": "CHECKMARK", "INFO": "INFO"}[row.status])
                     for line in textwrap.wrap(row.message, width):
                         box.label(text=line)
 
 
 _CLASSES = (HUMANOID_PG_result, HUMANOID_PG_settings, HUMANOID_OT_generate,
-            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_preview, HUMANOID_OT_validate, HUMANOID_PT_panel)
+            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_preview, HUMANOID_OT_validate,
+            HUMANOID_OT_prepare_materials, HUMANOID_OT_export, HUMANOID_PT_panel)
 
 
 def register():

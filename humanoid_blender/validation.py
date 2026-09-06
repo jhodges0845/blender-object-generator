@@ -121,5 +121,6 @@ def inspect_objects(objects):
         missing_images=tuple(sorted(set(missing_images))), texture_warnings=tuple(texture_warnings),
         texture_count=len(images), has_rig=bool(rigs), rig_errors=tuple(rig_errors),
         has_animation=has_animation, animation_errors=tuple(sorted(set(animation_errors))),
-        transform_warnings=tuple(transform_warnings), is_blockout=True,
+        transform_warnings=tuple(transform_warnings),
+        is_blockout=len(meshes) > 1 and any(obj.get("stage") == "blockout" for obj in objects),
     )

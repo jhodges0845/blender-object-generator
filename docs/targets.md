@@ -1,48 +1,93 @@
-# Godot target export
+# Export files from Blender
 
-The first Blender target adapter is available through Python (no new UI tab).
-Use Blender's Python Console, with the generated root assigned to `root`:
+No console commands are needed. In **Generator > Export**, choose the model and
+its destination. Export Asset opens Blender's standard file browser when the
+live checklist has no unresolved errors or warnings.
 
-```python
-import bpy
-from humanoid_blender.targets import get_adapter
+| Destination | Output | Included |
+| --- | --- | --- |
+| Godot | `.glb` by default; `.gltf` also allowed | Meshes, supported materials/textures, rig and animation |
+| Unity | `.fbx` | Meshes, basic materials, saved image textures embedded in the file, rig and animation |
+| Unreal Engine | `.fbx` | Meshes, basic materials, saved image textures embedded in the file, rig and animation |
+| Cura | `.stl` | Evaluated current-pose triangles in millimetres; no rig, animation or materials |
 
-adapter = get_adapter("GODOT")  # Core profile defaults to ANIMATED.
-issues = adapter.prepare(root, bpy.context)  # Read-only; inspect ERROR/WARN issues.
-result = adapter.export(root, bpy.context, "C:/exports/character.glb")
-print(result.success, result.filepath)
-for issue in result.issues:
-    print(issue.status, issue.code, issue.message)
-```
+## Blender steps
 
-The directory must already exist and the output file must be new. Omitting the
-extension uses `.glb`. `.gltf` exports JSON, binary and texture sidecars and
-requires an empty output directory to avoid overwriting existing sidecars.
-For static assets use `get_adapter("GODOT", asset_use="STATIC")`; for a rig
-without required animation use `asset_use="RIGGED"`. The core default remains
-unchanged. A mesh can itself be the root; empty roots include all descendants.
+1. Install the rebuilt `dist/object_generator.zip` (version 0.8.0) and restart
+   Blender if an older version was loaded.
+2. Generate or choose the model. For game assets, choose Static Asset, Rigged
+   Asset or Animated Asset. Add a rig/idle from the corresponding stages when
+   needed. Cura automatically validates the evaluated static pose.
+3. Open Export and choose the destination. For game assets, click **Add Missing
+   Materials** or assign your own. The button adds neutral Principled materials
+   only to missing assignments and supports Undo. It does not replace your art.
+4. Resolve the checklist. Missing textures need actual files; textured models
+   need UVs. Save/pack generated images for Godot; FBX requires saved PNG/JPEG
+   files before export. Bake procedural shaders/mapping to images, and apply
+   non-armature modifiers on an export copy if using a game target.
+5. When **Export Asset** enables, click it, choose an existing directory and a
+   new filename, then confirm. A successful export reports the saved path.
+6. Import that file with the destination application's normal model importer.
+   There is no custom import script or connector to install.
 
-Preparation requires Object Mode, a visible/selectable hierarchy in the current
-view layer, supported EMPTY/MESH/ARMATURE objects, usable transforms, and scene
-unit scale 1.0. Non-default units are reported, never automatically changed;
-check physical dimensions before any manual rescaling. Mirrored transforms and
-constraints prompt review. Muted, solo or multi-strip NLA tracks are rejected
-because the tested Blender exporter may export or omit them unexpectedly.
-Only active actions and supported NLA clips on scoped objects are exported.
-The existing core inspection still evaluates closed geometry and rig weights;
-this is a conservative generated-asset workflow, not a general scene exporter.
+Export rechecks the current model after the file browser closes. Changing target,
+geometry, material, rig or animation data can disable Export again. Old validation
+snapshots never authorize an export. Existing output files are preserved; use a
+new filename when iterating. Separate glTF requires an empty directory for its
+binary/texture sidecars. An exporter failure can leave partial files for review.
 
-Core errors block export. Materials, UVs, textures, skins and animations use
-Blender's glTF exporter; arbitrary shader graphs are not guaranteed to translate.
-Modifiers are not applied destructively. Export temporarily changes selection
-and active object, then restores them and the frame on success or failure.
-Exporter failures return ERROR issues; partial files may remain for inspection.
-ExportResult.success means Blender reported FINISHED and produced a nonempty
-file. It does not certify engine import or production quality.
+## What happened to the warnings?
 
-Tested with Blender 2.92 using `scripts/test_blender.py` headlessly. Tests read
-GLB/glTF data to verify mesh scope, skins, animation channels, materials and
-texture sidecars. Newer Blender action APIs/exporter versions remain unverified.
-Manually import into Godot and review scale, axes, normals, texture appearance,
-rig deformation, clip timing/looping, collision and LODs before shipping.
-Unity, Unreal Engine and 3D Print Blender adapters remain planned.
+- **Materials** is an actionable error for game targets until every used face has
+  a material. Add Missing Materials resolves it with a neutral exportable material.
+- **Blockout** is an informational design note for actual multipart blockouts,
+  not a warning attached to every model. It does not certify smooth joints.
+- **Export Review** and destination review are informational reminders about
+  checks in the importing application, not permanently unresolved warnings.
+- Actual errors and warnings still block Export. They are never automatically
+  converted to PASS. The Export tab shows the current checklist; Validation
+  stores a snapshot when Run Validation is pressed.
+
+## Target-specific preparation
+
+Godot currently requires scene unit scale 1.0. The exporter does not silently
+rescale your model. Check physical dimensions before changing units. FBX carries
+Blender's unit scale; Unity uses Y-up export axes and Unreal uses Z-up. FBX exports
+the scene playback range as one baked take containing the scoped objects' active
+animation/NLA evaluation; it does not export every action in the blend file.
+Set the playback range to your intended clip before export. Leaf bones are off.
+
+Game export currently accepts plain Principled materials and direct image
+textures, with optional normal-map nodes. Procedural shader/mapping graphs need
+manual baking. FBX's basic material translation cannot recreate every Blender
+PBR feature; verify imported appearance in the engine. Muted/solo/multi-strip
+NLA tracks and problematic transforms need manual preparation. Source meshes,
+rigs, animation and scene units are preserved by export. Selection, active object
+and frame are restored even after an exporter error.
+
+Cura checks evaluated geometry for closed consistently oriented surfaces,
+positive volume, one connected component and non-adjacent face intersections.
+The current humanoid's separate parts are not a connected printable solid:
+prepare a copy, bridge gaps and join/remesh it before exporting. Joining objects
+alone does not weld or union their surfaces. Export remains disabled until those
+checks pass. A closed Box can export immediately without materials.
+
+STL coordinates are written in millimetres using scene unit scale. For example,
+a 30 cm Box is 300 mm tall, not automatically miniature-sized. Resize the model
+for your intended print. Cura still needs your printer, material, support and
+slicing settings. Wall thickness, printer fit, support placement and all possible
+self-intersection cases are not certified by this mesh check.
+
+## Verification scope
+
+Automated tests run in Blender 2.92 and through the isolated installed ZIP. They
+exercise UI operators, live export gating, material preparation, scene scoping,
+FBX skin/animation/embedded texture data, GLB/glTF contents and STL dimensions.
+Newer Blender versions and actual destination imports remain manual verification.
+A nonempty exported file is not a guarantee of production readiness.
+
+Destination references: [Godot scene import](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/index.html),
+[Unreal FBX pipeline](https://dev.epicgames.com/documentation/en-us/unreal-engine/fbx-content-pipeline),
+and [Cura model formats](https://ultimaker.com/learn/ultimaker-cura-5-7-stable-release-notes/).
+Unreal documents an FBX 2020.2 import pipeline; Blender 2.92 writes an older FBX
+version, so actual Unreal import compatibility must be checked before release.

@@ -55,19 +55,22 @@ UNREAL = OutputTarget(
     notes=("Review Skeleton assignment, scale, morph targets, collision, and LODs after import.",),
 )
 
-PRINT_3D = OutputTarget(
-    key="PRINT_3D",
-    display_name="3D Print",
+CURA = OutputTarget(
+    key="CURA",
+    display_name="Cura",
     asset_use="STATIC",
-    preferred_formats=("3MF", "STL"),
+    preferred_formats=("STL",),
     require_manifold_geometry=True,
     supports_rig=False,
     supports_animation=False,
     notes=("Bake the desired pose and validate wall thickness, dimensions, intersections, and slicer readiness.",),
 )
 
+# Keep the original public constant and saved key working.
+PRINT_3D = CURA
+
 TARGETS: Dict[str, OutputTarget] = {
-    target.key: target for target in (GODOT, UNITY, UNREAL, PRINT_3D)
+    target.key: target for target in (GODOT, UNITY, UNREAL, CURA)
 }
 
 
@@ -75,7 +78,7 @@ def get_target(key: str) -> OutputTarget:
     if not isinstance(key, str):
         raise TypeError("target key must be str")
     try:
-        return TARGETS[key.upper()]
+        return TARGETS["CURA" if key.upper() == "PRINT_3D" else key.upper()]
     except KeyError:
         raise ValueError("unknown output target: " + key)
 
@@ -98,7 +101,7 @@ def validate_for_target(snapshot: AssetSnapshot, target) -> Tuple[ValidationIssu
         if not snapshot.mesh_count or snapshot.invalid_meshes:
             results.append(ValidationIssue(
                 "target_geometry", "ERROR",
-                "3D-print output requires closed, valid geometry before export.",
+                "Cura output requires closed, valid geometry before export.",
             ))
         else:
             results.append(ValidationIssue(
@@ -123,5 +126,5 @@ def validate_for_target(snapshot: AssetSnapshot, target) -> Tuple[ValidationIssu
         target.display_name + " preferred export format(s): " + ", ".join(target.preferred_formats) + ".",
     ))
     for note in target.notes:
-        results.append(ValidationIssue("target_review", "WARN", note))
+        results.append(ValidationIssue("target_review", "INFO", note))
     return tuple(results)

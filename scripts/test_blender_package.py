@@ -57,18 +57,23 @@ with tempfile.TemporaryDirectory() as directory:
         assert scene.frame_current > scene.frame_start
         scene.humanoid_settings.asset_use = "ANIMATED"
         scene.humanoid_settings.workflow_tab = "VALIDATION"
+        assert bpy.ops.humanoid.prepare_materials() == {"FINISHED"}
         assert bpy.ops.humanoid.validate_character() == {"FINISHED"}
         assert not any(row.status == "ERROR" for row in scene.humanoid_settings.validation_results)
         scene.humanoid_settings.object_type = 'box'
         assert bpy.ops.humanoid.generate_blockout() == {'FINISHED'}
         box = scene.humanoid_settings.target
         assert box['object_type'] == 'box'
+        assert bpy.ops.humanoid.prepare_materials() == {'FINISHED'}
         assert bpy.ops.humanoid.validate_character() == {'FINISHED'}
         assert not any(row.status == 'ERROR' for row in scene.humanoid_settings.validation_results)
-        export_result = get_adapter('GODOT', asset_use='STATIC').export(
-            box, bpy.context, Path(directory) / 'box.glb')
-        assert export_result.success, export_result.issues
-        assert Path(export_result.filepath).read_bytes()[:4] == b'glTF'
+        for target_key, extension in (('GODOT', '.glb'), ('UNITY', '.fbx'), ('UNREAL', '.fbx'), ('CURA', '.stl')):
+            scene.humanoid_settings.output_target = target_key
+            assert bpy.ops.humanoid.export_asset.poll(), target_key
+            export_path = Path(directory) / (target_key + extension)
+            assert bpy.ops.humanoid.export_asset(filepath=str(export_path)) == {'FINISHED'}
+            assert export_path.stat().st_size > 0
+        scene.humanoid_settings.output_target = 'GODOT'
         box.hide_render = True
         for part in box.children:
             part.hide_render = True

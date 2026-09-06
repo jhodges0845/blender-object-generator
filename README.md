@@ -12,15 +12,15 @@ to use the GPL merely because they were created with this program.
 ## Blender workflow
 
 Tested with Blender 2.92. Newer Blender versions have not yet been verified.
-The Generator panel has four tabs:
+The Generator panel has five tabs:
 
-| Model | Rigging | Animation | Validation |
-| --- | --- | --- | --- |
-| Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references |
+| Model | Rigging | Animation | Validation | Export |
+| --- | --- | --- | --- | --- |
+| Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose Godot, Cura, Unity or Unreal; prepare materials and export when ready |
 
 The current model has 15 separate parts and an optional 16-bone rigid rig.
-See [idle animation instructions](docs/animation.md). Smooth joints, materials, UV generation, and textures are
-future work. [Workflow and validation scope](docs/workflow.md) explains what a
+See [idle animation instructions](docs/animation.md). A preparation button adds missing neutral materials. Smooth joints, UV generation,
+and texture authoring remain future work. [Workflow and validation scope](docs/workflow.md) explains what a
 static, rigged, or animated game asset needs and what is actually checked today.
 
 ## Install from source
@@ -79,7 +79,7 @@ object_core/
     rigging/         Skeleton generation
     animation/       Portable idle rotation tracks and generation
     validation/      Host-independent readiness rules
-humanoid_blender/    Blender objects, four-tab UI, rigging, and scene inspection
+humanoid_blender/    Blender objects, five-tab UI, rigging, and scene inspection
 tests/              Core and Blender tests
 scripts/            Add-on build and Blender test runners
 examples/           Standalone core examples
@@ -98,10 +98,23 @@ The repository uses `main` and tracks
 
 `Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
 
-Godot is the first implemented Blender target adapter, using Blender's glTF
-exporter with GLB preferred and separate glTF supported. Unity, Unreal Engine,
-and 3D Print have core profiles; their Blender adapters are planned.
-The adapter is currently a Python API, with no export panel yet. See
-[Godot export usage and limitations](docs/targets.md). Blender 2.92 headless
-export tests check files, scope, skins, animation, materials and textures;
-Godot import and visual quality still require manual review.
+Choose a destination in **Generator > Export**:
+
+| Destination | File |
+| --- | --- |
+| Godot | GLB (default), glTF alternative |
+| Cura | STL in millimetres, evaluated current pose |
+| Unity | FBX with rig/animation and supported textures |
+| Unreal Engine | FBX with rig/animation and supported textures |
+
+Click **Add Missing Materials** for game assets, resolve the checklist, then
+**Export Asset** opens Blender's file browser. No console commands or custom
+engine import scripts are needed. The button remains disabled while requirements
+are unmet and export revalidates after the file browser closes. Blockout design
+notes and post-import reminders are informational; missing materials, geometry,
+and other actionable problems must be resolved. Cura requires a connected solid,
+so the separate humanoid parts need mesh preparation before STL export.
+
+See [export workflow and supported scope](docs/targets.md). Blender 2.92 tests
+verify the export operators and file contents; destination-application import and
+visual quality still require manual verification.

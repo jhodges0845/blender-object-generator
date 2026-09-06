@@ -17,6 +17,7 @@ from humanoid_blender.adapter import create_character
 from humanoid_blender.animation import add_idle
 from humanoid_blender.workflow import add_basic_rig
 from humanoid_blender.targets import get_adapter
+from humanoid_blender.materials import prepare_materials
 
 
 def read_glb(path):
@@ -38,6 +39,7 @@ class GodotExportTests(unittest.TestCase):
         bpy.context.window.scene = self.scene
         self.root = create_character(generate_mesh(generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))), scene=self.scene)
         self.root['height_cm'], self.root['weight_kg'], self.root['body_type'] = 180, 95, 'average'
+        prepare_materials(self.root)
         self.temp = TemporaryDirectory()
         self.path = Path(self.temp.name) / 'asset.glb'
         self.adapter = get_adapter('GODOT', asset_use='STATIC')
@@ -86,10 +88,12 @@ class GodotExportTests(unittest.TestCase):
         obj.parent = None
         material = bpy.data.materials.new('ExportMaterial')
         material.use_nodes = True
+        obj.data.materials.clear()
         obj.data.materials.append(material)
         obj.data.uv_layers.new()
         node = material.node_tree.nodes.new('ShaderNodeTexImage')
         node.image = bpy.data.images.new('ExportTexture', width=8, height=8)
+        node.image.pixels[0] = 0.5
         node.image.pack()
         material.node_tree.links.new(node.outputs['Color'], material.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
         result = self.adapter.export(obj, bpy.context, self.path.with_suffix('.gltf'))

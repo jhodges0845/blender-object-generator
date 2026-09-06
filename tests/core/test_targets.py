@@ -13,8 +13,11 @@ class OutputTargetTests(unittest.TestCase):
         self.assertEqual(GODOT.preferred_formats, ("GLB", "GLTF"))
         self.assertEqual(UNITY.preferred_formats, ("FBX",))
         self.assertEqual(UNREAL.preferred_formats, ("FBX",))
-        self.assertEqual(PRINT_3D.preferred_formats, ("3MF", "STL"))
+        self.assertEqual(PRINT_3D.preferred_formats, ("STL",))
         self.assertIs(get_target("godot"), GODOT)
+        self.assertIs(get_target("CURA"), PRINT_3D)
+        self.assertIs(get_target("PRINT_3D"), PRINT_3D)
+        self.assertEqual(PRINT_3D.display_name, "Cura")
 
     def test_game_targets_require_rig_and_animation(self):
         plain = AssetSnapshot(mesh_count=1)

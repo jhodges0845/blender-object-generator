@@ -4,18 +4,19 @@ import unittest
 from types import SimpleNamespace
 from pathlib import Path
 
-from humanoid_blender.targets import GodotAdapter, asset_objects, get_adapter
+from humanoid_blender.targets import GodotAdapter, asset_objects, get_adapter, is_ready
+from object_core.models.validation import ValidationIssue
 from object_core.targets import GODOT
 
 
 class TargetAdapterTests(unittest.TestCase):
-    def test_registry_and_unimplemented_targets(self):
+    def test_registry_and_unknown_targets(self):
         self.assertIsInstance(get_adapter('godot'), GodotAdapter)
         with self.assertRaisesRegex(ValueError, 'unknown output target'):
             get_adapter('missing')
-        for key in ('UNITY', 'UNREAL', 'PRINT_3D'):
-            with self.assertRaisesRegex(ValueError, 'not implemented'):
-                get_adapter(key)
+        for key in ('UNITY', 'UNREAL', 'CURA'):
+            self.assertEqual(get_adapter(key).target_key, key)
+        self.assertEqual(get_adapter('PRINT_3D').target_key, 'CURA')
         with self.assertRaises(TypeError):
             get_adapter(None)
 
@@ -50,3 +51,21 @@ class TargetAdapterTests(unittest.TestCase):
         self.assertEqual(asset_objects(root), (root, root.children[0], leaf))
         self.assertEqual(asset_objects(leaf), (leaf,))
         self.assertEqual(asset_objects(None), ())
+
+    def test_fbx_configuration_keeps_scope_and_embeds_textures(self):
+        for key in ('UNITY', 'UNREAL'):
+            options = get_adapter(key).export_options('asset')
+            self.assertEqual(Path(options['filepath']).suffix, '.fbx')
+            self.assertTrue(options['use_selection'])
+            self.assertFalse(options['add_leaf_bones'])
+            self.assertFalse(options['bake_anim_use_all_actions'])
+            self.assertTrue(options['embed_textures'])
+        self.assertEqual(get_adapter('UNITY').axis_up, 'Y')
+        self.assertEqual(get_adapter('UNREAL').axis_up, 'Z')
+        self.assertEqual(get_adapter('CURA', asset_use='ANIMATED').profile.asset_use, 'STATIC')
+
+    def test_readiness_does_not_treat_notes_as_failures(self):
+        self.assertFalse(is_ready(()))
+        self.assertTrue(is_ready((ValidationIssue('review', 'INFO', 'Review import'),)))
+        for status in ('ERROR', 'WARN'):
+            self.assertFalse(is_ready((ValidationIssue('problem', status, 'Fix this'),)))
