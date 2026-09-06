@@ -1,13 +1,12 @@
-# Object Generator
+# Asset Assistant
 
-An open-source starting point for artist-editable 3D assets, with an independent
-Python core and a thin Blender adapter. The first generator makes stylized humanoid
-blockouts from height, weight, and five artistic body-type presets. A Box provider
-demonstrates the same workflow for static props with width, depth and height.
+**Asset Assistant** is an open-source, artist-first 3D workflow tool for creating and preparing editable assets. It helps artists generate starting points, rig, animate, surface, validate, prepare, and export characters, creatures, props, and other 3D assets while keeping the artist in control of the creative result.
 
-Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted
-under [the license](LICENSE); see [notices](NOTICE). Generated models do not need
-to use the GPL merely because they were created with this program.
+Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
+
+The project uses an independent Python core with a thin Blender adapter. The first mature generator is a stylized humanoid built from height, weight, and artistic body-type parameters. A Box provider demonstrates the same workflow for static props. These are starting providers, not the boundary of the system: the architecture should support many asset families over time, including humans, dogs, birds, other creatures, robots, props, and environmental objects.
+
+Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
 > **Development roadmap:** Contributors and Codex should use [docs/roadmap.md](docs/roadmap.md)
 > as the working source of truth for current priorities, TODOs, milestone definitions and
@@ -22,7 +21,7 @@ The 3D Viewport sidebar (N) has five vertical tabs:
 | --- | --- | --- | --- | --- |
 | Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose Godot, Cura, Unity or Unreal; prepare materials and export when ready |
 
-The current model has 15 separate parts and an optional 16-bone rigid rig.
+The current humanoid model has 15 separate parts and an optional 16-bone rigid rig.
 See [idle animation instructions](docs/animation.md). A preparation button adds missing neutral materials. Smooth joints, UV generation,
 and texture authoring remain future work. [Workflow and validation scope](docs/workflow.md) explains what a
 static, rigged, or animated game asset needs and what is actually checked today.
@@ -39,9 +38,7 @@ In Blender, open Edit > Preferences > Add-ons > Install and select the generated
 `dist/object_generator.zip`. Enable **Add Mesh: Object Generator**. In Object
 Mode, press N in the 3D Viewport, then open **Generator**.
 
-Generate your character, switch to **Rigging**, and click **Add Basic Rig**.
-Click **Enter Pose Mode** to try the bones. Validation checks the Object
-shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
+Generate your asset, then use the workflow tabs appropriate to that provider and target. For the current humanoid, switch to **Rigging** and click **Add Basic Rig**. Click **Enter Pose Mode** to try the bones. Validation checks the Object shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
 
 ## Independent Python core
 
@@ -81,9 +78,9 @@ object_core/
     proportions/     Dimensions and shared joint locations
     geometry/        Mesh generation
     rigging/         Skeleton generation
-    animation/       Portable idle rotation tracks and generation
+    animation/       Portable animation tracks and generation
     validation/      Host-independent readiness rules
-humanoid_blender/    Blender objects, five-tab UI, rigging, and scene inspection
+humanoid_blender/    Blender adapter, UI, rigging, and scene inspection
 tests/              Core and Blender tests
 scripts/            Add-on build and Blender test runners
 examples/           Standalone core examples
@@ -100,7 +97,9 @@ The repository uses `main` and tracks
 
 ## Output targets
 
-`Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
+`Define -> Generate -> Rig (if supported) -> Animate (if supported) -> Surface -> Validate -> Target Prepare -> Export -> Artist Review`
+
+Not every provider needs every stage. A static prop may have no rig or animation, while a human, dog, bird, robot, or other creature may expose different rigging and animation capabilities. Shared infrastructure should operate on provider capabilities rather than assuming a humanoid or even an animated asset.
 
 Choose a destination in **Export**:
 
