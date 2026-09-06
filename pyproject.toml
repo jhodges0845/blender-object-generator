@@ -3,12 +3,12 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "humanoid-core"
-version = "0.6.0"
-description = "Software-independent inputs for editable humanoid generation"
+name = "object-generator-core"
+version = "0.7.0"
+description = "Software-independent generation of editable 3D objects"
 requires-python = ">=3.7"
 dependencies = []
 license = {file = "LICENSE"}
 
 [tool.setuptools.packages.find]
-include = ["humanoid_core*", "humanoid_blender*"]
+include = ["object_core*", "humanoid_blender*"]

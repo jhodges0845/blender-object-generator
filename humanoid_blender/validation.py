@@ -67,13 +67,31 @@ def inspect_character(root):
                    for v in obj.data.vertices):
                 rig_errors.append(obj.name + ": vertices lack bone weights.")
     has_animation = False
+    animation_errors = []
     for obj in [root] + list(root.children):
         animation = obj.animation_data
         if animation:
             actions = ([animation.action] if animation.action else [])
             actions += [strip.action for track in animation.nla_tracks if not track.mute
                         for strip in track.strips if strip.action and not strip.mute]
-            has_animation |= any(any(curve.keyframe_points for curve in action.fcurves) for action in actions)
+            for action in actions:
+                for curve in action.fcurves:
+                    if curve.mute or not curve.keyframe_points:
+                        continue
+                    try:
+                        obj.path_resolve(curve.data_path)
+                    except (ValueError, TypeError):
+                        animation_errors.append(action.name + ': animation target is missing.')
+                        continue
+                    values = [key.co.y for key in curve.keyframe_points]
+                    if not all(isfinite(value) for value in values):
+                        animation_errors.append(action.name + ': non-finite keyframes.')
+                    elif max(values) - min(values) > 1e-6:
+                        has_animation = True
+            if actions and obj.type == 'ARMATURE' and obj.data.pose_position != 'POSE':
+                animation_errors.append(obj.name + ': Rest Position hides animation; switch to Pose Position.')
+            if animation.action and animation.action_influence <= 0:
+                animation_errors.append(obj.name + ': active action influence is zero.')
     for material in materials.values():
         for node in _image_nodes(material.node_tree if material.use_nodes else None):
             if node.image is None:
@@ -97,5 +115,6 @@ def inspect_character(root):
         missing_materials=tuple(sorted(set(materials_missing))), missing_uvs=tuple(uv_missing),
         missing_images=tuple(sorted(set(missing_images))), texture_warnings=tuple(texture_warnings),
         texture_count=len(images), has_rig=bool(rigs), rig_errors=tuple(rig_errors),
-        has_animation=has_animation, transform_warnings=tuple(transform_warnings), is_blockout=True,
+        has_animation=has_animation, animation_errors=tuple(sorted(set(animation_errors))),
+        transform_warnings=tuple(transform_warnings), is_blockout=True,
     )

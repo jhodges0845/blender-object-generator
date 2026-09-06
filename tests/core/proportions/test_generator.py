@@ -3,7 +3,7 @@ import unittest
 from dataclasses import FrozenInstanceError, fields, replace
 from math import isfinite
 
-from humanoid_core import BodyType, HumanoidSpec, generate_proportions
+from object_core import BodyType, HumanoidSpec, generate_proportions
 
 
 class ProportionTests(unittest.TestCase):

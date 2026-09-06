@@ -6,9 +6,8 @@ import bpy
 from bpy.props import BoolProperty, CollectionProperty, EnumProperty, FloatProperty, PointerProperty, StringProperty
 
 from .adapter import create_character
-from .core import (BodyType, HumanoidSpec, generate_mesh, generate_proportions, validate_asset,
-                   MIN_HEIGHT_CM, MAX_HEIGHT_CM, MIN_WEIGHT_KG, MAX_WEIGHT_KG)
-from .workflow import add_basic_rig, find_character
+from .core import OBJECT_TYPES, get_provider, validate_asset
+from .workflow import add_basic_rig, find_character, is_generated, provider_for
 from .validation import inspect_character
 from .animation import add_idle
 
@@ -18,7 +17,7 @@ def _clear_report(settings, context):
 
 
 def _character_poll(settings, obj):
-    return obj.get("generator") == "humanoid_blockout"
+    return is_generated(obj)
 
 
 def _character(context):
@@ -46,14 +45,9 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
         ("ANIMATION", "Animation", "Animation workflow status"),
         ("VALIDATION", "Validation", "Check the selected character"),
     ])
-    target: PointerProperty(name="Character", type=bpy.types.Object, poll=_character_poll, update=_clear_report)
+    target: PointerProperty(name="Object", type=bpy.types.Object, poll=_character_poll, update=_clear_report)
     object_type: EnumProperty(name="Object Type", default="humanoid", items=[
-        ("humanoid", "Humanoid", "Generate a stylized humanoid blockout"),
-    ])
-    height_cm: FloatProperty(name="Height (cm)", default=180, min=MIN_HEIGHT_CM, max=MAX_HEIGHT_CM, precision=1)
-    weight_kg: FloatProperty(name="Weight (kg)", default=95, min=MIN_WEIGHT_KG, max=MAX_WEIGHT_KG, precision=1)
-    body_type: EnumProperty(name="Body Type", default="average", items=[
-        (kind.value, kind.value.title(), "Artistic shape preset") for kind in BodyType
+        (p.key, p.label, "Generate " + p.label) for p in OBJECT_TYPES.values()
     ])
     asset_use: EnumProperty(name="Validate For", default="RIGGED", update=_clear_report, items=[
         ("STATIC", "Static Asset", "No skeleton or animation required"),
@@ -66,6 +60,20 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
     idle_duration: FloatProperty(name="Cycle (seconds)", default=4, min=1, max=20)
     idle_strength: FloatProperty(name="Motion Strength", default=1, min=0.1, max=2)
     idle_set_range: BoolProperty(name="Set Playback Range", default=True)
+
+
+def _field_name(provider, field):
+    # Preserve saved humanoid settings from earlier add-on versions.
+    return field.key if provider.key == 'humanoid' else provider.key + '_' + field.key
+
+
+for _provider in OBJECT_TYPES.values():
+    for _field in _provider.parameters:
+        _property = (EnumProperty(name=_field.label, default=_field.default,
+                                 items=[(key, label, label) for key, label in _field.choices])
+                     if _field.choices else FloatProperty(name=_field.label, default=_field.default,
+                                                         min=_field.minimum, max=_field.maximum))
+        HUMANOID_PG_settings.__annotations__[_field_name(_provider, _field)] = _property
 
 
 class HUMANOID_OT_generate(bpy.types.Operator):
@@ -81,21 +89,22 @@ class HUMANOID_OT_generate(bpy.types.Operator):
     def execute(self, context):
         settings = context.scene.humanoid_settings
         try:
-            spec = HumanoidSpec(settings.height_cm, settings.weight_kg, BodyType(settings.body_type))
-            root = create_character(generate_mesh(generate_proportions(spec)), scene=context.scene)
+            provider = get_provider(settings.object_type)
+            values = {field.key: getattr(settings, _field_name(provider, field)) for field in provider.parameters}
+            root = create_character(provider.mesh(values), name=provider.label, scene=context.scene)
         except (ValueError, TypeError, RuntimeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
         root["object_type"] = settings.object_type
-        root["height_cm"] = spec.height_cm
-        root["weight_kg"] = spec.weight_kg
-        root["body_type"] = spec.body_type.value
+        for key, value in values.items():
+            root[key] = value
         root.location = context.scene.cursor.location
         settings.target = root
+        settings.asset_use = 'RIGGED' if provider.supports_rig else 'STATIC'
         _select(context, root)
         for obj in root.children:
             obj.select_set(True)
-        self.report({"INFO"}, "Model created. Open Rigging to add its skeleton.")
+        self.report({"INFO"}, "Model created. " + ('Open Rigging to add its skeleton.' if provider.supports_rig else 'Open Validation to check this static asset.'))
         return {"FINISHED"}
 
 
@@ -155,10 +164,32 @@ class HUMANOID_OT_idle(bpy.types.Operator):
             return {"CANCELLED"}
         if settings.idle_set_range:
             context.scene.frame_end = end
+            context.scene.use_preview_range = False
         context.scene.frame_set(context.scene.frame_start)
         settings.validation_results.clear()
         self.report({"INFO"}, "Idle created. Press Play to preview.")
         return {"FINISHED"}
+
+
+class HUMANOID_OT_preview(bpy.types.Operator):
+    bl_idname = 'humanoid.preview_idle'
+    bl_label = 'Preview Motion Pose'
+    bl_description = 'Show the middle of the active clip with the rig in Pose Position'
+
+    @classmethod
+    def poll(cls, context):
+        root = _character(context) if context.scene else None
+        return root is not None and any(o.type == 'ARMATURE' and o.animation_data and
+                                       o.animation_data.action for o in root.children)
+
+    def execute(self, context):
+        rig = next(o for o in _character(context).children if o.type == 'ARMATURE' and
+                   o.animation_data and o.animation_data.action)
+        rig.data.pose_position = 'POSE'
+        start, end = rig.animation_data.action.frame_range
+        frame = (start + end) / 2
+        context.scene.frame_set(int(frame), subframe=frame - int(frame))
+        return {'FINISHED'}
 
 
 class HUMANOID_OT_validate(bpy.types.Operator):
@@ -198,9 +229,8 @@ class HUMANOID_PT_panel(bpy.types.Panel):
         stage = settings.workflow_tab
         if stage == "MODEL":
             layout.prop(settings, "object_type")
-            layout.prop(settings, "height_cm")
-            layout.prop(settings, "weight_kg")
-            layout.prop(settings, "body_type")
+            for field in get_provider(settings.object_type).parameters:
+                layout.prop(settings, _field_name(get_provider(settings.object_type), field))
             layout.operator("humanoid.generate_blockout", icon="OUTLINER_OB_MESH")
             layout.label(text="Creates a new model each time.")
             return
@@ -210,6 +240,15 @@ class HUMANOID_PT_panel(bpy.types.Panel):
             layout.label(text="Create or choose a character first.")
             return
         has_rig = any(obj.type == "ARMATURE" for obj in root.children)
+        try:
+            provider = provider_for(root)
+        except ValueError as error:
+            layout.label(text=str(error))
+            return
+        if stage in ('RIGGING', 'ANIMATION') and not getattr(provider, 'supports_rig' if stage == 'RIGGING' else 'supports_idle'):
+            layout.label(text=provider.label + ' is a static object.')
+            layout.label(text='Use Validation for static asset checks.')
+            return
         if stage == "RIGGING":
             if has_rig:
                 layout.label(text="Rig found; existing rig preserved.")
@@ -228,7 +267,9 @@ class HUMANOID_PT_panel(bpy.types.Panel):
                 layout.prop(settings, "idle_strength")
                 layout.prop(settings, "idle_set_range")
                 layout.operator("humanoid.generate_idle")
+                layout.operator("humanoid.preview_idle")
                 layout.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
+                layout.label(text='Preview shows motion without playback.')
                 layout.label(text="Requires a fresh rig in rest pose.")
                 layout.label(text="Existing animation is preserved.")
         else:
@@ -251,7 +292,7 @@ class HUMANOID_PT_panel(bpy.types.Panel):
 
 
 _CLASSES = (HUMANOID_PG_result, HUMANOID_PG_settings, HUMANOID_OT_generate,
-            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_validate, HUMANOID_PT_panel)
+            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_preview, HUMANOID_OT_validate, HUMANOID_PT_panel)
 
 
 def register():

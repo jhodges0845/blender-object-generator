@@ -2,7 +2,8 @@
 
 An open-source starting point for artist-editable 3D assets, with an independent
 Python core and a thin Blender adapter. The first generator makes stylized humanoid
-blockouts from height, weight, and five artistic body-type presets.
+blockouts from height, weight, and five artistic body-type presets. A Box provider
+demonstrates the same workflow for static props with width, depth and height.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted
 under [the license](LICENSE); see [notices](NOTICE). Generated models do not need
@@ -15,7 +16,7 @@ The Generator panel has four tabs:
 
 | Model | Rigging | Animation | Validation |
 | --- | --- | --- | --- |
-| Generate a humanoid blockout | Rig that existing model and enter Pose Mode | Generate and preview a looping idle | Inspect geometry, weights, clips, materials, UVs, and texture references |
+| Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references |
 
 The current model has 15 separate parts and an optional 16-bone rigid rig.
 See [idle animation instructions](docs/animation.md). Smooth joints, materials, UV generation, and textures are
@@ -31,11 +32,11 @@ python -m scripts.build_blender_addon
 ```
 
 In Blender, open Edit > Preferences > Add-ons > Install and select the generated
-`dist/humanoid_blockout.zip`. Enable **Add Mesh: Object Generator**. In Object
+`dist/object_generator.zip`. Enable **Add Mesh: Object Generator**. In Object
 Mode, press N in the 3D Viewport, then open **Generator > Model**.
 
 Generate your character, switch to **Rigging**, and click **Add Basic Rig**.
-Click **Enter Pose Mode** to try the bones. Validation checks the Character
+Click **Enter Pose Mode** to try the bones. Validation checks the Object
 shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
 
 ## Independent Python core
@@ -44,8 +45,8 @@ Supports Python 3.7 or newer; tested with standalone Python 3.9 and Blender 2.92
 Python 3.7.7. There are no third-party runtime dependencies.
 
 ```python
-from humanoid_core import BodyType, HumanoidSpec
-from humanoid_core import generate_proportions, generate_mesh, generate_skeleton
+from object_core import BodyType, HumanoidSpec
+from object_core import generate_proportions, generate_mesh, generate_skeleton
 
 spec = HumanoidSpec(height_cm=180, weight_kg=95, body_type=BodyType.OVERWEIGHT)
 proportions = generate_proportions(spec)
@@ -69,7 +70,8 @@ This runs core tests and explicitly skips Blender integration tests. See the
 ## Structure
 
 ```text
-humanoid_core/
+object_core/
+    objects.py       Provider registry, input fields and type capabilities
     models/          Independent data contracts
     proportions/     Dimensions and shared joint locations
     geometry/        Mesh generation

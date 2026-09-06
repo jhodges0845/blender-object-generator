@@ -4,7 +4,7 @@ from dataclasses import replace
 from math import isfinite
 import unittest
 
-from humanoid_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
+from object_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
 
 
 def cross(a, b):

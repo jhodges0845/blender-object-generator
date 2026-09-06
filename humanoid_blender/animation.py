@@ -2,14 +2,17 @@
 """Convert portable idle samples into editable Blender action curves."""
 
 from math import ceil
-from .core import generate_idle
+from .workflow import provider_for
 
 
 def add_idle(root, scene, duration=4.0, strength=1.0):
     import bpy
     from mathutils import Vector, Quaternion, Matrix
 
-    clip = generate_idle(duration, strength)
+    provider = provider_for(root)
+    if not provider.supports_idle:
+        raise ValueError(provider.label + ' does not support idle animation.')
+    clip = provider.idle(duration, strength)
     rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
     if len(rigs) != 1:
         raise ValueError('Add one basic rig before generating an idle.')
@@ -46,6 +49,7 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
             rig.pose.bones[track.bone].rotation_mode = 'QUATERNION'
         rig.animation_data_create().action = action
         action.use_fake_user = True
+        rig.data.pose_position = 'POSE'
     except Exception:
         if rig.animation_data:
             rig.animation_data.action = None

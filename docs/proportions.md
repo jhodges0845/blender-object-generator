@@ -49,7 +49,7 @@ and obese. They are not inferred from weight. Presets are not normalized to
 equal volume: two presets at the same weight may have different implied volumes.
 Weight is an artistic size control at this stage, not an exact mass constraint.
 
-All calibration values live in `humanoid_core/proportions/rules.py`. Adjusting
+All calibration values live in `object_core/proportions/rules.py`. Adjusting
 those values does not require changes to an adapter. The defaults will need
 visual review once we generate meshes; dimensions alone cannot validate appearance.
 

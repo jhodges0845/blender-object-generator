@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Run with: python -m examples.proportions"""
 
-from humanoid_core import BodyType, HumanoidSpec, generate_proportions
+from object_core import BodyType, HumanoidSpec, generate_proportions
 
 
 def main() -> None:

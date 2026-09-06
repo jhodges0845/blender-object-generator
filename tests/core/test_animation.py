@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import unittest
-from humanoid_core.animation.idle import generate_idle
+from object_core.animation.idle import generate_idle
 
 
 class IdleTests(unittest.TestCase):
