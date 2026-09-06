@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Software-independent humanoid generation."""
 
 from .models import BodyType, HumanoidSpec, HumanoidProportions, HumanoidMesh, MeshPart, Bone, Skeleton

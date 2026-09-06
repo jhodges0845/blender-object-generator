@@ -56,3 +56,10 @@ remains reserved. Blender translation lives in
 The mesh and skeleton share joint coordinates from `proportions/landmarks.py`.
 The Blender rig adapter turns core bone data into an armature and full weights;
 it does not calculate body dimensions or joint placement.
+
+Readiness policy lives in `humanoid_core/validation`, operating on an
+`AssetSnapshot` data contract. Blender-specific inspection of material slots,
+image nodes, modifiers, and actions lives in `humanoid_blender/validation.py`.
+The UI stores validation snapshots separately from generated mesh data.
+`workflow.py` operates on an existing chosen character; rigging rolls back its
+own partial resources on failure without deleting that character.

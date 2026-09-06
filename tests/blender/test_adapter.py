@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Real Blender integration tests; skipped by ordinary Python discovery."""
 
 import unittest
@@ -91,23 +92,39 @@ class BlenderAdapterTests(unittest.TestCase):
             self.assertEqual([(item.identifier, item.name) for item in options], [("humanoid", "Humanoid")])
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Object Generator")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
+            tabs = self.scene.humanoid_settings.bl_rna.properties["workflow_tab"].enum_items
+            self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION"])
             self.scene.cursor.location = (2, 3, 4)
             for preset in BodyType:
                 self.scene.humanoid_settings.body_type = preset.value
                 self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
+                model = bpy.context.view_layer.objects.active
+                self.assertEqual(model.type, "EMPTY")
+                self.assertEqual(len(model.children), 15)
+                meshes_before_rig = {obj.data for obj in model.children}
+                self.assertEqual(self.scene.humanoid_settings.target, model)
+                self.scene.humanoid_settings.workflow_tab = "RIGGING"
+                self.assertEqual(bpy.ops.humanoid.add_basic_rig(), {"FINISHED"})
                 armature = bpy.context.view_layer.objects.active
                 self.assertEqual(armature.type, "ARMATURE")
                 root = armature.parent
+                self.assertEqual(root, model)
+                self.assertEqual({obj.data for obj in root.children if obj.type == "MESH"}, meshes_before_rig)
                 self.assertEqual(root["object_type"], "humanoid")
                 self.assertEqual(root["body_type"], preset.value)
                 self.assertEqual(tuple(root.location), (2, 3, 4))
                 self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 15)
-            self.scene.humanoid_settings.add_rig = False
             self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
             unrigged = bpy.context.view_layer.objects.active
             self.assertEqual(unrigged.type, "EMPTY")
             self.assertEqual(len(unrigged.children), 15)
             self.assertTrue(all(obj.type == "MESH" for obj in unrigged.children))
+            self.scene.humanoid_settings.workflow_tab = "VALIDATION"
+            self.assertEqual(bpy.ops.humanoid.validate_character(), {"FINISHED"})
+            self.assertTrue(any(row.code == "rig" and row.status == "ERROR"
+                                for row in self.scene.humanoid_settings.validation_results))
+            self.scene.humanoid_settings.asset_use = "STATIC"
+            self.assertEqual(len(self.scene.humanoid_settings.validation_results), 0)
             self.assertTrue(bpy.types.HUMANOID_PT_panel.is_registered)
             generated_objects = set(self.scene.objects)
             generated_meshes = {obj.data for obj in self.scene.objects if obj.type == "MESH"}

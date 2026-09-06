@@ -1,113 +1,92 @@
-# Humanoid core — pieces 1 through 5
+# Object Generator
 
-A small, software-independent foundation for generating editable character
-starting points for artists. The core defines validated inputs and calculates
-stylized adult body proportions and a low-poly humanoid blockout mesh. The Blender adapter creates editable scene objects and an optional rigid rig.
-Automatic animation and smooth joint deformation are not implemented yet.
+An open-source starting point for artist-editable 3D assets, with an independent
+Python core and a thin Blender adapter. The first generator makes stylized humanoid
+blockouts from height, weight, and five artistic body-type presets.
 
-## Use
+Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted
+under [the license](LICENSE); see [notices](NOTICE). Generated models do not need
+to use the GPL merely because they were created with this program.
 
-Supports Python 3.7 or newer (tested with standalone Python 3.9 and Blender 2.92's Python 3.7.7). From this folder:
+## Blender workflow
 
-```python
-from humanoid_core import BodyType, HumanoidSpec, generate_proportions, generate_mesh
+Tested with Blender 2.92. Newer Blender versions have not yet been verified.
+The Generator panel has four tabs:
 
-character = HumanoidSpec(
-    height_cm=180,
-    weight_kg=95,
-    body_type=BodyType.OVERWEIGHT,
-)
+| Model | Rigging | Animation | Validation |
+| --- | --- | --- | --- |
+| Generate a humanoid blockout | Rig that existing model and enter Pose Mode | Not implemented yet; idle clip is next | Inspect geometry, weights, clips, materials, UVs, and texture references |
 
-dimensions = generate_proportions(character)
-print(dimensions.waist_width_cm)
-print(dimensions.standing_height_cm)
-mesh = generate_mesh(dimensions)
-print(mesh.vertex_count, mesh.face_count)
+The current model has 15 separate parts and an optional 16-bone rigid rig.
+Smooth joints, automatic animation, materials, UV generation, and textures are
+future work. [Workflow and validation scope](docs/workflow.md) explains what a
+static, rigged, or animated game asset needs and what is actually checked today.
+
+## Install from source
+
+Clone or download this repository, then run in its root folder:
+
+```powershell
+python -m scripts.build_blender_addon
 ```
 
-The five artistic presets are `slim`, `average`, `muscular`, `overweight`, and
-`obese`. Body type is selected explicitly and is not inferred from measurements.
-An adapter can convert a UI string using `BodyType("overweight")`.
+In Blender, open Edit > Preferences > Add-ons > Install and select the generated
+`dist/humanoid_blockout.zip`. Enable **Add Mesh: Object Generator**. In Object
+Mode, press N in the 3D Viewport, then open **Generator > Model**.
 
-Height and weight accept positive, finite Python integers or floats and are
-stored as floats. Invalid types raise `TypeError`; invalid numeric values raise
-`ValueError`. Specifications are immutable. The initial proportion generator
-supports 120–240 cm and 30–300 kg. See [the proportion rules](docs/proportions.md)
-for measurement conventions and limitations. To compare all five presets, run
-`python -m examples.proportions` from this folder.
+Generate your character, switch to **Rigging**, and click **Add Basic Rig**.
+Click **Enter Pose Mode** to try the bones. Validation checks the Character
+shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
 
-Generate and inspect a blockout with
-`python -m examples.mesh --body-type overweight`. It contains 15 separate,
-closed parts in an A-pose; it is not yet suitable for skinning. See
-[mesh conventions and limitations](docs/geometry.md) for details and JSON output.
+## Independent Python core
 
-## Blender add-on
+Supports Python 3.7 or newer; tested with standalone Python 3.9 and Blender 2.92's
+Python 3.7.7. There are no third-party runtime dependencies.
 
-The ready-to-install archive is `dist/humanoid_blockout.zip`. In Blender 2.92,
-use Edit > Preferences > Add-ons > Install, select the ZIP, and enable
-**Add Mesh: Object Generator**. In Object Mode, open the 3D Viewport sidebar
-with N, open **Generator**, choose **Object Type: Humanoid**, set the inputs,
-leave **Basic Rig** enabled, and click **Generate Blockout**. Switch the active
-armature to Pose Mode to rotate bones. See [posing instructions](docs/rigging.md).
+```python
+from humanoid_core import BodyType, HumanoidSpec
+from humanoid_core import generate_proportions, generate_mesh, generate_skeleton
 
-See [installation, updating, uninstalling, and Blender testing](docs/blender.md)
-for details. Rebuild with
-`python -m scripts.build_blender_addon`.
+spec = HumanoidSpec(height_cm=180, weight_kg=95, body_type=BodyType.OVERWEIGHT)
+proportions = generate_proportions(spec)
+mesh = generate_mesh(proportions)
+skeleton = generate_skeleton(proportions)
+```
 
-## Test
+Presets are slim, average, muscular, overweight, and obese. They are artistic
+controls, not medical classifications. The initial proportion generator supports
+120â€“240 cm and 30â€“300 kg. [Proportion rules](docs/proportions.md).
 
-No Blender installation or third-party test dependencies are needed:
+## Tests
 
-```shell
+```powershell
 python -m unittest discover -s tests -v
 ```
 
-## Folder structure
+This runs core tests and explicitly skips Blender integration tests. See the
+[Blender guide](docs/blender.md) for the full Blender suite and isolated ZIP check.
+
+## Structure
 
 ```text
-humanoid_core/             Independent generation library
-    models/               Input and future output data contracts
-        spec.py           HumanoidSpec and BodyType
-    proportions/          Measurement-to-proportion rules and generator
-    geometry/             Blockout generator and mesh primitives
-    rigging/              Independent skeleton generation
-    animation/            Motion generation (reserved)
-humanoid_blender/         Blender translation, sidebar, and add-on entry point
-tests/
-    core/
-        models/           Input validation tests
-        proportions/      Proportion generation tests
-        geometry/         Mesh validity, symmetry, and scaling tests
-        rigging/          Bone hierarchy and mesh alignment tests
-    blender/              Real Blender integration tests
-docs/
-    architecture.md       Dependency rules and extension guidance
-    proportions.md        Measurements, formulas, and supported inputs
-    geometry.md           Mesh structure, axes, and blockout limitations
-    blender.md            Installation and integration testing
-    rigging.md            Rigid rig contracts and posing instructions
-examples/                 Runnable core demonstrations
-scripts/                  Add-on packaging and Blender test runners
-dist/                     Generated add-on ZIP (ignored by Git)
-artifacts/                Generated previews (ignored by Git)
-pyproject.toml            Package configuration
+humanoid_core/
+    models/          Independent data contracts
+    proportions/     Dimensions and shared joint locations
+    geometry/        Mesh generation
+    rigging/         Skeleton generation
+    animation/       Reserved for animation generation
+    validation/      Host-independent readiness rules
+humanoid_blender/    Blender objects, four-tab UI, rigging, and scene inspection
+tests/              Core and Blender tests
+scripts/            Add-on build and Blender test runners
+examples/           Standalone core examples
+docs/               Architecture, measurements, workflow, and installation
+dist/               Generated ZIP; ignored by Git
+artifacts/          Generated previews; ignored by Git
 ```
 
-The public import remains `from humanoid_core import BodyType, HumanoidSpec`.
-Both packages live at the repository root so the test command above still works
-without installing the project. Reserved packages contain documentation only.
+Core code must never import Blender APIs. [Architecture](docs/architecture.md),
+[mesh conventions](docs/geometry.md), and [rigging](docs/rigging.md).
 
-## Architecture direction
-
-The core owns proportions and mesh data, and will own skeletons, skin weights,
-and animation data. The Blender adapter translates mesh data into Blender objects. Core
-code must not import Blender's `bpy` module. Generated assets should remain
-editable through ordinary artist workflows.
-
-The next step is reviewing the poseable blockout before adding a basic animation.
-
-## Git
-
-The local Git repository uses `main`. Generated archives, previews, and caches
-are ignored. No remote is configured. Use `git status` and `git log --oneline`
-to inspect changes and commit history.
+The repository uses `main` and tracks
+[jhodges0845/blender-object-generator](https://github.com/jhodges0845/blender-object-generator).

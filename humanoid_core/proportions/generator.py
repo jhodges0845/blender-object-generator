@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Deterministic adult, stylized proportion generation."""
 
 from math import sqrt

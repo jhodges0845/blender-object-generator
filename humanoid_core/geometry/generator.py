@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Generate a symmetric low-poly A-pose blockout from proportions."""
 
 from ..models import HumanoidProportions

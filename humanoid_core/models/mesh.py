@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Immutable mesh data with no application-specific objects."""
 
 from dataclasses import dataclass

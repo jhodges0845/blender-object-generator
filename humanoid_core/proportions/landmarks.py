@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Shared rest-pose landmarks for mesh and skeleton generation, in centimeters."""
 
 from math import cos, radians, sin

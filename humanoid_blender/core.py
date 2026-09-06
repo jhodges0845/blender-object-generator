@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Resolve the bundled core in a release ZIP or the sibling core in a checkout."""
 
 from importlib import import_module
@@ -20,3 +21,5 @@ MAX_WEIGHT_KG = _rules.MAX_WEIGHT_KG
 
 Skeleton = _core.Skeleton
 generate_skeleton = _core.generate_skeleton
+AssetSnapshot = import_module(_core_name + ".models.validation").AssetSnapshot
+validate_asset = import_module(_core_name + ".validation").validate_asset

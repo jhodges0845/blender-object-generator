@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Test the release ZIP in a fresh Blender process and save a preview."""
 
 from pathlib import Path
@@ -18,6 +19,8 @@ assert "humanoid_blender" not in sys.modules
 
 with tempfile.TemporaryDirectory() as directory:
     with ZipFile(root / "dist" / "humanoid_blockout.zip") as archive:
+        assert b"GNU GENERAL PUBLIC LICENSE" in archive.read("humanoid_blender/LICENSE")
+        assert b"GPL-3.0-or-later" in archive.read("humanoid_blender/NOTICE")
         archive.extractall(directory)
     sys.path.insert(0, directory)
     import humanoid_blender
@@ -31,6 +34,9 @@ with tempfile.TemporaryDirectory() as directory:
         scene.unit_settings.system = "METRIC"
         scene.humanoid_settings.body_type = "average"
         assert bpy.ops.humanoid.generate_blockout() == {"FINISHED"}
+        assert bpy.context.view_layer.objects.active.type == "EMPTY"
+        scene.humanoid_settings.workflow_tab = "RIGGING"
+        assert bpy.ops.humanoid.add_basic_rig() == {"FINISHED"}
         rig = bpy.context.view_layer.objects.active
         assert rig.type == "ARMATURE"
         assert len(rig.data.bones) == 16
@@ -43,6 +49,9 @@ with tempfile.TemporaryDirectory() as directory:
                    for obj in meshes for vertex in obj.data.vertices]
         assert abs(max(heights) - min(heights) - 1.8) < 1e-5
         assert all(not obj.data.validate() for obj in meshes)
+        scene.humanoid_settings.workflow_tab = "VALIDATION"
+        assert bpy.ops.humanoid.validate_character() == {"FINISHED"}
+        assert not any(row.status == "ERROR" for row in scene.humanoid_settings.validation_results)
         camera_data = bpy.data.cameras.new("Preview Camera")
         camera = bpy.data.objects.new("Preview Camera", camera_data)
         scene.collection.objects.link(camera)

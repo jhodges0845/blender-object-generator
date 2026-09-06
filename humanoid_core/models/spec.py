@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Artist-selected humanoid inputs; no host application dependencies."""
 
 from dataclasses import dataclass

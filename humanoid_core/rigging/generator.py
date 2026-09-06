@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Simple forward-kinematic skeleton for the separate-part humanoid blockout."""
 
 from ..models.proportions import HumanoidProportions

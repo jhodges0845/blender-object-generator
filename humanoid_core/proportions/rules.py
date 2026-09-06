@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Initial artistic calibration. These constants are not anatomical measurements."""
 
 from dataclasses import dataclass

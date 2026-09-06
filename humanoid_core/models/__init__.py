@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Shared, software-independent character data contracts."""
 
 from .spec import BodyType, HumanoidSpec

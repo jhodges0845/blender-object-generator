@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Ensure importing the core and adapter entry point does not load Blender APIs."""
 
 from pathlib import Path

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Immutable skeleton and rigid part bindings, independent of Blender."""
 
 from dataclasses import dataclass

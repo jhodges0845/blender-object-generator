@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Software-independent dimensions for a symmetric, standing humanoid."""
 
 from dataclasses import dataclass, fields

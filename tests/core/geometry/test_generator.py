@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from collections import Counter
 from dataclasses import replace
 from math import isfinite

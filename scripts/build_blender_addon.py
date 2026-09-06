@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Build a self-contained Blender add-on from the current source tree."""
 
 from pathlib import Path
@@ -17,6 +18,9 @@ def build_addon():
                 archive.write(source, (destination / source.relative_to(root / package)).as_posix())
         archive.write(root / "docs" / "blender.md", "humanoid_blender/README.md")
         archive.write(root / "docs" / "rigging.md", "humanoid_blender/rigging.md")
+        archive.write(root / "docs" / "workflow.md", "humanoid_blender/workflow.md")
+        archive.write(root / "LICENSE", "humanoid_blender/LICENSE")
+        archive.write(root / "NOTICE", "humanoid_blender/NOTICE")
     return output
 
 

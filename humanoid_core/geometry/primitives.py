@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Internal capped ring lofts used by the blockout generator."""
 
 from math import cos, sin, pi, hypot

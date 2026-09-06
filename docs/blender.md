@@ -10,12 +10,14 @@ Python 3.9; no separate Python installation is needed to use the add-on.
 2. Select `dist/humanoid_blockout.zip` from the project folder; do not unzip it.
 3. Enable **Add Mesh: Object Generator**.
 4. In the 3D Viewport, switch to Object Mode, press N, and open **Generator**.
-5. Choose **Object Type: Humanoid**, set Height (cm), Weight (kg), and Body Type,
-   leave **Basic Rig** enabled for a poseable character, then click **Generate Blockout**.
+5. Open **Model**, choose **Object Type: Humanoid**, set Height (cm), Weight (kg),
+   and Body Type, then click **Generate Model**.
 6. Use View > Frame Selected (numpad decimal) to see the generated character.
+7. Open **Rigging** and click **Add Basic Rig**, then **Enter Pose Mode**.
+8. Open **Validation** in Object Mode to inspect the character and texture requirements.
 
 Generation places a new character at the 3D cursor. It selects the new character
-and its parts. With Basic Rig enabled, the active object is the armature.
+and its parts. Rigging is now a separate action on that same character.
 The Humanoid collection contains an Empty parent, 15 editable mesh objects, and
 an optional 16-bone armature. Move the Empty to move the whole character; select an individual
 part to edit its geometry. Repeated generation creates another collection and
@@ -49,9 +51,9 @@ Install the rebuilt `dist/humanoid_blockout.zip`, then enable **Object Generator
 The ZIP and internal module names stay the same so this is an update to the same
 add-on. The visible name and sidebar have changed. Existing models are preserved.
 
-The sidebar now starts with **Object Type**. Humanoid is currently the only
-implemented option. Its settings appear below the dropdown. Future object types
-can add their own settings and generation path without another sidebar tab.
+The panel contains Model, Rigging, Animation, and Validation tabs. Humanoid is
+currently the only Object Type. Animation generation is clearly marked as not
+implemented. See [workflow and validation](workflow.md) for the current checks.
 
 ## Build
 
@@ -62,6 +64,7 @@ python -m scripts.build_blender_addon
 ```
 
 The build copies the current independent core into the add-on ZIP automatically.
+It also includes the full GPL license and project notices.
 There is no manually maintained second copy and no pip install is needed inside
 Blender. Build output is ignored by Git. Rebuild and reinstall after code changes;
 restart Blender after updating an already loaded add-on to avoid stale modules.

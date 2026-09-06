@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Translate core mesh data into Blender data; no body generation rules here."""
 
 from math import isfinite
@@ -51,6 +52,7 @@ def create_character(mesh: HumanoidMesh, *, name="Humanoid", scene=None, skeleto
         root.empty_display_size = 10 * coordinate_scale
         root["generator"] = "humanoid_blockout"
         root["stage"] = "blockout"
+        root["coordinate_scale"] = coordinate_scale
         for part in mesh.parts:
             data = bpy.data.meshes.new(name + "." + part.name)
             created_meshes.append(data)

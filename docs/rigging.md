@@ -9,16 +9,18 @@ There are no IK controls, joint limits, automatic animation, or smooth joints ye
 ## Try it in Blender
 
 1. Update to the rebuilt add-on ZIP using the steps in [the Blender guide](blender.md).
-2. In Object Mode, open N > Generator and choose Object Type: Humanoid.
-3. Leave **Basic Rig** checked, choose your measurements, and generate a blockout.
-4. The new armature is active. Choose **Pose Mode** in the viewport mode dropdown.
+2. In Object Mode, open N > Generator > Model and choose Object Type: Humanoid.
+3. Choose your measurements and click **Generate Model**. Open **Rigging** and
+   click **Add Basic Rig** to rig that same character.
+4. Click **Enter Pose Mode**, or choose Pose Mode in the viewport mode dropdown.
 5. Select an upper-arm bone and press R to rotate it; its forearm and hand follow.
 6. Press Alt-R on selected bones to clear their rotations and return them to rest.
 
 To pose an existing generated character, select its `Humanoid.Rig` armature in
 the Outliner first. Bones display in front of the mesh. The Empty parent still
-moves the whole character. Uncheck Basic Rig to generate only the original mesh
-blockout. Existing characters are not automatically updated or retrofitted.
+moves the whole character. The Model tab always generates meshes without a rig.
+The Rigging tab can add a rig to a previously generated, unrigged character;
+it preserves existing rigs. Choose the intended root in its Character field.
 
 Each mesh part has an Armature modifier and one vertex group. Every vertex in
 that part has weight 1.0 for its assigned bone. This is rigid skinning: parts

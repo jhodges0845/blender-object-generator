@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Run with python -m examples.mesh; optionally pass --output blockout.json."""
 
 import argparse

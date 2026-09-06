@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import unittest
 from dataclasses import FrozenInstanceError, fields, replace
 from math import isfinite

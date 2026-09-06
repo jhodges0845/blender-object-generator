@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Run with Blender's --background --factory-startup --python-exit-code 1 --python flags."""
 
 from pathlib import Path
