@@ -72,6 +72,7 @@ This runs core tests and explicitly skips Blender integration tests. See the
 ```text
 object_core/
     objects.py       Provider registry, input fields and type capabilities
+    targets.py       Host-independent output profiles and target validation
     models/          Independent data contracts
     proportions/     Dimensions and shared joint locations
     geometry/        Mesh generation
@@ -92,3 +93,15 @@ Core code must never import Blender APIs. [Architecture](docs/architecture.md),
 
 The repository uses `main` and tracks
 [jhodges0845/blender-object-generator](https://github.com/jhodges0845/blender-object-generator).
+
+## Output targets
+
+`Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
+
+Godot is the first implemented Blender target adapter, using Blender's glTF
+exporter with GLB preferred and separate glTF supported. Unity, Unreal Engine,
+and 3D Print have core profiles; their Blender adapters are planned.
+The adapter is currently a Python API, with no export panel yet. See
+[Godot export usage and limitations](docs/targets.md). Blender 2.92 headless
+export tests check files, scope, skins, animation, materials and textures;
+Godot import and visual quality still require manual review.

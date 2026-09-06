@@ -75,3 +75,28 @@ image nodes, modifiers, and actions lives in `humanoid_blender/validation.py`.
 The UI stores validation snapshots separately from generated mesh data.
 `workflow.py` operates on an existing chosen character; rigging rolls back its
 own partial resources on failure without deleting that character.
+
+
+## Target adapters
+
+`Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
+
+`object_core/targets.py` owns destination profiles and `validate_for_target()`.
+`humanoid_blender/targets.py` owns the small `BlenderOutputAdapter` base,
+registry, `GodotAdapter`, and immutable `ExportResult`. Lookup distinguishes
+unknown core targets from known targets whose Blender adapter is unimplemented.
+Unity, Unreal Engine, and 3D Print adapters are planned; no placeholder exporters
+are registered. Adding an adapter does not change core generation.
+
+Godot reuses `validation.inspect_objects()` to snapshot the exact root hierarchy
+and calls core target validation before adding host export checks. The existing
+UI inspector retains its direct-child scope. Preparation is read-only. Export
+only temporarily selects the hierarchy and restores selection, active object,
+and frame even when the exporter raises. Mesh/rig/animation data is not baked,
+rescaled or destructively altered. The bundled-core import bridge supports both
+checkout and installed ZIP imports. No Blender imports were added to the core.
+
+The core Godot profile still defaults to animated assets. An explicit adapter
+`asset_use` creates a local dataclass copy for static or rigged output and runs
+the same core rules; it never changes the shared target registry. Target warnings
+remain in export results. A successful file export is not proof of Godot readiness.

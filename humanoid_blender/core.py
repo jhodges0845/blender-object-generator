@@ -13,3 +13,8 @@ validate_asset = import_module(_core_name + '.validation').validate_asset
 _objects = import_module(_core_name + '.objects')
 OBJECT_TYPES = _objects.OBJECT_TYPES
 get_provider = _objects.get_provider
+
+ValidationIssue = import_module(_core_name + '.models.validation').ValidationIssue
+_targets = import_module(_core_name + '.targets')
+get_target = _targets.get_target
+validate_for_target = _targets.validate_for_target

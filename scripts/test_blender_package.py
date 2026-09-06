@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory() as directory:
     sys.path.insert(0, directory)
     import humanoid_blender
     from humanoid_blender import core
+    from humanoid_blender.targets import get_adapter
     Path(core._core.__file__).resolve().relative_to(Path(directory).resolve())
     assert core._core.__name__ == "humanoid_blender.object_core"
     humanoid_blender.register()
@@ -64,6 +65,10 @@ with tempfile.TemporaryDirectory() as directory:
         assert box['object_type'] == 'box'
         assert bpy.ops.humanoid.validate_character() == {'FINISHED'}
         assert not any(row.status == 'ERROR' for row in scene.humanoid_settings.validation_results)
+        export_result = get_adapter('GODOT', asset_use='STATIC').export(
+            box, bpy.context, Path(directory) / 'box.glb')
+        assert export_result.success, export_result.issues
+        assert Path(export_result.filepath).read_bytes()[:4] == b'glTF'
         box.hide_render = True
         for part in box.children:
             part.hide_render = True
