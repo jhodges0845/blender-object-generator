@@ -73,6 +73,20 @@ class DeformingRigTests(unittest.TestCase):
                 "unconnected influences found: {}".format(sorted(names)),
             )
 
+    def test_each_shoulder_has_torso_upper_arm_blending(self):
+        mesh, skeleton = self._fixture()
+        weights = generate_skin_weights(mesh, skeleton)[0]
+        for side, sign in (("left", 1), ("right", -1)):
+            upper_arm = "upper_arm." + side
+            blended = []
+            for vertex, influences in zip(mesh.parts[0].vertices, weights.vertices):
+                names = {item.bone_name for item in influences}
+                if sign * vertex[0] > 1e-6 and {"torso", upper_arm} <= names:
+                    blended.append((vertex, names))
+            self.assertTrue(blended, "{} shoulder has no torso/upper-arm blend".format(side))
+            forbidden = "upper_arm.right" if side == "left" else "upper_arm.left"
+            self.assertTrue(all(forbidden not in names for _vertex, names in blended))
+
     def test_each_hip_has_torso_upper_leg_blending(self):
         mesh, skeleton = self._fixture()
         weights = generate_skin_weights(mesh, skeleton)[0]
