@@ -37,6 +37,7 @@ class TargetAdapterTests(unittest.TestCase):
         self.assertEqual(Path(options['filepath']).name, 'asset.glb')
         self.assertEqual(options['export_format'], 'GLB')
         self.assertTrue(options['use_selection'])
+        self.assertTrue(options['use_active_scene'])
         self.assertTrue(options['export_skins'])
         self.assertTrue(options['export_animations'])
         self.assertFalse(options['export_apply'])

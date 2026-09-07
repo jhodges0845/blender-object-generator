@@ -14,7 +14,8 @@ Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitt
 
 ## Blender workflow
 
-Tested with Blender 2.92. Newer Blender versions have not yet been verified.
+Blender 5.2.1 LTS is the primary test target; Blender 2.92.0 remains a tested legacy runtime.
+Both pass headless workflow tests. Other versions and interactive UI review are not yet verified.
 The 3D Viewport sidebar (N) has five vertical tabs:
 
 | Generator | Rigging | Animations | Validation | Export |

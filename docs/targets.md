@@ -87,12 +87,12 @@ self-intersection cases are not certified by this mesh check.
 
 ## Verification scope
 
-Automated tests run in Blender 2.92 and through the isolated installed ZIP. They
+Automated integration tests run in Blender 2.92.0 and 5.2.1 LTS. They
 exercise UI operators, live export gating, material preparation, scene scoping,
 FBX skin/animation/embedded texture data, GLB/glTF contents and STL dimensions.
 Initial destination import results and remaining manual checks are recorded in
-[Target verification](target-verification.md). Modern Blender add-on compatibility
-remains unverified; the recorded Unity, Unreal and Cura exports used Blender 2.92.
+[Target verification](target-verification.md). The recorded manual Unity, Unreal and Cura checks used Blender 2.92 exports.
+Modern Blender exports pass automated checks but still need destination review.
 A nonempty exported file is not a guarantee of production readiness.
 
 Destination references: [Godot scene import](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/index.html),
