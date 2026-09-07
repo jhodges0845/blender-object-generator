@@ -36,8 +36,8 @@ python -m scripts.build_blender_addon
 ```
 
 In Blender, open Edit > Preferences > Add-ons > Install and select the generated
-`dist/object_generator.zip`. Enable **Add Mesh: Object Generator**. In Object
-Mode, press N in the 3D Viewport, then open **Generator**.
+`dist/asset_assistant.zip`. Enable **Asset Assistant**. In Object Mode, press N in
+the 3D Viewport, then open **Generator**.
 
 Generate your asset, then use the workflow tabs appropriate to that provider and target. For the current humanoid, switch to **Rigging** and click **Add Basic Rig**. Click **Enter Pose Mode** to try the bones. Validation checks the Object shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
 
@@ -81,13 +81,14 @@ object_core/
     rigging/         Skeleton generation
     animation/       Portable animation tracks and generation
     validation/      Host-independent readiness rules
-humanoid_blender/    Blender adapter, UI, rigging, and scene inspection
-tests/              Core and Blender tests
-scripts/            Add-on build and Blender test runners
-examples/           Standalone core examples
-docs/               Architecture, measurements, workflow, installation, and roadmap
-dist/               Generated ZIP; ignored by Git
-artifacts/          Generated previews; ignored by Git
+blender_adapter/     Blender adapter, UI, rigging, and scene inspection
+humanoid_blender/    Compatibility alias for the historical source package name
+tests/               Core and Blender tests
+scripts/             Add-on build and Blender test runners
+examples/            Standalone core examples
+docs/                Architecture, measurements, workflow, installation, and roadmap
+dist/                Generated ZIP; ignored by Git
+artifacts/           Generated previews; ignored by Git
 ```
 
 Core code must never import Blender APIs. [Architecture](docs/architecture.md),

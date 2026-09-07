@@ -75,3 +75,14 @@ jobs:
           "${{ runner.temp }}/${{ matrix.directory }}/blender" \
             --background --factory-startup --python-exit-code 1 \
             --python scripts/test_blender.py
+
+      - name: Build Asset Assistant release ZIP
+        if: matrix.version == '2.92.0'
+        run: python -m scripts.build_blender_addon
+
+      - name: Test isolated Asset Assistant release ZIP
+        if: matrix.version == '2.92.0'
+        run: |
+          "${{ runner.temp }}/${{ matrix.directory }}/blender" \
+            --background --factory-startup --python-exit-code 1 \
+            --python scripts/test_blender_package.py

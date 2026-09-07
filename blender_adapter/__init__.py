@@ -11,18 +11,21 @@ from . import core_gateway as core
 sys.modules[__name__ + ".core"] = core
 
 bl_info = {
-    "name": "Object Generator",
-    "author": "Humanoid Blockout contributors",
-    "version": (0, 8, 2),
+    "name": "Asset Assistant",
+    "author": "Asset Assistant contributors",
+    "version": (0, 9, 0),
     "blender": (2, 92, 0),
     "location": "3D View > Sidebar > Generator",
-    "description": "Generate editable humanoid blockouts from height, weight, and body type",
-    "category": "Add Mesh",
+    "description": "Generate, prepare, validate, and export editable 3D assets",
+    "category": "3D View",
 }
 
 
 def register():
     from . import ui
+    # Keep stable class/operator IDs for compatibility while presenting the new
+    # product name to artists in Blender.
+    ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
     ui.register()
 
 
