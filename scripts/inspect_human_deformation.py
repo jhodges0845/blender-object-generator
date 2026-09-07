@@ -18,18 +18,28 @@ from pathlib import Path
 import bpy
 
 
-# Blender's Text Editor does not automatically add the script's repository root
-# to sys.path. Resolve it from the opened text block's filepath so this helper can
-# be run directly from the Scripting workspace without environment setup.
+def _script_path():
+    """Return the real path of this script in both CLI and Text Editor execution."""
+    text = getattr(bpy.context.space_data, "text", None)
+    if text is not None and text.filepath:
+        return Path(bpy.path.abspath(text.filepath)).resolve()
+    return Path(bpy.path.abspath(__file__)).resolve()
+
+
+def _find_repo_root(start):
+    """Walk upward so the helper does not depend on a particular checkout layout."""
+    for candidate in (start.parent, *start.parents):
+        if (candidate / "object_core").is_dir() and (candidate / "blender_adapter").is_dir():
+            return candidate
+    raise RuntimeError(
+        "Could not locate the Asset Assistant repository root from "
+        + str(start)
+        + ". Open scripts/inspect_human_deformation.py from the repository checkout before running it."
+    )
+
+
 def _ensure_repo_on_path():
-    script_path = Path(bpy.path.abspath(__file__)).resolve()
-    repo_root = script_path.parent.parent
-    if not (repo_root / "object_core").is_dir() or not (repo_root / "blender_adapter").is_dir():
-        raise RuntimeError(
-            "Could not locate the Asset Assistant repository root from "
-            + str(script_path)
-            + ". Open scripts/inspect_human_deformation.py from the repository checkout before running it."
-        )
+    repo_root = _find_repo_root(_script_path())
     repo_root_text = str(repo_root)
     if repo_root_text not in sys.path:
         sys.path.insert(0, repo_root_text)
