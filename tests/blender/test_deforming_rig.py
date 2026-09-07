@@ -30,6 +30,11 @@ class BlenderDeformingRigTests(unittest.TestCase):
         armature = next(child for child in root.children if child.type == "ARMATURE")
         return mesh, skeleton, weights, root, obj, armature
 
+    def _evaluated_points(self, obj):
+        graph = bpy.context.evaluated_depsgraph_get()
+        evaluated = obj.evaluated_get(graph)
+        return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
+
     def test_unified_human_gets_vertex_groups_and_armature_modifier(self):
         _mesh, skeleton, weights, root, obj, armature = self._deforming_human()
         self.assertEqual(sum(child.type == "MESH" for child in root.children), 1)
@@ -59,12 +64,6 @@ class BlenderDeformingRigTests(unittest.TestCase):
     def test_forearm_pose_deforms_local_vertices_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
         bpy.context.view_layer.update()
-        graph = bpy.context.evaluated_depsgraph_get()
-
-        def evaluated_points():
-            evaluated = obj.evaluated_get(graph)
-            return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
-
         left_indices = [
             index for index, influences in enumerate(weights[0].vertices)
             if any(influence.bone_name == "forearm.left" for influence in influences)
@@ -74,25 +73,41 @@ class BlenderDeformingRigTests(unittest.TestCase):
         self.assertTrue(left_indices)
         self.assertTrue(right_indices)
 
-        before = evaluated_points()
+        before = self._evaluated_points(obj)
         pose_bone = armature.pose.bones["forearm.left"]
         pose_bone.rotation_mode = "XYZ"
         pose_bone.rotation_euler.z = 0.6
         bpy.context.view_layer.update()
-        after = evaluated_points()
+        after = self._evaluated_points(obj)
 
         self.assertGreater(max((after[index] - before[index]).length for index in left_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
+    def test_upper_arm_pose_deforms_blended_shoulder_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        shoulder_indices = []
+        for index, influences in enumerate(weights[0].vertices):
+            names = {influence.bone_name for influence in influences}
+            if {"torso", "upper_arm.left"} <= names:
+                shoulder_indices.append(index)
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(shoulder_indices)
+        self.assertTrue(right_indices)
+
+        before = self._evaluated_points(obj)
+        pose_bone = armature.pose.bones["upper_arm.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.y = 0.45
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+
+        self.assertGreater(max((after[index] - before[index]).length for index in shoulder_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
 
     def test_upper_leg_pose_deforms_blended_hip_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
         bpy.context.view_layer.update()
-        graph = bpy.context.evaluated_depsgraph_get()
-
-        def evaluated_points():
-            evaluated = obj.evaluated_get(graph)
-            return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
-
         hip_indices = []
         for index, influences in enumerate(weights[0].vertices):
             names = {influence.bone_name for influence in influences}
@@ -102,12 +117,12 @@ class BlenderDeformingRigTests(unittest.TestCase):
         self.assertTrue(hip_indices)
         self.assertTrue(right_indices)
 
-        before = evaluated_points()
+        before = self._evaluated_points(obj)
         pose_bone = armature.pose.bones["upper_leg.left"]
         pose_bone.rotation_mode = "XYZ"
         pose_bone.rotation_euler.x = 0.45
         bpy.context.view_layer.update()
-        after = evaluated_points()
+        after = self._evaluated_points(obj)
 
         self.assertGreater(max((after[index] - before[index]).length for index in hip_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
