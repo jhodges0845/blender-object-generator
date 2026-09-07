@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Translate core mesh data into Blender data; no body generation rules here."""
+"""Translate core mesh data into Blender data; no provider-specific generation rules here."""
 
 from math import isfinite
 
@@ -13,7 +13,7 @@ def _populate_mesh(data, part, coordinate_scale):
     data.update()
 
 
-def create_character(mesh: ObjectMesh, *, name="Humanoid", scene=None, skeleton=None):
+def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None):
     """Create a collection, Empty root, editable parts, and an optional rigid rig.
 
     Returns the root object. Source coordinates are converted from centimeters
@@ -60,7 +60,6 @@ def create_character(mesh: ObjectMesh, *, name="Humanoid", scene=None, skeleton=
             obj = bpy.data.objects.new(name + "." + part.name, data)
             created_objects.append(obj)
             obj.parent = root
-            obj["body_part"] = part.name
             obj["part_name"] = part.name
             collection.objects.link(obj)
         scene.collection.children.link(collection)
@@ -75,3 +74,7 @@ def create_character(mesh: ObjectMesh, *, name="Humanoid", scene=None, skeleton=
             bpy.data.meshes.remove(data)
         bpy.data.collections.remove(collection)
         raise
+
+
+# Historical public name retained for callers that imported the original adapter API.
+create_character = create_asset
