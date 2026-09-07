@@ -86,7 +86,7 @@ def _label(name, location):
     label.name = name + "_Label"
     label.data.body = name
     label.data.align_x = "CENTER"
-    label.data.size = 7.0
+    label.data.size = 0.12
     label.rotation_euler.x = math.radians(90.0)
 
 
@@ -94,9 +94,11 @@ def main():
     _clear_scene()
     cases = (("Neutral", None, None, 0.0),) + POSES
 
+    # Generated Humans use Blender's normal meter-scale coordinates. Keep the
+    # inspection grid on that same scale so Frame All produces a useful view.
     columns = 4
-    column_spacing = 90.0
-    row_spacing = 225.0
+    column_spacing = 1.4
+    row_spacing = 2.4
     x_offset = -column_spacing * (columns - 1) / 2.0
     y_offset = row_spacing / 2.0
 
@@ -107,7 +109,7 @@ def main():
         root, armature = _human("Human_" + name)
         root.location.x = x
         root.location.y = y
-        _label(name, (x, y - 28.0, 195.0))
+        _label(name, (x, y - 0.42, 1.95))
 
         if bone_name is not None:
             pose_bone = armature.pose.bones[bone_name]
@@ -115,7 +117,7 @@ def main():
             setattr(pose_bone.rotation_euler, axis.lower(), angle)
 
     bpy.context.view_layer.update()
-    print("Human deformation inspection scene ready in a 2x4 grid: Neutral + " + ", ".join(name for name, *_ in POSES))
+    print("Human deformation inspection scene ready in a meter-scale 2x4 grid: Neutral + " + ", ".join(name for name, *_ in POSES))
 
 
 if __name__ == "__main__":
