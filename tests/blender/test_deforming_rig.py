@@ -35,6 +35,13 @@ class BlenderDeformingRigTests(unittest.TestCase):
         evaluated = obj.evaluated_get(graph)
         return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
 
+    def _indices_with_bones(self, weights, *bone_names):
+        required = set(bone_names)
+        return [
+            index for index, influences in enumerate(weights[0].vertices)
+            if required <= {influence.bone_name for influence in influences}
+        ]
+
     def test_unified_human_gets_vertex_groups_and_armature_modifier(self):
         _mesh, skeleton, weights, root, obj, armature = self._deforming_human()
         self.assertEqual(sum(child.type == "MESH" for child in root.children), 1)
@@ -86,11 +93,7 @@ class BlenderDeformingRigTests(unittest.TestCase):
     def test_upper_arm_pose_deforms_blended_shoulder_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
         bpy.context.view_layer.update()
-        shoulder_indices = []
-        for index, influences in enumerate(weights[0].vertices):
-            names = {influence.bone_name for influence in influences}
-            if {"torso", "upper_arm.left"} <= names:
-                shoulder_indices.append(index)
+        shoulder_indices = self._indices_with_bones(weights, "torso", "upper_arm.left")
         right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
         self.assertTrue(shoulder_indices)
         self.assertTrue(right_indices)
@@ -108,11 +111,7 @@ class BlenderDeformingRigTests(unittest.TestCase):
     def test_upper_leg_pose_deforms_blended_hip_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
         bpy.context.view_layer.update()
-        hip_indices = []
-        for index, influences in enumerate(weights[0].vertices):
-            names = {influence.bone_name for influence in influences}
-            if {"torso", "upper_leg.left"} <= names:
-                hip_indices.append(index)
+        hip_indices = self._indices_with_bones(weights, "torso", "upper_leg.left")
         right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
         self.assertTrue(hip_indices)
         self.assertTrue(right_indices)
@@ -126,6 +125,39 @@ class BlenderDeformingRigTests(unittest.TestCase):
 
         self.assertGreater(max((after[index] - before[index]).length for index in hip_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
+    def test_lower_leg_pose_deforms_blended_knee_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        knee_indices = self._indices_with_bones(weights, "upper_leg.left", "lower_leg.left")
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(knee_indices)
+        self.assertTrue(right_indices)
+
+        before = self._evaluated_points(obj)
+        pose_bone = armature.pose.bones["lower_leg.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.x = 0.6
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+
+        self.assertGreater(max((after[index] - before[index]).length for index in knee_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
+    def test_neck_pose_deforms_torso_neck_transition(self):
+        _mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        neck_indices = self._indices_with_bones(weights, "torso", "neck")
+        self.assertTrue(neck_indices)
+
+        before = self._evaluated_points(obj)
+        pose_bone = armature.pose.bones["neck"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.y = 0.35
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+
+        self.assertGreater(max((after[index] - before[index]).length for index in neck_indices), 1e-3)
 
     def test_weighted_path_requires_complete_matching_weights(self):
         proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
