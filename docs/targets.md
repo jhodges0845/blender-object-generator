@@ -90,11 +90,14 @@ self-intersection cases are not certified by this mesh check.
 Automated tests run in Blender 2.92 and through the isolated installed ZIP. They
 exercise UI operators, live export gating, material preparation, scene scoping,
 FBX skin/animation/embedded texture data, GLB/glTF contents and STL dimensions.
-Newer Blender versions and actual destination imports remain manual verification.
+Initial destination import results and remaining manual checks are recorded in
+[Target verification](target-verification.md). Modern Blender add-on compatibility
+remains unverified; the recorded Unity, Unreal and Cura exports used Blender 2.92.
 A nonempty exported file is not a guarantee of production readiness.
 
 Destination references: [Godot scene import](https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/index.html),
 [Unreal FBX pipeline](https://dev.epicgames.com/documentation/en-us/unreal-engine/fbx-content-pipeline),
 and [Cura model formats](https://ultimaker.com/learn/ultimaker-cura-5-7-stable-release-notes/).
 Unreal documents an FBX 2020.2 import pipeline; Blender 2.92 writes an older FBX
-version, so actual Unreal import compatibility must be checked before release.
+version. The recorded Unreal 5.8.2 basic import/playback succeeded, but broader
+FBX compatibility and detailed target review remain release checks.
