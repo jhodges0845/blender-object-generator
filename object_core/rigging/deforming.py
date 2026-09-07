@@ -36,6 +36,10 @@ def generate_deforming_skeleton(proportions: HumanoidProportions) -> Skeleton:
     return Skeleton(tuple(bones))
 
 
+def _distance(a, b):
+    return sqrt(sum((a[i] - b[i]) ** 2 for i in range(3)))
+
+
 def _distance_to_segment(point, start, end):
     axis = tuple(end[i] - start[i] for i in range(3))
     offset = tuple(point[i] - start[i] for i in range(3))
@@ -43,7 +47,7 @@ def _distance_to_segment(point, start, end):
     amount = sum(offset[i] * axis[i] for i in range(3)) / length_sq
     amount = max(0.0, min(1.0, amount))
     closest = tuple(start[i] + axis[i] * amount for i in range(3))
-    return sqrt(sum((point[i] - closest[i]) ** 2 for i in range(3)))
+    return _distance(point, closest)
 
 
 def _candidate_bones(vertex, bones):
@@ -57,19 +61,45 @@ def _candidate_bones(vertex, bones):
     )
 
 
-def _local_joint_bones(vertex, bones, max_influences):
-    """Return the nearest deform bone and its connected deform neighbors.
+def _human_hip_bridge_names(vertex, nearest, candidates):
+    """Bridge torso and same-side upper leg near the non-deforming root.
 
-    Restricting a vertex to the closest bone's parent/children keeps blends around
-    elbows, knees, shoulders, and hips anatomically local instead of allowing an
-    unrelated nearby limb segment to become an influence.
+    The Human skeleton deliberately keeps ``root`` as a non-deforming control.
+    Torso and upper legs are therefore siblings in the hierarchy even though the
+    surface must bend continuously across each hip. Only vertices close to the
+    hip junction receive this anatomy-specific adjacency; the existing candidate
+    filter still prevents left/right leg cross-influence.
     """
+    by_name = {bone.name: bone for bone in candidates}
+    side = "left" if vertex[0] >= 0 else "right"
+    upper_leg_name = "upper_leg." + side
+    torso = by_name.get("torso")
+    upper_leg = by_name.get(upper_leg_name)
+    if torso is None or upper_leg is None:
+        return set()
+
+    bridge_radius = _distance(torso.head, upper_leg.head) * 1.5
+    if nearest.name == "torso" and _distance(vertex, torso.head) <= bridge_radius:
+        return {"torso", upper_leg_name}
+    if nearest.name == upper_leg_name and _distance(vertex, upper_leg.head) <= bridge_radius:
+        return {"torso", upper_leg_name}
+    return set()
+
+
+def _local_joint_bones(vertex, bones, max_influences):
+    """Return the nearest deform bone and its local Human joint neighbors."""
     candidates = _candidate_bones(vertex, bones)
     ranked = sorted(
         ((_distance_to_segment(vertex, bone.head, bone.tail), bone) for bone in candidates),
         key=lambda item: (item[0], item[1].name),
     )
     nearest = ranked[0][1]
+
+    hip_bridge_names = _human_hip_bridge_names(vertex, nearest, candidates)
+    if hip_bridge_names:
+        local = [(distance, bone) for distance, bone in ranked if bone.name in hip_bridge_names]
+        return local[:max_influences]
+
     connected_names = {nearest.name}
     if nearest.parent:
         connected_names.add(nearest.parent)

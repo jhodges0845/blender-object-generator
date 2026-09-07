@@ -84,6 +84,34 @@ class BlenderDeformingRigTests(unittest.TestCase):
         self.assertGreater(max((after[index] - before[index]).length for index in left_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
 
+    def test_upper_leg_pose_deforms_blended_hip_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        graph = bpy.context.evaluated_depsgraph_get()
+
+        def evaluated_points():
+            evaluated = obj.evaluated_get(graph)
+            return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
+
+        hip_indices = []
+        for index, influences in enumerate(weights[0].vertices):
+            names = {influence.bone_name for influence in influences}
+            if {"torso", "upper_leg.left"} <= names:
+                hip_indices.append(index)
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(hip_indices)
+        self.assertTrue(right_indices)
+
+        before = evaluated_points()
+        pose_bone = armature.pose.bones["upper_leg.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.x = 0.45
+        bpy.context.view_layer.update()
+        after = evaluated_points()
+
+        self.assertGreater(max((after[index] - before[index]).length for index in hip_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
     def test_weighted_path_requires_complete_matching_weights(self):
         proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         mesh = generate_deformable_mesh(proportions)
