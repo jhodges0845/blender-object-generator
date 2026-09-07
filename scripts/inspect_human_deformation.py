@@ -6,8 +6,8 @@ Open this script in Blender's Scripting workspace and choose Run Script, or run:
     blender --python scripts/inspect_human_deformation.py
 
 The scene contains a neutral reference plus seven deliberately obvious joint
-poses. Each posed case is also checked against its neutral evaluated mesh so the
-inspection harness fails instead of silently presenting an ineffective pose.
+poses. Each posed case is checked against both its neutral evaluated mesh and
+its posed bone direction so the inspection harness rejects ineffective twists.
 """
 
 import math
@@ -50,16 +50,16 @@ from object_core.geometry import generate_deformable_mesh
 from object_core.rigging import generate_deforming_skeleton, generate_skin_weights
 
 
-# Use rotations that are visually unmistakable at the inspection-grid scale.
-# Axes intentionally match the Blender regression tests for each joint.
+# Use non-axial local rotations for the shoulder, wrist, and neck so these
+# cases show an anatomical bend rather than merely twisting around the bone.
 POSES = (
-    ("Shoulder", "upper_arm.left", "Y", 1.05),
+    ("Shoulder", "upper_arm.left", "Z", 1.05),
     ("Elbow", "forearm.left", "Z", 1.20),
-    ("Wrist", "hand.left", "Y", 1.05),
+    ("Wrist", "hand.left", "Z", 1.05),
     ("Hip", "upper_leg.left", "X", 0.95),
     ("Knee", "lower_leg.left", "X", 1.20),
     ("Ankle", "foot.left", "X", 1.05),
-    ("Neck", "neck", "Y", 0.85),
+    ("Neck", "neck", "X", 0.85),
 )
 
 
@@ -100,18 +100,30 @@ def _apply_and_verify_pose(name, obj, armature, bone_name, axis, angle):
     before = _evaluated_local_points(obj)
 
     pose_bone = armature.pose.bones[bone_name]
+    neutral_tail = pose_bone.tail.copy()
     pose_bone.rotation_mode = "XYZ"
     setattr(pose_bone.rotation_euler, axis.lower(), angle)
     bpy.context.view_layer.update()
 
     after = _evaluated_local_points(obj)
     max_displacement = max((posed - neutral).length for neutral, posed in zip(before, after))
+    tail_displacement = (pose_bone.tail - neutral_tail).length
+
     if max_displacement <= 1e-3:
         raise RuntimeError(
-            name + " inspection pose did not visibly deform the evaluated mesh "
+            name + " inspection pose did not deform the evaluated mesh "
             + "(max displacement {:.6f} m)".format(max_displacement)
         )
-    print("{} pose verified: max mesh displacement {:.4f} m".format(name, max_displacement))
+    if tail_displacement <= 1e-3:
+        raise RuntimeError(
+            name + " inspection pose only twists around the bone axis instead of showing a bend "
+            + "(bone-tail displacement {:.6f} m)".format(tail_displacement)
+        )
+    print(
+        "{} pose verified: max mesh displacement {:.4f} m; bone-tail displacement {:.4f} m".format(
+            name, max_displacement, tail_displacement
+        )
+    )
 
 
 def main():
