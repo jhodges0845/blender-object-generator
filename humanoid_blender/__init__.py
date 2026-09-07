@@ -1,22 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Blender add-on entry point. Importing this package does not require Blender."""
+"""Compatibility package for the historical source import name."""
+from importlib import import_module
+import sys
 
-bl_info = {
-    "name": "Object Generator",
-    "author": "Humanoid Blockout contributors",
-    "version": (0, 8, 2),
-    "blender": (2, 92, 0),
-    "location": "3D View > Sidebar > Generator",
-    "description": "Generate editable humanoid blockouts from height, weight, and body type",
-    "category": "Add Mesh",
-}
+_canonical = import_module("blender_adapter")
+bl_info = _canonical.bl_info
+register = _canonical.register
+unregister = _canonical.unregister
 
-
-def register():
-    from . import ui
-    ui.register()
-
-
-def unregister():
-    from . import ui
-    ui.unregister()
+# Let historical humanoid_blender.<module> imports resolve modules from the
+# canonical blender_adapter source directory without duplicating those files.
+__path__ = _canonical.__path__
+sys.modules[__name__ + ".core"] = import_module("blender_adapter.core_gateway")
