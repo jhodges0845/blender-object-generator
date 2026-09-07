@@ -13,9 +13,11 @@ class ObjectProviderTests(unittest.TestCase):
             mesh = provider.mesh(values)
             self.assertIsInstance(mesh, ObjectMesh)
             self.assertEqual(mesh, provider.mesh(values))
+            self.assertIsInstance(provider.uses_skin_weights, bool)
         box = get_provider('box')
         self.assertFalse(box.supports_rig)
         self.assertFalse(box.supports_idle)
+        self.assertFalse(box.uses_skin_weights)
         with self.assertRaisesRegex(ValueError, 'Unsupported'):
             get_provider('unknown')
 
@@ -42,7 +44,7 @@ class ObjectProviderTests(unittest.TestCase):
 
     def test_static_provider_does_not_need_rig_or_idle_methods(self):
         provider = SimpleNamespace(key='static_test', label='Static Test', parameters=(),
-                                   supports_rig=False, supports_idle=False,
+                                   supports_rig=False, supports_idle=False, uses_skin_weights=False,
                                    mesh=lambda values: get_provider('box').mesh(
                                        dict(width_cm=10, depth_cm=10, height_cm=10)))
         self.assertIs(validate_provider(provider), provider)
@@ -51,16 +53,26 @@ class ObjectProviderTests(unittest.TestCase):
 
     def test_invalid_capabilities_fail_before_generation(self):
         baseline = dict(key='invalid', label='Invalid', parameters=(),
-                        supports_rig=False, supports_idle=False, mesh=lambda values: None)
+                        supports_rig=False, supports_idle=False, uses_skin_weights=False,
+                        mesh=lambda values: None)
         cases = [dict(supports_rig='yes'), dict(supports_idle=True),
+                 dict(uses_skin_weights='yes'), dict(uses_skin_weights=True),
                  dict(supports_rig=True),
                  dict(supports_rig=True, skeleton=lambda values: None, supports_idle=True),
+                 dict(supports_rig=True, skeleton=lambda values: None, uses_skin_weights=True),
                  dict(mesh=None), dict(key=''), dict(label='')]
         for changes in cases:
             with self.subTest(changes=changes):
                 provider = SimpleNamespace(**dict(baseline, **changes))
                 with self.assertRaises((TypeError, ValueError)):
                     validate_provider(provider)
+
+    def test_skin_weight_provider_contract_is_generic(self):
+        provider = SimpleNamespace(key='deforming_test', label='Deforming Test', parameters=(),
+                                   supports_rig=True, supports_idle=False, uses_skin_weights=True,
+                                   mesh=lambda values: None, skeleton=lambda values: None,
+                                   skin_weights=lambda mesh, values: ())
+        self.assertIs(validate_provider(provider), provider)
 
     def test_registry_key_mismatch_is_rejected(self):
         with patch.dict(OBJECT_TYPES, {'wrong_key': get_provider('box')}):
@@ -71,6 +83,7 @@ class ObjectProviderTests(unittest.TestCase):
         from object_core.objects import Parameter
         field = Parameter('size', 'Size', 10, 1, 20)
         provider = SimpleNamespace(key='duplicate', label='Duplicate', parameters=(field, field),
-                                   supports_rig=False, supports_idle=False, mesh=lambda values: None)
+                                   supports_rig=False, supports_idle=False, uses_skin_weights=False,
+                                   mesh=lambda values: None)
         with self.assertRaisesRegex(ValueError, 'parameter'):
             validate_provider(provider)
