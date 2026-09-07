@@ -50,22 +50,38 @@ def _candidate_bones(vertex, bones):
     """Keep skinning local enough to prevent left/right limb cross-influence."""
     x = vertex[0]
     side = "left" if x >= 0 else "right"
-    limb_side = tuple(
+    return tuple(
         bone for bone in bones
         if not (bone.name.endswith(".left") or bone.name.endswith(".right"))
         or bone.name.endswith("." + side)
     )
-    return limb_side
+
+
+def _local_joint_bones(vertex, bones, max_influences):
+    """Return the nearest deform bone and its connected deform neighbors.
+
+    Restricting a vertex to the closest bone's parent/children keeps blends around
+    elbows, knees, shoulders, and hips anatomically local instead of allowing an
+    unrelated nearby limb segment to become an influence.
+    """
+    candidates = _candidate_bones(vertex, bones)
+    ranked = sorted(
+        ((_distance_to_segment(vertex, bone.head, bone.tail), bone) for bone in candidates),
+        key=lambda item: (item[0], item[1].name),
+    )
+    nearest = ranked[0][1]
+    connected_names = {nearest.name}
+    if nearest.parent:
+        connected_names.add(nearest.parent)
+    connected_names.update(bone.name for bone in candidates if bone.parent == nearest.name)
+    local = [(distance, bone) for distance, bone in ranked if bone.name in connected_names]
+    return local[:max_influences]
 
 
 def _weights_for_vertex(vertex, bones, max_influences=4):
-    candidates = _candidate_bones(vertex, bones)
-    ranked = sorted(
-        ((_distance_to_segment(vertex, bone.head, bone.tail), bone.name) for bone in candidates),
-        key=lambda item: (item[0], item[1]),
-    )[:max_influences]
+    ranked = _local_joint_bones(vertex, bones, max_influences)
     # A small epsilon makes vertices lying directly on a bone deterministic and finite.
-    raw = [(name, 1.0 / ((distance + 1e-3) ** 2)) for distance, name in ranked]
+    raw = [(bone.name, 1.0 / ((distance + 1e-3) ** 2)) for distance, bone in ranked]
     total = sum(value for _, value in raw)
     normalized = [(name, value / total) for name, value in raw]
     # Force exact normalization after floating point division.
