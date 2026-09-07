@@ -87,6 +87,22 @@ class DeformingRigTests(unittest.TestCase):
             forbidden = "upper_arm.right" if side == "left" else "upper_arm.left"
             self.assertTrue(all(forbidden not in names for _vertex, names in blended))
 
+    def test_neck_and_shoulders_have_meaningful_shared_weights(self):
+        mesh, skeleton = self._fixture()
+        weights = generate_skin_weights(mesh, skeleton)[0]
+        transitions = (
+            ("neck", {"torso", "neck"}),
+            ("left shoulder", {"torso", "upper_arm.left"}),
+            ("right shoulder", {"torso", "upper_arm.right"}),
+        )
+        for label, required in transitions:
+            balanced = []
+            for influences in weights.vertices:
+                by_name = {item.bone_name: item.weight for item in influences}
+                if required <= set(by_name) and min(by_name[name] for name in required) >= 0.10:
+                    balanced.append(by_name)
+            self.assertTrue(balanced, "{} has no meaningfully shared transition weights".format(label))
+
     def test_each_hip_has_torso_upper_leg_blending(self):
         mesh, skeleton = self._fixture()
         weights = generate_skin_weights(mesh, skeleton)[0]
