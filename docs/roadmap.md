@@ -116,12 +116,12 @@ Human 1.0 has moved beyond the original disconnected rigid blockout. A deformati
 - [x] Make the Blender rigging workflow provider-aware for the Human deforming path.
 - [x] Restrict skin-weight blends to a nearest connected-joint neighborhood instead of unrelated nearby bones.
 - [x] Add deliberate torso-to-same-side-upper-leg blending across the non-deforming hip/root junction.
-- [x] Add representative Blender pose/deformation regressions for shoulder, elbow/forearm, hip, knee, and neck.
+- [x] Add representative Blender pose/deformation regressions for shoulder, elbow/forearm, hip, knee, neck, wrist, and ankle.
 - [x] Preserve the existing parameter/proportion foundation through the new Human geometry path.
 
 ### Remaining Human 1.0 work
 
-- [ ] Visually inspect and refine deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles; add wrist/ankle regression coverage and convert other reproducible failures into focused tests where practical.
+- [ ] Visually inspect and refine deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles; convert reproducible failures into focused tests where practical.
 - [ ] Improve hands, feet, and other blockout-level regions enough for the first usable milestone.
 - [ ] Generate UVs.
 - [ ] Provide a basic portable generated material/texture workflow.
@@ -185,7 +185,7 @@ Definition of done: supported human parameters produce an editable, deformable, 
 
 ## Suggested implementation order
 
-1. Refine Human 1.0 deformation quality, beginning with wrist/ankle coverage and representative Blender pose inspection while preserving the existing shoulder/elbow/hip/knee/neck regressions.
+1. Refine Human 1.0 deformation quality using representative Blender pose inspection while preserving the shoulder/elbow/hip/knee/neck/wrist/ankle regressions.
 2. Improve remaining Human geometry details needed for the first usable character foundation.
 3. Add UV and basic material/texture generation.
 4. Add human locomotion and strengthen animation export handling.
