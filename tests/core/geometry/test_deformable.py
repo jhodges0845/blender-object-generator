@@ -7,16 +7,11 @@ from object_core.geometry import generate_deformable_mesh
 
 
 class DeformableHumanGeometryTests(unittest.TestCase):
-    def test_foundation_reduces_rigid_part_seams(self):
+    def test_shoulders_and_hips_are_one_surface(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         mesh = generate_deformable_mesh(p)
-        self.assertEqual(
-            {part.name for part in mesh.parts},
-            {"body", "arm.left", "arm.right", "leg.left", "leg.right"},
-        )
-        # Feet are now part of each continuous leg chain; shoulders and hips
-        # remain the final torso junctions to solve with manifold topology.
-        self.assertEqual(len(mesh.parts), 5)
+        self.assertEqual(len(mesh.parts), 1)
+        self.assertEqual(mesh.parts[0].name, "human")
         self.assertGreater(mesh.vertex_count, 0)
         self.assertGreater(mesh.face_count, 0)
 
@@ -37,31 +32,25 @@ class DeformableHumanGeometryTests(unittest.TestCase):
             generate_proportions(replace(spec, body_type=BodyType.OBESE))
         )
         self.assertNotEqual(slim.parts[0].vertices, obese.parts[0].vertices)
-        for a, b in zip(slim.parts, obese.parts):
-            self.assertEqual(a.name, b.name)
-            self.assertEqual(a.faces, b.faces)
-            self.assertEqual(len(a.vertices), len(b.vertices))
+        self.assertEqual(slim.parts[0].faces, obese.parts[0].faces)
+        self.assertEqual(len(slim.parts[0].vertices), len(obese.parts[0].vertices))
 
-    def test_joint_chains_have_deformation_support_loops(self):
+    def test_unified_surface_retains_joint_support_geometry(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
-        parts = {part.name: part for part in generate_deformable_mesh(p).parts}
-        # Arm: shoulder + three rings around elbow + three around wrist + hand.
-        self.assertEqual(len(parts["arm.left"].vertices), 64)
-        # Leg: hip + support rings around knee, ankle, and foot bend + toe end.
-        self.assertEqual(len(parts["leg.left"].vertices), 88)
-        self.assertEqual(len(parts["body"].vertices), 72)
+        part = generate_deformable_mesh(p).parts[0]
+        # The unified mesh should be substantially denser than the 72-vertex
+        # torso because all four supported limb chains are now stitched in.
+        self.assertGreater(len(part.vertices), 300)
 
-    def test_feet_are_integrated_into_leg_surface(self):
+    def test_feet_remain_integrated_and_above_ground(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
-        parts = {part.name: part for part in generate_deformable_mesh(p).parts}
-        self.assertNotIn("foot.left", parts)
-        self.assertNotIn("foot.right", parts)
-        for side in ("left", "right"):
-            leg = parts["leg." + side]
-            minimum_y = min(vertex[1] for vertex in leg.vertices)
-            maximum_y = max(vertex[1] for vertex in leg.vertices)
-            self.assertLess(minimum_y, 0)
-            self.assertGreater(maximum_y, p.foot_length_cm * 0.5)
+        part = generate_deformable_mesh(p).parts[0]
+        minimum_y = min(vertex[1] for vertex in part.vertices)
+        maximum_y = max(vertex[1] for vertex in part.vertices)
+        minimum_z = min(vertex[2] for vertex in part.vertices)
+        self.assertLess(minimum_y, 0)
+        self.assertGreater(maximum_y, p.foot_length_cm * 0.5)
+        self.assertAlmostEqual(minimum_z, 0)
 
     def test_deterministic_and_requires_proportions(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))

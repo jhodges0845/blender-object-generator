@@ -36,7 +36,38 @@ def nonmanifold_edges(part: MeshPart):
     )
 
 
+def connected_surface_count(part: MeshPart) -> int:
+    """Return the number of face-connected surface islands in a mesh part."""
+    if not isinstance(part, MeshPart):
+        raise TypeError("part must be a MeshPart")
+    edge_faces = {}
+    for face_index, face in enumerate(part.faces):
+        for index, start in enumerate(face):
+            end = face[(index + 1) % len(face)]
+            edge = (start, end) if start < end else (end, start)
+            edge_faces.setdefault(edge, []).append(face_index)
+    neighbors = [set() for _ in part.faces]
+    for face_indices in edge_faces.values():
+        for face_index in face_indices:
+            neighbors[face_index].update(other for other in face_indices if other != face_index)
+    unseen = set(range(len(part.faces)))
+    components = 0
+    while unseen:
+        components += 1
+        stack = [unseen.pop()]
+        while stack:
+            current = stack.pop()
+            adjacent = neighbors[current] & unseen
+            unseen.difference_update(adjacent)
+            stack.extend(adjacent)
+    return components
+
+
 def is_closed_manifold(part: MeshPart) -> bool:
-    """Whether every undirected edge is shared by exactly two faces."""
+    """Whether the part is one closed surface with two faces per edge."""
     counts = edge_use_counts(part)
-    return bool(counts) and all(count == 2 for count in counts.values())
+    return (
+        bool(counts)
+        and all(count == 2 for count in counts.values())
+        and connected_surface_count(part) == 1
+    )

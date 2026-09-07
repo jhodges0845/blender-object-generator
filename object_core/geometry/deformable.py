@@ -32,8 +32,6 @@ def _normalize(vector):
 def _ring(center, width, depth, tangent=(0.0, 0.0, 1.0)):
     """Return an elliptical ring normal to an arbitrary 3D tangent."""
     tangent = _normalize(tangent)
-    # Prefer world Y as the depth reference for upright limbs. Near a foot's
-    # Y-aligned direction use Z instead, avoiding a degenerate cross product.
     reference = (0.0, 1.0, 0.0)
     if abs(sum(tangent[i] * reference[i] for i in range(3))) > 0.95:
         reference = (0.0, 0.0, 1.0)
@@ -80,10 +78,23 @@ def _subtract(a, b):
     return tuple(a[i] - b[i] for i in range(3))
 
 
-def _chain(name, centers, widths, depths):
-    """Build one capped quad surface through all supplied joint centers."""
+def _side_face_index(level, segment):
+    """Face index for one side quad in the standard 8-sided vertical loft."""
+    return 1 + level * RING_SIDES + segment
+
+
+def _append_branch(vertices, faces, root, centers, widths, depths):
+    """Stitch a 4-edge torso opening into an 8-sided deformable chain.
+
+    ``root`` contains the four existing torso vertex indices in the same
+    winding as the removed torso quad. The transition reuses those vertices,
+    so the branch shares topology with the torso instead of overlapping it.
+    """
+    if len(root) != 4:
+        raise ValueError("branch root must contain four torso vertices")
     if not (len(centers) == len(widths) == len(depths)) or len(centers) < 2:
-        raise ValueError("chain inputs must have equal lengths of at least two")
+        raise ValueError("branch inputs must have equal lengths of at least two")
+
     rings = []
     for index, center in enumerate(centers):
         if index == 0:
@@ -92,30 +103,38 @@ def _chain(name, centers, widths, depths):
             tangent = _subtract(center, centers[index - 1])
         else:
             tangent = _subtract(centers[index + 1], centers[index - 1])
-        rings.append(_ring(center, widths[index], depths[index], tangent))
+        ring = _ring(center, widths[index], depths[index], tangent)
+        start = len(vertices)
+        vertices.extend(ring)
+        rings.append(tuple(range(start, start + RING_SIDES)))
 
-    vertices = tuple(vertex for ring in rings for vertex in ring)
-    faces = [tuple(reversed(range(RING_SIDES)))]
+    first = rings[0]
+    for index in range(4):
+        root_start = root[index]
+        root_end = root[(index + 1) % 4]
+        ring_start = first[(2 * index) % RING_SIDES]
+        ring_mid = first[(2 * index + 1) % RING_SIDES]
+        ring_end = first[(2 * index + 2) % RING_SIDES]
+        faces.append((root_start, root_end, ring_end))
+        faces.append((root_start, ring_end, ring_mid, ring_start))
+
     for level in range(len(rings) - 1):
-        lower = level * RING_SIDES
-        upper = lower + RING_SIDES
+        lower = rings[level]
+        upper = rings[level + 1]
         for index in range(RING_SIDES):
             nxt = (index + 1) % RING_SIDES
-            faces.append((lower + index, lower + nxt, upper + nxt, upper + index))
-    faces.append(tuple(range(len(vertices) - RING_SIDES, len(vertices))))
-    return MeshPart(name, vertices, tuple(faces))
+            faces.append((lower[index], lower[nxt], upper[nxt], upper[index]))
+
+    faces.append(tuple(rings[-1]))
 
 
 def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
-    """Return the Human 1.0 deformation-oriented surface in progress.
+    """Return one connected Human 1.0 deformation-oriented surface.
 
-    The torso/neck/head is continuous, arms have support loops around elbow and
-    wrist deformation zones, and each leg now continues through ankle into the
-    foot. Arms and legs remain separate from the torso until the shoulder/hip
-    branch topology can be welded without creating a non-manifold junction.
-
-    The function is deliberately opt-in until the deforming rig replaces the
-    legacy rigid part-binding contract.
+    Shoulder and hip roots are stitched into explicit torso openings. Elbows,
+    wrists, knees, ankles, and foot bends retain support loops. The result is
+    still opt-in until a deforming skeleton and skin weights replace the legacy
+    rigid part-binding contract.
     """
     if not isinstance(proportions, HumanoidProportions):
         raise TypeError("proportions must be HumanoidProportions")
@@ -127,7 +146,7 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     crown_z = points["crown"][2]
 
     body = vertical_loft(
-        "body",
+        "human",
         (
             (hip_z, p.hip_width_cm, p.hip_depth_cm),
             (hip_z + p.torso_length_cm * 0.35, p.waist_width_cm, p.waist_depth_cm),
@@ -140,31 +159,57 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
             (crown_z, p.head_width_cm * 0.7, p.head_depth_cm * 0.7),
         ),
     )
-    parts = [body]
+
+    vertices = list(body.vertices)
+    body_faces = list(body.faces)
+
+    # One quad opening per branch. Paired segment choices mirror across X.
+    openings = {
+        ("hip", "left"): body_faces[_side_face_index(0, 0)],
+        ("hip", "right"): body_faces[_side_face_index(0, 3)],
+        ("shoulder", "left"): body_faces[_side_face_index(2, 0)],
+        ("shoulder", "right"): body_faces[_side_face_index(2, 3)],
+    }
+    removed = {
+        _side_face_index(0, 0),
+        _side_face_index(0, 3),
+        _side_face_index(2, 0),
+        _side_face_index(2, 3),
+    }
+    faces = [face for index, face in enumerate(body_faces) if index not in removed]
 
     for side in ("left", "right"):
         shoulder = points["shoulder." + side]
         elbow = points["elbow." + side]
         wrist = points["wrist." + side]
         fingertips = points["fingertips." + side]
+        shoulder_exit = _lerp_point(shoulder, elbow, 0.12)
         arm_centers, arm_widths, arm_depths = _supported_joint_chain(
-            (shoulder, elbow, wrist, fingertips),
+            (shoulder_exit, elbow, wrist, fingertips),
             (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
              p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.52),
             (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
              p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.30),
         )
-        parts.append(_chain("arm." + side, arm_centers, arm_widths, arm_depths))
+        _append_branch(
+            vertices,
+            faces,
+            openings[("shoulder", side)],
+            arm_centers,
+            arm_widths,
+            arm_depths,
+        )
 
         hip = points["hip." + side]
         knee = points["knee." + side]
         ankle = points["ankle." + side]
+        hip_exit = _lerp_point(hip, knee, 0.10)
         foot_height = p.foot_length_cm * 0.34
         foot_center_z = foot_height * 0.5
         foot_back = (ankle[0], -p.foot_length_cm * 0.18, foot_center_z)
         foot_front = (ankle[0], p.foot_length_cm * 0.72, foot_center_z)
         leg_centers, leg_widths, leg_depths = _supported_joint_chain(
-            (hip, knee, ankle, foot_back, foot_front),
+            (hip_exit, knee, ankle, foot_back, foot_front),
             (p.thigh_thickness_cm, p.calf_thickness_cm,
              p.calf_thickness_cm * 0.6, p.calf_thickness_cm * 0.72,
              p.calf_thickness_cm * 0.62),
@@ -172,6 +217,13 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
              p.calf_thickness_cm * 0.6, foot_height,
              p.foot_length_cm * 0.18),
         )
-        parts.append(_chain("leg." + side, leg_centers, leg_widths, leg_depths))
+        _append_branch(
+            vertices,
+            faces,
+            openings[("hip", side)],
+            leg_centers,
+            leg_widths,
+            leg_depths,
+        )
 
-    return ObjectMesh(tuple(parts))
+    return ObjectMesh((MeshPart("human", tuple(vertices), tuple(faces)),))
