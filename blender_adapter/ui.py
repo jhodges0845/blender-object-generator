@@ -363,7 +363,9 @@ class _WorkflowPanel:
             else:
                 layout.operator("humanoid.add_basic_rig", icon="ARMATURE_DATA")
                 layout.label(text="Uses saved generation dimensions.")
-            layout.label(text="Rigid parts; no smooth joints yet.")
+            layout.label(text=("Weighted mesh; joints deform with the rig."
+                               if getattr(provider, 'uses_skin_weights', False)
+                               else "Rigid parts; no smooth joints yet."))
         elif stage == "ANIMATION":
             if not has_rig:
                 layout.label(text="Add a rig before animating.")
