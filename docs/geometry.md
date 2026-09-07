@@ -1,79 +1,51 @@
-# Piece 3: humanoid blockout mesh
+# Human geometry
 
-```python
-from object_core import BodyType, HumanoidSpec, generate_proportions, generate_mesh
+Asset Assistant currently keeps two Human geometry paths: the original multipart blockout and the Human 1.0 deformation-oriented surface. Keeping the legacy path available lets existing tests/workflows remain stable while the newer character foundation is refined.
 
-spec = HumanoidSpec(180, 95, BodyType.OVERWEIGHT)
-mesh = generate_mesh(generate_proportions(spec))
-for part in mesh.parts:
-    print(part.name, len(part.vertices), len(part.faces))
-```
+## Coordinates and core data
 
-## Data and coordinates
+`ObjectMesh` contains immutable `MeshPart` data with XYZ vertices and polygon faces. Core coordinates are centimeters in a right-handed system: Z is up, positive Y is forward, and positive X is the character's left. Adapters are responsible for host unit/axis conversion.
 
-`ObjectMesh` contains an immutable tuple of `MeshPart` objects. Each part has
-a unique name, a tuple of XYZ vertices, and polygon faces containing zero-based
-indices into that part's vertices. Coordinates are centimeters in a right-handed
-system: Z is up, positive Y is forward, and positive X is the character's left.
-Faces wind counterclockwise as seen from outside. The ground is Z=0 and the
-character is centered on X=0. An adapter is responsible for unit/axis conversion.
+The mesh contracts validate finite coordinates, face indices, non-empty data, and unique part names. They do not by themselves prove arbitrary geometry is manifold, intersection-free, or production ready.
 
-`vertex_count`, `face_count`, and `bounds_cm` provide aggregate statistics. Bounds
-are the minimum and maximum XYZ corners. The data contracts check finite numeric
-coordinates, face index validity, nonempty data, and unique names; they do not
-claim to validate arbitrary meshes for manifoldness or self-intersection.
+## Legacy multipart blockout
 
-## Generated parts
+The original generator creates 15 separate closed parts: head, neck, torso, and paired upper arms, forearms, hands, upper legs, lower legs, and feet. It remains useful for proportion review, compatibility, rigid-rig behavior, and pipeline smoke tests.
 
-The generator creates 15 separate closed parts with 272 vertices and 182 polygon
-faces: head, neck, torso, plus left/right upper arms, forearms, hands, upper legs,
-lower legs, and feet. Side names use `.left` and `.right` suffixes. Every cross
-section has eight vertices. Sides are quads and end caps are convex octagons;
-face count is not a triangle count. A triangle-only consumer will need to
-triangulate polygons; adapters should use a consistent triangulation policy.
+That path is intentionally a blockout. Its pieces may overlap at joints and are not a welded character surface.
 
-Torso cross sections follow the hip, waist, chest, and shoulder dimensions. The
-waist sits at 35% and chest at 78% of torso height above the hip plane. Head
-sections give a simple chin and crown. Limb sections taper toward extremities;
-hands are flattened blocks without fingers. Feet project toward positive Y.
+## Human 1.0 deformation-oriented surface
 
-The arms point outward 30 degrees from vertical in the XZ plane, giving a neutral
-A-pose. Legs are straight, with hip centers one quarter of the hip width from
-the centerline. Segment endpoints preserve the calculated limb lengths. All
-parts share world coordinates, allowing an adapter to place them without adding
-its own body-placement rules.
+`generate_deformable_mesh` provides the newer Human 1.0 geometry foundation as one connected `human` mesh part.
 
-## Limits
+The current surface:
 
-This is a blockout for reviewing proportions. Parts may overlap at joints and
-some extreme inputs may cause additional intersections. The overall humanoid
-is not a single welded surface. There are no UVs, facial features, fingers,
-materials, normals, rig, or skin weights. Tapered quads may be nonplanar.
-Production topology and joint deformation are future work.
+- builds the torso, neck, and head as a continuous central loft;
+- opens the torso at both shoulders and hips instead of overlapping separate limbs;
+- stitches arm and leg branches into those openings so they share topology with the torso;
+- integrates the feet into the leg chains;
+- adds support rings immediately before/at/after internal limb joints;
+- keeps support around elbows, wrists, knees, ankles, and foot bends; and
+- derives dimensions and landmarks from the existing Human proportion system.
 
-The generator takes `HumanoidProportions` directly, including artist-adjusted
-dimensions. Its overall height and symmetry are tested over the initial
-proportion generator's supported range. Arbitrary custom dimensions can produce
-implausible shapes or place hands below the feet; anatomical validity is not
-enforced by the data contract.
+This is a meaningful topology/deformation foundation, but it is still generated low-detail character geometry. Hands remain simplified, there are no fingers/facial features, and joint quality still requires pose-based refinement.
 
-## Run and inspect
+## Deformation status
 
-From the repository root:
+The connected mesh is now paired with a deforming skeleton, generated skin weights, Blender skinning, and automated pose smoke coverage. See [rigging.md](rigging.md) for the current weighting behavior and quality boundary.
 
-```powershell
-python -m examples.mesh --height 180 --weight 95 --body-type overweight
-python -m unittest discover -s tests -v
-```
+The presence of support loops and successful deformation tests should not be read as “finished production topology.” Representative poses still need to be reviewed for silhouette, pinching, collapsing, twisting, and volume preservation, especially around shoulders and hips.
 
-To save inspectable mesh data, use:
+## Surfacing limits
 
-```powershell
-python -m examples.mesh --body-type muscular --output blockout.json
-```
+Human 1.0 does not yet provide the complete release milestone. UV generation and the portable material/texture workflow remain open. Hands/feet and other blockout-level details also need further refinement before the first usable character milestone is complete.
 
-The optional JSON file includes units and axis conventions as well as every
-part's vertices and faces. The output's parent folder must already exist; an
-existing output file will be replaced. This is a debugging example, not a stable
-interchange format. The Blender adapter from piece 4 creates editable objects; see
-[installation](blender.md).
+## Parameters and editability
+
+The deformation-oriented geometry continues to consume `HumanoidProportions`, preserving the existing supported Human measurements/presets as its input foundation. Generated Blender output remains ordinary editable mesh data rather than being locked to the add-on.
+
+## Validation direction
+
+Current automated geometry coverage establishes structural properties of the connected deformation-oriented surface and protects the topology foundation from regressions. Future quality work should turn reproducible deformation failures into focused geometry, weighting, or validation tests where practical.
+
+See [the roadmap](roadmap.md) for the remaining Human Provider 1.0 sequence.
