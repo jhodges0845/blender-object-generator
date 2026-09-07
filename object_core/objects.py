@@ -30,6 +30,7 @@ HUMAN_PARAMETERS = (Parameter('height_cm', 'Height (cm)', 180, 120, 240),
 class HumanoidProvider:
     key, label = 'humanoid', 'Humanoid'
     supports_rig = supports_idle = True
+    uses_skin_weights = False
     parameters = HUMAN_PARAMETERS
 
     def proportions(self, values):
@@ -68,7 +69,7 @@ class HumanExperimentalProvider:
 
 class BoxProvider:
     key, label = 'box', 'Box'
-    supports_rig = supports_idle = False
+    supports_rig = supports_idle = uses_skin_weights = False
     parameters = tuple(Parameter(key, label, 100, 1, 1000) for key, label in
                        (('width_cm', 'Width (cm)'), ('depth_cm', 'Depth (cm)'), ('height_cm', 'Height (cm)')))
 
@@ -96,16 +97,20 @@ def validate_provider(provider):
         value = getattr(provider, field, None)
         if not isinstance(value, str) or not value.strip():
             raise ValueError('Provider ' + field + ' must be a nonempty string')
-    for field in ('supports_rig', 'supports_idle'):
+    for field in ('supports_rig', 'supports_idle', 'uses_skin_weights'):
         if not isinstance(getattr(provider, field, None), bool):
             raise TypeError(provider.key + ': ' + field + ' must be a boolean')
     if provider.supports_idle and not provider.supports_rig:
         raise ValueError(provider.key + ': idle support requires rig support')
+    if provider.uses_skin_weights and not provider.supports_rig:
+        raise ValueError(provider.key + ': skin weights require rig support')
     required = ['mesh']
     if provider.supports_rig:
         required.append('skeleton')
     if provider.supports_idle:
         required.append('idle')
+    if provider.uses_skin_weights:
+        required.append('skin_weights')
     for method in required:
         if not callable(getattr(provider, method, None)):
             raise TypeError(provider.key + ': required method ' + method + ' must be callable')
