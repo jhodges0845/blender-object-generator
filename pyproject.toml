@@ -11,4 +11,4 @@ dependencies = []
 license = {file = "LICENSE"}
 
 [tool.setuptools.packages.find]
-include = ["object_core*", "humanoid_blender*"]
+include = ["object_core*", "blender_adapter*", "humanoid_blender*"]

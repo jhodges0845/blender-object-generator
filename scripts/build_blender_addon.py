@@ -10,7 +10,9 @@ def build_addon():
     output = root / "dist" / "object_generator.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
-        for package in ("humanoid_blender", "object_core"):
+        # Source uses the host-neutral name blender_adapter. Keep the historical
+        # installed module ID humanoid_blender for Blender/saved-file compatibility.
+        for package in ("blender_adapter", "object_core"):
             destination = Path("humanoid_blender")
             if package == "object_core":
                 destination /= "object_core"
