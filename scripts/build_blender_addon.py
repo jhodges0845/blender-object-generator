@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build a self-contained Blender add-on from the current source tree."""
+"""Build a self-contained Asset Assistant Blender add-on."""
 
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -7,7 +7,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 def build_addon():
     root = Path(__file__).resolve().parents[1]
-    output = root / "dist" / "object_generator.zip"
+    output = root / "dist" / "asset_assistant.zip"
     output.parent.mkdir(exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         # Source uses the host-neutral name blender_adapter. Keep the historical
