@@ -26,7 +26,7 @@ Current target families: Godot (GLB/glTF), Unity (FBX), Unreal Engine (FBX), and
 - `blender_adapter` is the canonical Blender-specific source package.
 - The packaged add-on retains the historical `humanoid_blender` module ID and legacy `humanoid.*` identifiers for compatibility unless a future migration provides a safe replacement.
 - Generic infrastructure must not assume humanoid/biped anatomy; anatomy-specific behavior belongs in the relevant provider or reusable anatomy component.
-- Workflow requirements follow provider/asset capabilities.
+- Workflow requirements follow explicit provider/asset capabilities, including rig, idle-animation, and skin-weight/deformation support.
 - Validation reports real limitations rather than hiding them to produce a green result.
 - Generated output should remain editable and useful as an artist starting point.
 - A non-empty export file is not proof of production readiness; destination review still matters.
@@ -36,6 +36,7 @@ Current target families: Godot (GLB/glTF), Unity (FBX), Unreal Engine (FBX), and
 - [x] Asset Assistant product identity and `asset_assistant.zip` release packaging, with compatibility identifiers preserved.
 - [x] Host-independent `object_core`, canonical `blender_adapter`, and clarified `core_gateway.py` bridge.
 - [x] Provider registry/input/capability foundation and declaration validation.
+- [x] Explicit provider deformation capability contract (`uses_skin_weights`) with required `skin_weights()` behavior for deforming providers.
 - [x] Parameterized humanoid blockout plus Box static-provider proof.
 - [x] Basic humanoid rigging and idle animation.
 - [x] Core and Blender-side validation.
@@ -49,6 +50,7 @@ Current target families: Godot (GLB/glTF), Unity (FBX), Unreal Engine (FBX), and
 - [x] Generic `part_name` rigid binding with legacy `body_part` fallback.
 - [x] Non-humanoid rotor architecture proof for shared rigging, animation, validation, and GLB export.
 - [x] Provider contract and current adapter limits documented.
+- [x] Bounded architecture/flexibility checkpoint completed before further Human 1.0 feature work.
 
 ## P0 - Verify the existing target pipeline
 
@@ -84,15 +86,19 @@ Blender 5.2.1 runtime compatibility itself is verified; detailed downstream cert
 
 ## P0 - Provider/capability architecture hardening
 
+The bounded architecture checkpoint is complete for the current Human 1.0 milestone. Further capability expansion should be driven by real workflow needs rather than speculative abstraction.
+
 - [x] Gate rig/idle operations using selected-provider capability and asset state.
 - [x] Prove static Box and non-humanoid animated-provider workflows do not require identical stages.
 - [x] Remove identified shared rigid-binding and animation-error assumptions requiring humanoid names.
 - [x] Validate current provider declarations and document the provider contract.
 - [x] Complete the bounded shared-code humanoid-assumption audit; remaining anatomy-specific Human work stays provider/local-component scoped.
-- [ ] Strengthen capability contracts when real workflow operations require them; surface/UV/print operation modeling remains pending.
+- [x] Formalize skin-weight deformation as a validated provider capability and require deforming providers to supply `skin_weights()`.
+- [x] Exercise the deformation capability contract with a generic non-Human provider test so the shared contract does not depend on Human anatomy.
+- [ ] Add future capabilities such as surface/UV/print operations only when implementation requires them.
 - [ ] Keep capability declarations separate from truthful asset validation.
 
-Definition of done: adding a fundamentally different provider does not require rewriting the shared workflow or pretending every asset is a humanoid.
+Current conclusion: adding a static, rigid animated, or skin-weight deforming provider has a supported architectural path without rewriting the shared workflow or pretending every asset is a humanoid. Revisit this checkpoint when a genuinely different provider or workflow operation exposes a concrete limitation.
 
 ## P0 - Human Provider 1.0: deformable game character
 
@@ -115,7 +121,7 @@ Human 1.0 has moved beyond the original disconnected rigid blockout. A deformati
 
 ### Remaining Human 1.0 work
 
-- [ ] Visually inspect and refine deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles; convert reproducible failures into focused tests where practical.
+- [ ] Visually inspect and refine deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles; add wrist/ankle regression coverage and convert other reproducible failures into focused tests where practical.
 - [ ] Improve hands, feet, and other blockout-level regions enough for the first usable milestone.
 - [ ] Generate UVs.
 - [ ] Provide a basic portable generated material/texture workflow.
@@ -179,12 +185,12 @@ Definition of done: supported human parameters produce an editable, deformable, 
 
 ## Suggested implementation order
 
-1. Complete the architecture/flexibility checkpoint, then visually refine Human 1.0 deformation using the representative regression suite as guardrails.
+1. Refine Human 1.0 deformation quality, beginning with wrist/ankle coverage and representative Blender pose inspection while preserving the existing shoulder/elbow/hip/knee/neck regressions.
 2. Improve remaining Human geometry details needed for the first usable character foundation.
 3. Add UV and basic material/texture generation.
 4. Add human locomotion and strengthen animation export handling.
 5. Re-run formal Godot/Unity/Unreal verification using Human Provider 1.0.
-6. Use Dog/quadruped as the second character architecture proof.
+6. Use Dog/quadruped as the second character architecture proof and revisit shared architecture only for concrete limitations it exposes.
 7. Complete connected/watertight print preparation for providers that support Cura.
 8. Use Bird as a further anatomy/animation architecture proof.
 9. Consider optional Godot `.tscn` packaging and UI/usability polish.
