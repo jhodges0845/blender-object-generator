@@ -248,8 +248,65 @@ class WorkflowTests(unittest.TestCase):
         rig.animation_data.action_slot = animated_slot
         self.assertTrue(inspect_character(self.root).has_animation)
 
+    def test_operator_capabilities_follow_selected_asset(self):
+        import humanoid_blender
+        humanoid_blender.register()
+        try:
+            settings = self.scene.humanoid_settings
+            settings.object_type = 'box'
+            bpy.ops.humanoid.generate_blockout()
+            self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertFalse(bpy.ops.humanoid.generate_idle.poll())
+            settings.target = self.root
+            self.assertTrue(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertFalse(bpy.ops.humanoid.generate_idle.poll())
+            bpy.ops.humanoid.add_basic_rig()
+            self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertTrue(bpy.ops.humanoid.generate_idle.poll())
+            self.root['object_type'] = 'missing_provider'
+            self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertFalse(bpy.ops.humanoid.generate_idle.poll())
+        finally:
+            humanoid_blender.unregister()
+
+    def test_nonhumanoid_provider_rigs_animates_and_exports(self):
+        from types import SimpleNamespace
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from object_core.objects import OBJECT_TYPES, get_provider
+        from object_core.models.skeleton import Bone, Skeleton
+        from object_core.animation.idle import IdleClip, RotationTrack
+        from humanoid_blender.animation import add_idle
+        from humanoid_blender.materials import prepare_materials
+        from humanoid_blender.targets import get_adapter
+        box = get_provider('box')
+        values = {p.key: p.default for p in box.parameters}
+        root = create_character(box.mesh(values), name='Rotor', scene=self.scene)
+        root['object_type'] = 'test_rotor'
+        part = root.children[0]
+        del part['body_part']
+        provider = SimpleNamespace(
+            key='test_rotor', label='Rotor', supports_rig=True, supports_idle=True,
+            skeleton=lambda values: Skeleton((Bone('spindle', (0, 0, 0), (0, 0, 100), part_name='box'),)),
+            idle=lambda duration, strength: IdleClip(duration, (
+                RotationTrack('spindle', (0, 0, 1), ((0, 0), (duration/2, 0.5), (duration, 0))),)))
+        with patch.dict(OBJECT_TYPES, {provider.key: provider}):
+            rig = add_basic_rig(root, bpy.context)
+            add_idle(root, self.scene)
+            self.scene.frame_set(1)
+            before = rig.pose.bones['spindle'].matrix.copy()
+            self.scene.frame_set(49)
+            self.assertNotEqual(before, rig.pose.bones['spindle'].matrix)
+            self.assertTrue(inspect_character(root).has_animation)
+            prepare_materials(root)
+            with TemporaryDirectory() as directory:
+                result = get_adapter('GODOT').export(root, bpy.context, Path(directory) / 'rotor.glb')
+                self.assertTrue(result.success, result.issues)
+
     def test_legacy_humanoid_root_remains_supported(self):
         from humanoid_blender.workflow import find_character
         self.root['generator'] = 'humanoid_blockout'
+        for part in self.root.children:
+            del part['part_name']
         rig = add_basic_rig(self.root, bpy.context)
         self.assertEqual(find_character(rig), self.root)
