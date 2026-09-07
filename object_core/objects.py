@@ -6,8 +6,8 @@ from math import isfinite
 from typing import Union
 from .models import BodyType, HumanoidSpec, ObjectMesh, MeshPart
 from .proportions import generate_proportions
-from .geometry import generate_mesh
-from .rigging import generate_skeleton
+from .geometry import generate_mesh, generate_deformable_mesh
+from .rigging import generate_skeleton, generate_deforming_skeleton, generate_skin_weights
 from .animation import generate_idle
 
 
@@ -21,13 +21,16 @@ class Parameter:
     choices: tuple = ()
 
 
+HUMAN_PARAMETERS = (Parameter('height_cm', 'Height (cm)', 180, 120, 240),
+                    Parameter('weight_kg', 'Weight (kg)', 95, 30, 300),
+                    Parameter('body_type', 'Body Type', 'average', 0, 0,
+                              tuple((v.value, v.value.title()) for v in BodyType)))
+
+
 class HumanoidProvider:
     key, label = 'humanoid', 'Humanoid'
     supports_rig = supports_idle = True
-    parameters = (Parameter('height_cm', 'Height (cm)', 180, 120, 240),
-                  Parameter('weight_kg', 'Weight (kg)', 95, 30, 300),
-                  Parameter('body_type', 'Body Type', 'average', 0, 0,
-                            tuple((v.value, v.value.title()) for v in BodyType)))
+    parameters = HUMAN_PARAMETERS
 
     def proportions(self, values):
         return generate_proportions(HumanoidSpec(values['height_cm'], values['weight_kg'], BodyType(values['body_type'])))
@@ -40,6 +43,27 @@ class HumanoidProvider:
 
     def idle(self, duration, strength):
         return generate_idle(duration, strength)
+
+
+class HumanExperimentalProvider:
+    """Opt-in Human 1.0 surface for deformation testing; not the production default."""
+    key, label = 'human_experimental', 'Human 1.0 (Experimental)'
+    supports_rig = True
+    supports_idle = False
+    parameters = HUMAN_PARAMETERS
+    uses_skin_weights = True
+
+    def proportions(self, values):
+        return generate_proportions(HumanoidSpec(values['height_cm'], values['weight_kg'], BodyType(values['body_type'])))
+
+    def mesh(self, values):
+        return generate_deformable_mesh(self.proportions(values))
+
+    def skeleton(self, values):
+        return generate_deforming_skeleton(self.proportions(values))
+
+    def skin_weights(self, mesh, values):
+        return generate_skin_weights(mesh, self.skeleton(values))
 
 
 class BoxProvider:
@@ -67,11 +91,7 @@ class BoxProvider:
 
 
 def validate_provider(provider):
-    """Validate declarations without generating assets or depending on a host.
-
-    This checks supported operations, not the quality or export readiness of an
-    individual result. Static providers need no skeleton or animation methods.
-    """
+    """Validate declarations without generating assets or depending on a host."""
     for field in ('key', 'label'):
         value = getattr(provider, field, None)
         if not isinstance(value, str) or not value.strip():
@@ -102,7 +122,8 @@ def validate_provider(provider):
     return provider
 
 
-OBJECT_TYPES = {provider.key: validate_provider(provider) for provider in (HumanoidProvider(), BoxProvider())}
+OBJECT_TYPES = {provider.key: validate_provider(provider) for provider in
+                (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider())}
 
 
 def get_provider(key):

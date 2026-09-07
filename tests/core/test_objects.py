@@ -19,6 +19,22 @@ class ObjectProviderTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unsupported'):
             get_provider('unknown')
 
+    def test_experimental_human_is_opt_in_deforming_provider(self):
+        provider = get_provider('human_experimental')
+        values = {field.key: field.default for field in provider.parameters}
+        mesh = provider.mesh(values)
+        skeleton = provider.skeleton(values)
+        weights = provider.skin_weights(mesh, values)
+        self.assertEqual(provider.label, 'Human 1.0 (Experimental)')
+        self.assertTrue(provider.supports_rig)
+        self.assertFalse(provider.supports_idle)
+        self.assertTrue(provider.uses_skin_weights)
+        self.assertEqual(len(mesh.parts), 1)
+        self.assertEqual(mesh.parts[0].name, 'human')
+        self.assertTrue(all(bone.part_name is None for bone in skeleton.bones))
+        self.assertEqual(tuple(weight.part_name for weight in weights), ('human',))
+        self.assertEqual(len(weights[0].vertices), len(mesh.parts[0].vertices))
+
     def test_box_rejects_invalid_dimensions(self):
         for value in (0, float('nan'), True, '100'):
             with self.assertRaises((TypeError, ValueError)):
