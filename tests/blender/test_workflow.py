@@ -126,13 +126,13 @@ class WorkflowTests(unittest.TestCase):
             humanoid_blender.unregister()
 
     def test_idle_moves_upper_body_loops_and_preserves_existing_action(self):
-        from humanoid_blender.animation import add_idle
+        from humanoid_blender.animation import add_idle, action_curves
         rig = add_basic_rig(self.root, bpy.context)
         self.scene.render.fps = 30
         self.scene.render.fps_base = 1.001
         action, end = add_idle(self.root, self.scene)
         period = 4 * self.scene.render.fps / self.scene.render.fps_base
-        for curve in action.fcurves:
+        for curve in action_curves(action, getattr(rig.animation_data, 'action_slot', None)):
             self.assertAlmostEqual(curve.keyframe_points[-1].co.x, 1 + period, places=4)
             self.assertAlmostEqual(curve.evaluate(12), curve.evaluate(12 + period), places=5)
         self.scene.frame_set(1)
@@ -149,7 +149,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(actions, set(bpy.data.actions))
 
     def test_idle_rejects_pose_and_rolls_back_creation_failure(self):
-        from humanoid_blender.animation import add_idle
+        from humanoid_blender.animation import add_idle, action_curves
         rig = add_basic_rig(self.root, bpy.context)
         bone = rig.pose.bones['head']
         bone.rotation_quaternion = (0.99, 0.1, 0, 0)
@@ -164,6 +164,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIsNone(rig.animation_data)
 
     def test_visible_mesh_motion_and_preview_controls(self):
+        from humanoid_blender.animation import action_curves
         import humanoid_blender
         humanoid_blender.register()
         try:
@@ -195,7 +196,7 @@ class WorkflowTests(unittest.TestCase):
             rig.data.pose_position = 'REST'
             bpy.ops.humanoid.validate_character()
             self.assertTrue(any(row.code == 'animation' and row.status == 'ERROR' for row in settings.validation_results))
-            for curve in rig.animation_data.action.fcurves:
+            for curve in action_curves(rig.animation_data.action, getattr(rig.animation_data, 'action_slot', None)):
                 curve.mute = True
             self.assertFalse(inspect_character(self.root).has_animation)
         finally:
@@ -223,16 +224,29 @@ class WorkflowTests(unittest.TestCase):
             humanoid_blender.unregister()
 
     def test_validation_reports_missing_target_and_zero_influence(self):
-        from humanoid_blender.animation import add_idle
+        from humanoid_blender.animation import add_idle, action_curves
         rig = add_basic_rig(self.root, bpy.context)
         action, _ = add_idle(self.root, self.scene)
         rig.animation_data.action_influence = 0
         self.assertTrue(any('influence' in e for e in inspect_character(self.root).animation_errors))
         rig.animation_data.action_influence = 1
-        action.fcurves[0].data_path = 'pose.bones["missing"].rotation_quaternion'
+        action_curves(action, getattr(rig.animation_data, 'action_slot', None))[0].data_path = 'pose.bones["missing"].rotation_quaternion'
         self.assertTrue(any('target' in e for e in inspect_character(self.root).animation_errors))
-        action.fcurves[1].keyframe_points[0].co.y = float('nan')
+        action_curves(action, getattr(rig.animation_data, 'action_slot', None))[1].keyframe_points[0].co.y = float('nan')
         self.assertTrue(any('non-finite' in e for e in inspect_character(self.root).animation_errors))
+
+    def test_validation_ignores_unassigned_action_slots(self):
+        from humanoid_blender.animation import add_idle
+        rig = add_basic_rig(self.root, bpy.context)
+        action, _ = add_idle(self.root, self.scene)
+        if not hasattr(action, 'slots'):
+            self.skipTest('requires layered actions')
+        animated_slot = rig.animation_data.action_slot
+        empty_slot = action.slots.new('OBJECT', 'Unanimated')
+        rig.animation_data.action_slot = empty_slot
+        self.assertFalse(inspect_character(self.root).has_animation)
+        rig.animation_data.action_slot = animated_slot
+        self.assertTrue(inspect_character(self.root).has_animation)
 
     def test_legacy_humanoid_root_remains_supported(self):
         from humanoid_blender.workflow import find_character

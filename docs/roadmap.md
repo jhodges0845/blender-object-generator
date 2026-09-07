@@ -118,14 +118,14 @@ Definition of done: each supported destination has at least one documented succe
 
 ### P0 - Verify modern Blender compatibility
 
-The current automated Blender contract is Blender 2.92. That is too old to remain the only verified runtime.
+Blender 5.2.1 LTS is now the primary headless test target; Blender 2.92.0 remains a tested legacy runtime. The layered-action and scene-scoping fixes pass both integration suites. Interactive UI and destination review of modern exports remain pending.
 
-- [ ] Select a current supported Blender version as the primary development/runtime target.
+- [x] Select Blender 5.2.1 LTS as the primary development/runtime test target.
 - [ ] Run the add-on and complete workflow on that version.
-- [ ] Fix API/exporter compatibility issues without breaking the core/adapter boundary.
-- [ ] Update CI to test the supported modern Blender version.
-- [ ] Decide whether Blender 2.92 remains supported or becomes legacy/unsupported.
-- [ ] Update installation and compatibility documentation accordingly.
+- [x] Fix the observed layered-action and glTF scene-scoping failures without changing the core/adapter boundary.
+- [x] Add Blender 5.2.1 alongside legacy 2.92.0 in the CI matrix; remote execution still needs confirmation.
+- [x] Retain Blender 2.92.0 as a tested legacy runtime.
+- [x] Update installation and compatibility documentation with exact tested versions and review limits.
 
 Definition of done: the add-on installs, generates, rigs, animates, validates and exports on the documented modern Blender version, with CI coverage where feasible.
 

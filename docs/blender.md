@@ -2,11 +2,13 @@
 
 ## Install and use
 
-The add-on is tested with Blender 2.92 and its embedded Python 3.7.7. Newer
-Blender versions have not yet been tested. The standalone core also runs with
-Python 3.9; no separate Python installation is needed to use the add-on.
+Blender 5.2.1 LTS is the primary test target. Blender 2.92.0 and its embedded
+Python 3.7.7 remain covered as a legacy runtime. Headless integration tests pass
+on both; other Blender versions and interactive UI review remain unverified.
+No separate Python installation is needed to use the add-on.
 
-1. In Blender 2.92, open Edit > Preferences > Add-ons > Install.
+1. Open Edit > Preferences > Add-ons. In modern Blender use the menu
+   **Install from Disk**; in Blender 2.92 use **Install**.
 2. Select `dist/object_generator.zip` from the project folder; do not unzip it.
 3. Enable **Add Mesh: Object Generator**.
 4. In the 3D Viewport, switch to Object Mode, press N, and open the **Generator** sidebar tab.
@@ -77,12 +79,11 @@ restart Blender after updating an already loaded add-on to avoid stale modules.
 
 ## Test
 
-GitHub Actions runs the Python 3.9–3.12 matrix and a separate Blender 2.92.0
-job on pull requests, pushes to main, and manual runs. The Blender job downloads
-the official Linux archive, verifies its SHA-256 checksum, and runs
-`scripts/test_blender.py` headlessly with factory settings. Test failures return
-a nonzero exit code. Only the standalone Python subprocess check is skipped
-inside Blender; the ordinary Python matrix covers that check.
+GitHub Actions configures Python 3.9 through 3.12 and Blender 2.92.0/5.2.1
+jobs on pull requests, pushes to main, and manual runs. Blender jobs verify
+the official archive checksum and run `scripts/test_blender.py` headlessly.
+The standalone subprocess check is skipped inside Blender; the layered-slot
+test is additionally skipped on 2.92. Remote CI results must be checked on the PR.
 
 Ordinary Python tests skip Blender integration tests explicitly:
 

@@ -29,6 +29,10 @@ def asset_objects(root):
 
 def _export_gltf(options):
     import bpy
+    options = dict(options)
+    # Blender 2.92 scopes selected objects without this newer scene option.
+    if 'use_active_scene' not in bpy.ops.export_scene.gltf.get_rna_type().properties:
+        options.pop('use_active_scene', None)
     return bpy.ops.export_scene.gltf(**options)
 
 
@@ -178,7 +182,7 @@ class GodotAdapter(BlenderOutputAdapter):
         path = self.output_path(filepath)
         return dict(filepath=str(path), check_existing=False,
                     export_format="GLB" if path.suffix == ".glb" else "GLTF_SEPARATE",
-                    use_selection=True, export_yup=True, export_apply=False,
+                    use_selection=True, use_active_scene=True, export_yup=True, export_apply=False,
                     export_skins=True, export_animations=True, export_materials="EXPORT",
                     export_frame_range=False, export_force_sampling=True,
                     export_nla_strips=True, export_texcoords=True, export_normals=True)

@@ -76,11 +76,12 @@ def inspect_objects(objects):
     for obj in objects:
         animation = obj.animation_data
         if animation:
-            actions = ([animation.action] if animation.action else [])
-            actions += [strip.action for track in animation.nla_tracks if not track.mute
+            from .animation import action_curves
+            actions = ([(animation.action, getattr(animation, 'action_slot', None))] if animation.action else [])
+            actions += [(strip.action, getattr(strip, 'action_slot', None)) for track in animation.nla_tracks if not track.mute
                         for strip in track.strips if strip.action and not strip.mute]
-            for action in actions:
-                for curve in action.fcurves:
+            for action, slot in actions:
+                for curve in action_curves(action, slot):
                     if curve.mute or not curve.keyframe_points:
                         continue
                     try:
