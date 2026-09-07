@@ -17,7 +17,7 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
         results.append(ValidationIssue(code, status, message))
 
     if not snapshot.mesh_count:
-        add("geometry", "ERROR", "No meshes found in this character.")
+        add("geometry", "ERROR", "No meshes found in this asset.")
     elif snapshot.invalid_meshes:
         add("geometry", "ERROR", "Repair mesh geometry: " + "; ".join(snapshot.invalid_meshes))
     else:
@@ -54,6 +54,6 @@ def validate_asset(snapshot: AssetSnapshot, *, asset_use="RIGGED", require_textu
     for warning in snapshot.transform_warnings:
         add("transforms", "WARN", warning)
     if snapshot.is_blockout:
-        add("blockout", "INFO", "Separate blockout parts: review joint gaps, intersections, and deformation.")
+        add("blockout", "INFO", "Separate blockout parts: review gaps, intersections, and deformation where applicable.")
     add("export_review", "INFO", "Target-engine export, polygon budget, shading, and animation quality need manual review.")
     return tuple(results)
