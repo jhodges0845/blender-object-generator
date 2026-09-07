@@ -269,6 +269,25 @@ class WorkflowTests(unittest.TestCase):
         finally:
             humanoid_blender.unregister()
 
+    def test_invalid_provider_is_rejected_before_scene_changes(self):
+        import humanoid_blender
+        from types import SimpleNamespace
+        from object_core.objects import OBJECT_TYPES
+        humanoid_blender.register()
+        try:
+            settings = self.scene.humanoid_settings
+            settings.object_type = 'box'
+            before = set(bpy.data.objects)
+            invalid = SimpleNamespace(key='box', label='Broken Box', parameters=(),
+                                      supports_rig=False, supports_idle=True,
+                                      mesh=lambda values: self.fail('invalid provider generated a mesh'))
+            with patch.dict(OBJECT_TYPES, {'box': invalid}):
+                with self.assertRaisesRegex(RuntimeError, 'idle support requires rig support'):
+                    bpy.ops.humanoid.generate_blockout()
+            self.assertEqual(set(bpy.data.objects), before)
+        finally:
+            humanoid_blender.unregister()
+
     def test_nonhumanoid_provider_rigs_animates_and_exports(self):
         from types import SimpleNamespace
         from pathlib import Path
@@ -286,7 +305,8 @@ class WorkflowTests(unittest.TestCase):
         part = root.children[0]
         del part['body_part']
         provider = SimpleNamespace(
-            key='test_rotor', label='Rotor', supports_rig=True, supports_idle=True,
+            key='test_rotor', label='Rotor', parameters=(), mesh=box.mesh,
+            supports_rig=True, supports_idle=True,
             skeleton=lambda values: Skeleton((Bone('spindle', (0, 0, 0), (0, 0, 100), part_name='box'),)),
             idle=lambda duration, strength: IdleClip(duration, (
                 RotationTrack('spindle', (0, 0, 1), ((0, 0), (duration/2, 0.5), (duration, 0))),)))

@@ -3,6 +3,11 @@
 Providers live in `object_core/objects.py`; they must not import Blender APIs.
 Add a provider instance to `OBJECT_TYPES` before the Blender UI is registered.
 The registry is currently built in, not a dynamic third-party plugin API.
+Call `validate_provider(provider)` before adding a new instance. Built-in providers
+are validated at registry construction, and `get_provider()` rechecks declarations
+and registry-key agreement before an operation can use them. Validation checks
+nonempty identity, boolean capability flags, required callable methods, and unique
+parameter keys. It does not invoke generation or certify returned geometry.
 
 ## Required members
 
@@ -44,7 +49,8 @@ state validation and preserve existing rig/animation data.
 Shared material preparation, target validation and export operate on actual asset
 state. Provider flags do not certify materials, UVs, connected geometry or Cura
 printability. The Box can pass Cura checks; the multipart humanoid cannot.
-A broader surface/UV/print capability contract remains roadmap work and should
+The rig/idle declaration contract is enforced; a broader surface/UV/print
+capability contract remains roadmap work and should
 only describe implemented operations, not bypass output validation.
 
 ## Minimum verification

@@ -134,7 +134,7 @@ Definition of done: the add-on installs, generates, rigs, animates, validates an
 Before species-specific systems become deeply embedded, make the multi-asset intent explicit in the implementation.
 
 - [ ] Review shared code for hidden humanoid/biped assumptions.
-- [ ] Strengthen provider capability contracts for static, riggable, animatable, surfaced and printable assets.
+- [ ] Strengthen provider capability contracts for static, riggable, animatable, surfaced and printable assets. Rig/idle declarations, required methods and registry identity are now validated before use; surface/UV/print operation contracts remain pending.
 - [x] Gate rig/idle operator availability using the selected asset provider and armature state, matching the capability-aware panels.
 - [ ] Keep anatomy-specific skeleton/proportion/animation logic inside appropriate providers or reusable anatomy components rather than generic target/export code.
 - [x] Cover static Box capability guards and a test-only non-humanoid rotor through rigging, animation, validation and GLB export.
