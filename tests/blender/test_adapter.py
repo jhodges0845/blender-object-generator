@@ -89,7 +89,12 @@ class BlenderAdapterTests(unittest.TestCase):
         try:
             self.assertEqual(self.scene.humanoid_settings.object_type, "humanoid")
             options = self.scene.humanoid_settings.bl_rna.properties["object_type"].enum_items
-            self.assertEqual([(item.identifier, item.name) for item in options], [("humanoid", "Humanoid"), ("box", "Box")])
+            self.assertEqual(
+                [(item.identifier, item.name) for item in options],
+                [("humanoid", "Humanoid"),
+                 ("human_experimental", "Human 1.0 (Experimental)"),
+                 ("box", "Box")],
+            )
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
             for panel_name, category, stage in (
@@ -189,7 +194,6 @@ class BlenderAdapterTests(unittest.TestCase):
                 hand_after = evaluated_points(parts['hand.left'])
                 self.assertGreater((hand_after[0] - hand_before[0]).length * scale, 0.01)
                 self.assertLess((evaluated_points(parts['torso'])[0] - torso_before[0]).length, 1e-5)
-                # Full weights preserve distances within each rigid part.
                 self.assertAlmostEqual((hand_before[1] - hand_before[0]).length * scale,
                                        (hand_after[1] - hand_after[0]).length * scale, places=5)
         finally:
