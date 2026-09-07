@@ -10,135 +10,118 @@ Generation is a starting point, not finished art. Generated geometry, rigs, mate
 
 The product is broader than a humanoid generator. Over time it should support humans, creatures, robots, static props, environmental objects, printable assets, and other providers that fit the capability model.
 
-The intended architecture is:
+Intended architecture:
 
 `Host-independent asset core -> provider -> Blender adapter -> validation/preparation -> target adapter -> exported asset -> artist review`
 
-The conceptual workflow is:
+Conceptual workflow:
 
 `Define -> Generate -> Rig (if supported) -> Animate (if supported) -> Surface -> Validate -> Target Prepare -> Export -> Artist Review`
 
-Current target families are enough to prove the abstraction:
-
-- Godot: GLB by default, glTF alternative.
-- Unity: FBX.
-- Unreal Engine: FBX.
-- Cura / 3D printing: STL.
+Current target families: Godot (GLB/glTF), Unity (FBX), Unreal Engine (FBX), and Cura/3D printing (STL).
 
 ## Engineering direction
 
-- `object_core` must remain independent of Blender APIs.
+- `object_core` remains independent of Blender APIs.
 - `blender_adapter` is the canonical Blender-specific source package.
-- The packaged add-on retains the historical `humanoid_blender` module ID and legacy `humanoid.*` operator/settings identifiers for compatibility unless a future migration provides a safe replacement.
-- Blender scene manipulation belongs in the Blender adapter.
-- Generic infrastructure must not assume humanoid/biped anatomy.
-- Workflow requirements should follow provider/asset capabilities.
-- Anatomy-specific skeleton, proportion, and animation behavior belongs in the relevant provider or reusable anatomy component.
-- Validation must report real limitations rather than hiding them to produce a green result.
-- Preserve source scene state and prefer explicit, undoable preparation where practical.
+- The packaged add-on retains the historical `humanoid_blender` module ID and legacy `humanoid.*` identifiers for compatibility unless a future migration provides a safe replacement.
+- Generic infrastructure must not assume humanoid/biped anatomy; anatomy-specific behavior belongs in the relevant provider or reusable anatomy component.
+- Workflow requirements follow provider/asset capabilities.
+- Validation reports real limitations rather than hiding them to produce a green result.
 - Generated output should remain editable and useful as an artist starting point.
 - A non-empty export file is not proof of production readiness; destination review still matters.
-- Do not add providers or destinations merely to increase counts while quality and verification remain the bottleneck.
 
 ## Completed foundation
 
-- [x] Product identity renamed to **Asset Assistant** in Blender-facing metadata, documentation, and release packaging.
-- [x] Release artifact renamed to `asset_assistant.zip` while preserving the historical installed Blender module ID for compatibility.
-- [x] Host-independent `object_core` architecture.
-- [x] Canonical `blender_adapter` source package separated from the core.
-- [x] Blender/core import bridge clarified as `core_gateway.py` while preserving the historical `.core` import path.
-- [x] Provider registry/input/capability foundation.
-- [x] Parameterized humanoid blockout generation.
-- [x] Box provider proving a non-character/static workflow.
-- [x] Basic humanoid rigging.
-- [x] Idle animation generation and preview.
+- [x] Asset Assistant product identity and `asset_assistant.zip` release packaging, with compatibility identifiers preserved.
+- [x] Host-independent `object_core`, canonical `blender_adapter`, and clarified `core_gateway.py` bridge.
+- [x] Provider registry/input/capability foundation and declaration validation.
+- [x] Parameterized humanoid blockout plus Box static-provider proof.
+- [x] Basic humanoid rigging and idle animation.
 - [x] Core and Blender-side validation.
-- [x] Target profiles and Blender export adapters for Godot, Unity, Unreal, and Cura.
-- [x] GLB/glTF, FBX, and STL output paths.
-- [x] Gated export based on live validation/readiness.
-- [x] Basic missing-material preparation for game assets.
+- [x] Godot, Unity, Unreal, and Cura target profiles/export adapters.
+- [x] GLB/glTF, FBX, and STL output paths with gated export and basic missing-material preparation.
 - [x] Generator, Rigging, Animations, Validation, and Export sidebar workflow.
-- [x] Compact export readiness/status UI.
-- [x] Core unit tests plus Blender integration tests.
-- [x] GitHub Actions CI covering standalone Python plus Blender 5.2.1 and legacy Blender 2.92.0 integration tests.
-- [x] Isolated packaged-add-on CI verifies `asset_assistant.zip` can load, register, generate, rig, animate, validate, and exercise all four export paths in a fresh headless Blender process.
+- [x] Core unit tests, Blender integration tests, and isolated packaged-add-on smoke tests.
+- [x] CI on standalone Python 3.9-3.12 plus Blender 2.92.0 and 5.2.1.
 - [x] Blender 5.2 layered-action support and active-scene glTF export scoping.
-- [x] Provider-aware rig/idle workflow gating based on the selected asset.
+- [x] Provider-aware rig/idle workflow gating.
 - [x] Generic `part_name` rigid binding with legacy `body_part` fallback.
-- [x] Test-only non-humanoid rotor proving shared rigging, animation, validation, and GLB export without humanoid bone names.
-- [x] Provider declaration validation for identity, boolean capability flags, required methods, parameter definitions, and registry-key consistency before generation.
-- [x] Provider contract and current rigid-adapter limits documented in `docs/providers.md`.
-- [x] Remote GitHub Actions run confirmed successful after the Blender 5.2.1/provider-hardening work.
-- [x] Remote GitHub Actions run confirmed successful after the architecture naming cleanup and Asset Assistant product rename.
+- [x] Non-humanoid rotor architecture proof for shared rigging, animation, validation, and GLB export.
+- [x] Provider contract and current adapter limits documented.
 
 ## P0 - Verify the existing target pipeline
 
-Initial destination smoke checks exist for all four targets. These are useful evidence, not full production certification. Automated export checks prove that Asset Assistant can create the files; destination certification still requires reviewing those files in the destination application.
+Initial destination smoke checks exist for all four targets. They are useful evidence, not full production certification.
 
-- [x] Create a repeatable target-verification checklist and record known version gaps in `target-verification.md`.
-- [x] Godot smoke verification: generated humanoid GLB imported with hierarchy, skeleton/rig, and animation visible.
-- [x] Modern-path Godot smoke verification: complete the interactive Asset Assistant workflow in Blender 5.2.1, export GLB successfully, import that GLB into Godot, and confirm animation playback.
-- [x] Unity smoke verification: generated FBX model/idle behavior confirmed from the earlier Blender 2.92 export.
-- [x] Unreal smoke verification: generated FBX model/animation confirmed from the earlier Blender 2.92 export.
-- [x] Cura smoke verification: Box STL imported and sliced successfully from the earlier Blender 2.92 export.
-- [x] Packaged `asset_assistant.zip` automated export smoke coverage for Godot, Unity, Unreal, and Cura paths.
-- [ ] Formal Godot pass: record exact destination version and confirm hierarchy, mesh parts, skinning behavior, materials/textures, orientation, scale, and expected edit/scene workflow.
-- [ ] Detailed Unity pass: confirm importer/version, hierarchy, rig/avatar behavior, skinning, materials/textures, axes, and scale.
-- [ ] Detailed Unreal pass: confirm skeleton/deformation, materials/textures, axes, scale, and broader FBX compatibility.
-- [ ] Detailed Cura pass: confirm displayed physical dimensions, orientation, full layer review, warnings, and representative printable output where applicable.
+- [x] Repeatable target-verification checklist in `target-verification.md`.
+- [x] Godot smoke verification, including Blender 5.2.1 GLB export/import and animation playback.
+- [x] Unity smoke verification of generated FBX model/idle behavior.
+- [x] Unreal smoke verification of generated FBX model/animation.
+- [x] Cura smoke verification of Box STL import/slicing.
+- [x] Packaged add-on automated export smoke coverage for all four target paths.
+- [ ] Formal Godot pass: exact version, hierarchy, skinning, materials/textures, orientation, scale, and expected edit/scene workflow.
+- [ ] Detailed Unity pass: importer/version, hierarchy, rig/avatar, skinning, materials/textures, axes, and scale.
+- [ ] Detailed Unreal pass: skeleton/deformation, materials/textures, axes, scale, and broader FBX compatibility.
+- [ ] Detailed Cura pass: physical dimensions, orientation, layer review, warnings, and representative printable output.
 - [ ] Convert reproducible target-specific defects into tests or validation rules when practical.
 
-Definition of done: each supported destination has a documented successful end-to-end import plus known limitations, with the detailed checks appropriate to that target recorded.
+Definition of done: each supported destination has a documented successful end-to-end import plus known limitations and appropriate detailed checks.
 
 ## P0 - Modern Blender compatibility
 
-Blender 5.2.1 LTS is the primary modern test target. Blender 2.92.0 remains a tested legacy runtime.
+Blender 5.2.1 LTS is the primary modern test target; Blender 2.92.0 remains a tested legacy runtime.
 
-- [x] Select Blender 5.2.1 LTS as the primary development/runtime test target.
-- [x] Fix Blender 5.2 layered-action and glTF scene-scoping compatibility issues.
-- [x] Add Blender 5.2.1 alongside Blender 2.92.0 in the CI matrix.
-- [x] Confirm remote GitHub Actions succeeds with the modern/legacy matrix.
-- [x] Complete automated/headless and isolated-package workflow checks on Blender 5.2.1, including generation, rigging, animation, validation, and all four export paths.
-- [x] Complete an interactive Blender 5.2.1 workflow smoke test through generation, rigging, animation, validation, and successful GLB export.
-- [x] Import a Blender 5.2.1-generated GLB into Godot and confirm animation playback.
-- [x] Retain Blender 2.92.0 as a tested legacy runtime.
-- [x] Document the modern installation path and exact tested versions.
-- [ ] Complete detailed destination review of Blender 5.2.1 exports beyond the confirmed Godot animation smoke check.
+- [x] Blender 5.2.1 selected and covered alongside Blender 2.92.0 in CI.
+- [x] Blender 5.2 layered-action and glTF scene-scoping compatibility fixed.
+- [x] Automated/headless and isolated-package workflows cover generation, rigging, animation, validation, and all four export paths.
+- [x] Interactive Blender 5.2.1 generation-to-GLB workflow verified.
+- [x] Blender 5.2.1-generated GLB imported into Godot with animation playback confirmed.
+- [x] Modern installation path and tested versions documented.
+- [ ] Complete detailed destination review of Blender 5.2.1 exports beyond the Godot animation smoke check.
 
-Definition of done for Blender compatibility itself is met. Detailed downstream destination certification remains part of target verification, not a blocker to calling Blender 5.2.1 a verified runtime.
+Blender 5.2.1 runtime compatibility itself is verified; detailed downstream certification remains target-verification work.
 
 ## P0 - Provider/capability architecture hardening
 
-The provider foundation is substantially stronger after the recent hardening PRs, but broader capability modeling and the final shared-code anatomy audit remain open.
-
-- [x] Gate rig/idle operator availability using the selected asset provider and armature state.
-- [x] Prove static Box and non-humanoid animated-provider paths can share the workflow without identical stages.
-- [x] Remove known shared rigid-binding and animation-error assumptions that required humanoid naming.
-- [x] Validate current rig/idle provider declarations before use.
-- [x] Document the current minimum provider contract and rigid-adapter limits.
-- [ ] Finish reviewing shared rigging, animation, validation, target/export, and workflow code for remaining concrete humanoid/biped assumptions.
-- [ ] Keep any remaining anatomy-specific behavior inside the Human provider or appropriate reusable anatomy components.
-- [ ] Strengthen capability contracts only when real workflow operations require them; surface/UV/print operation modeling remains pending.
-- [ ] Do not let capability declarations substitute for truthful asset validation (for example, printable must not make disconnected geometry pass Cura checks).
+- [x] Gate rig/idle operations using selected-provider capability and asset state.
+- [x] Prove static Box and non-humanoid animated-provider workflows do not require identical stages.
+- [x] Remove identified shared rigid-binding and animation-error assumptions requiring humanoid names.
+- [x] Validate current provider declarations and document the provider contract.
+- [x] Complete the bounded shared-code humanoid-assumption audit; remaining anatomy-specific Human work stays provider/local-component scoped.
+- [ ] Strengthen capability contracts when real workflow operations require them; surface/UV/print operation modeling remains pending.
+- [ ] Keep capability declarations separate from truthful asset validation.
 
 Definition of done: adding a fundamentally different provider does not require rewriting the shared workflow or pretending every asset is a humanoid.
 
 ## P0 - Human Provider 1.0: deformable game character
 
-The current humanoid proves the pipeline but remains a multipart blockout with a rigid rig. This is the next major product-quality milestone.
+Human 1.0 has moved beyond the original disconnected rigid blockout. A deformation-oriented path now exists alongside the legacy rigid path. The current implementation provides one connected Human surface, joint-support topology, a deforming skeleton, generated skin weights, Blender deformation, pose smoke coverage, provider-aware rigging UI, and connected-joint weight localization. This is a **deformation foundation**, not a claim that production-quality deformation is finished.
 
-- [ ] Move from disconnected blockout pieces toward smooth/unified game-ready geometry.
-- [ ] Develop smoother shoulders, elbows, hips, knees, neck, and other joints.
-- [ ] Establish topology suitable for deformation.
-- [ ] Upgrade the skeleton/rig where needed for useful deformation.
-- [ ] Generate skin weights and validate deformation quality.
+### Implemented foundation
+
+- [x] Add an opt-in connected Human mesh instead of 15 disconnected blockout pieces.
+- [x] Stitch shoulder and hip branches into the torso and integrate feet into the leg surface.
+- [x] Add support loops around elbows, wrists, knees, ankles, and foot bends.
+- [x] Add topology validation/regression coverage for the deformation-oriented mesh.
+- [x] Add a Human deforming skeleton separate from the legacy rigid part-binding contract.
+- [x] Generate deterministic normalized skin weights with bounded influences and left/right isolation.
+- [x] Apply the deforming rig and weights in Blender.
+- [x] Add automated pose/deformation smoke coverage.
+- [x] Make the Blender rigging workflow provider-aware for the Human deforming path.
+- [x] Restrict skin-weight blends to a nearest connected-joint neighborhood instead of unrelated nearby bones.
+- [x] Preserve the existing parameter/proportion foundation through the new Human geometry path.
+
+### Remaining Human 1.0 work
+
+- [ ] Inspect and refine actual deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles.
+- [ ] Resolve/refine hip-root weighting so torso-to-upper-leg deformation is deliberate while left/right leg isolation remains correct.
 - [ ] Improve hands, feet, and other blockout-level regions enough for the first usable milestone.
 - [ ] Generate UVs.
 - [ ] Provide a basic portable generated material/texture workflow.
-- [ ] Preserve existing body parameters/presets through the improved geometry pipeline.
 - [ ] Add at least one locomotion animation in addition to idle.
-- [ ] Ensure the resulting animated character validates and exports successfully to GLB.
-- [ ] Verify Human Provider 1.0 in Godot, then Unity and Unreal.
+- [ ] Ensure the resulting Human 1.0 animated character validates and exports successfully to GLB.
+- [ ] Verify the completed Human 1.0 character in Godot, then Unity and Unreal.
 
 Definition of done: supported human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, validation, and successful game-engine export/import, ready for an artist to continue refining.
 
@@ -150,7 +133,7 @@ Definition of done: supported human parameters produce an editable, deformable, 
 - [ ] Generate an appropriate skeleton and skin weights.
 - [ ] Support idle plus basic locomotion.
 - [ ] Reuse shared material/UV/validation/export infrastructure rather than copying the Human pipeline.
-- [ ] Use implementation to expose and remove any remaining biped assumptions.
+- [ ] Use implementation to expose any remaining anatomy assumptions.
 
 ### Bird provider
 
@@ -170,7 +153,7 @@ Definition of done: supported human parameters produce an editable, deformable, 
 - [ ] Expand portable material preparation and UV generation.
 - [ ] Support basic image textures and a predictable portable PBR subset.
 - [ ] Add validation for missing/invalid UVs, texture references, and unsupported material graphs.
-- [ ] Replace rigid-looking character joints with provider-appropriate deformation.
+- [ ] Continue provider-appropriate deformation quality refinement.
 - [ ] Expand animation beyond idle and improve clip/range handling.
 - [ ] Keep surfacing and animation output editable for artists.
 
@@ -178,15 +161,15 @@ Definition of done: supported human parameters produce an editable, deformable, 
 
 ### Godot scene packaging
 
-- [ ] Research optional `.tscn` packaging around the portable GLB output.
-- [ ] Determine whether it improves the default Godot edit workflow without pretending editor-only state belongs in GLB.
+- [ ] Research optional `.tscn` packaging around portable GLB output.
+- [ ] Determine whether it improves the Godot edit workflow without pretending editor-only state belongs in GLB.
 - [ ] Keep GLB as the portable/default Godot output.
 
 ### Export and UI usability
 
 - [ ] Review whether common target-preparation steps can become explicit one-click, undoable operations.
 - [ ] Continue preserving source scene state and truthful validation.
-- [ ] Review/rename Asset Assistant's **Animations** sidebar category to avoid confusion with Blender 5.x's built-in **Animation** sidebar category. Consider a clearer name such as **Motion** or **Asset Motion** without changing functionality.
+- [ ] Review/rename Asset Assistant's **Animations** sidebar category to avoid confusion with Blender 5.x's built-in **Animation** category; consider **Motion** or **Asset Motion**.
 
 ## P2 - Broader asset ecosystem
 
@@ -196,16 +179,15 @@ Definition of done: supported human parameters produce an editable, deformable, 
 
 ## Suggested implementation order
 
-1. Finish the bounded shared-code humanoid-assumption audit.
-2. Begin Human Provider 1.0 geometry/topology and smooth-joint work.
-3. Implement deforming rig/weights against the improved human mesh.
-4. Add UV and basic material/texture generation.
-5. Add human locomotion and strengthen animation export handling.
-6. Re-run formal Godot/Unity/Unreal verification using Human Provider 1.0.
-7. Use Dog/quadruped as the second character architecture proof.
-8. Complete connected/watertight print preparation for providers that support Cura.
-9. Use Bird as a further anatomy/animation architecture proof.
-10. Consider optional Godot `.tscn` packaging and UI/usability polish.
+1. Refine Human 1.0 deformation quality, beginning with hip/root weighting and representative joint poses.
+2. Improve remaining Human geometry details needed for the first usable character foundation.
+3. Add UV and basic material/texture generation.
+4. Add human locomotion and strengthen animation export handling.
+5. Re-run formal Godot/Unity/Unreal verification using Human Provider 1.0.
+6. Use Dog/quadruped as the second character architecture proof.
+7. Complete connected/watertight print preparation for providers that support Cura.
+8. Use Bird as a further anatomy/animation architecture proof.
+9. Consider optional Godot `.tscn` packaging and UI/usability polish.
 
 ## Near-term release milestone: Human Provider 1.0
 
