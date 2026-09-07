@@ -96,7 +96,7 @@ Definition of done: adding a fundamentally different provider does not require r
 
 ## P0 - Human Provider 1.0: deformable game character
 
-Human 1.0 has moved beyond the original disconnected rigid blockout. A deformation-oriented path now exists alongside the legacy rigid path. The current implementation provides one connected Human surface, joint-support topology, a deforming skeleton, generated skin weights, Blender deformation, pose smoke coverage, provider-aware rigging UI, and connected-joint weight localization. This is a **deformation foundation**, not a claim that production-quality deformation is finished.
+Human 1.0 has moved beyond the original disconnected rigid blockout. A deformation-oriented path now exists alongside the legacy rigid path. The current implementation provides one connected Human surface, joint-support topology, a deforming skeleton, generated skin weights, Blender deformation, provider-aware rigging UI, connected-joint weight localization, a deliberate hip bridge, and representative Blender deformation regressions. This is a **tested deformation foundation**, not a claim that production-quality deformation is finished.
 
 ### Implemented foundation
 
@@ -107,15 +107,15 @@ Human 1.0 has moved beyond the original disconnected rigid blockout. A deformati
 - [x] Add a Human deforming skeleton separate from the legacy rigid part-binding contract.
 - [x] Generate deterministic normalized skin weights with bounded influences and left/right isolation.
 - [x] Apply the deforming rig and weights in Blender.
-- [x] Add automated pose/deformation smoke coverage.
 - [x] Make the Blender rigging workflow provider-aware for the Human deforming path.
 - [x] Restrict skin-weight blends to a nearest connected-joint neighborhood instead of unrelated nearby bones.
+- [x] Add deliberate torso-to-same-side-upper-leg blending across the non-deforming hip/root junction.
+- [x] Add representative Blender pose/deformation regressions for shoulder, elbow/forearm, hip, knee, and neck.
 - [x] Preserve the existing parameter/proportion foundation through the new Human geometry path.
 
 ### Remaining Human 1.0 work
 
-- [ ] Inspect and refine actual deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles.
-- [ ] Resolve/refine hip-root weighting so torso-to-upper-leg deformation is deliberate while left/right leg isolation remains correct.
+- [ ] Visually inspect and refine deformation quality at shoulders, elbows, hips, knees, neck, wrists, and ankles; convert reproducible failures into focused tests where practical.
 - [ ] Improve hands, feet, and other blockout-level regions enough for the first usable milestone.
 - [ ] Generate UVs.
 - [ ] Provide a basic portable generated material/texture workflow.
@@ -179,7 +179,7 @@ Definition of done: supported human parameters produce an editable, deformable, 
 
 ## Suggested implementation order
 
-1. Refine Human 1.0 deformation quality, beginning with hip/root weighting and representative joint poses.
+1. Complete the architecture/flexibility checkpoint, then visually refine Human 1.0 deformation using the representative regression suite as guardrails.
 2. Improve remaining Human geometry details needed for the first usable character foundation.
 3. Add UV and basic material/texture generation.
 4. Add human locomotion and strengthen animation export handling.
