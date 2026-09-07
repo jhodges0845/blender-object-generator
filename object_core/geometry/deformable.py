@@ -6,7 +6,7 @@ The rigid rig still depends on one mesh object per bound bone, so callers can
 adopt this surface incrementally while skinning support is developed.
 """
 
-from math import cos, hypot, pi, sin
+from math import cos, sqrt, pi, sin
 
 from ..models import HumanoidProportions
 from ..models.mesh import MeshPart, ObjectMesh
@@ -14,18 +14,37 @@ from ..proportions.landmarks import generate_landmarks
 from .primitives import RING_SIDES, vertical_loft
 
 
-def _ring(center, width, depth, tangent=(0.0, 1.0)):
-    """Return an elliptical ring normal to a tangent in the XZ plane."""
-    dx, dz = tangent
-    length = hypot(dx, dz)
+def _cross(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def _normalize(vector):
+    length = sqrt(sum(component * component for component in vector))
     if length == 0:
         raise ValueError("ring tangent must have nonzero length")
-    ux, uz = dz / length, -dx / length
+    return tuple(component / length for component in vector)
+
+
+def _ring(center, width, depth, tangent=(0.0, 0.0, 1.0)):
+    """Return an elliptical ring normal to an arbitrary 3D tangent."""
+    tangent = _normalize(tangent)
+    # Prefer world Y as the depth reference for upright limbs. Near a foot's
+    # Y-aligned direction use Z instead, avoiding a degenerate cross product.
+    reference = (0.0, 1.0, 0.0)
+    if abs(sum(tangent[i] * reference[i] for i in range(3))) > 0.95:
+        reference = (0.0, 0.0, 1.0)
+    width_axis = _normalize(_cross(reference, tangent))
+    depth_axis = _normalize(_cross(tangent, width_axis))
     return tuple(
-        (
-            center[0] + ux * width * 0.5 * cos(2 * pi * i / RING_SIDES),
-            center[1] + depth * 0.5 * sin(2 * pi * i / RING_SIDES),
-            center[2] + uz * width * 0.5 * cos(2 * pi * i / RING_SIDES),
+        tuple(
+            center[axis]
+            + width_axis[axis] * width * 0.5 * cos(2 * pi * i / RING_SIDES)
+            + depth_axis[axis] * depth * 0.5 * sin(2 * pi * i / RING_SIDES)
+            for axis in range(3)
         )
         for i in range(RING_SIDES)
     )
@@ -57,6 +76,10 @@ def _supported_joint_chain(points, widths, depths, support=0.14):
     return tuple(centers), tuple(out_widths), tuple(out_depths)
 
 
+def _subtract(a, b):
+    return tuple(a[i] - b[i] for i in range(3))
+
+
 def _chain(name, centers, widths, depths):
     """Build one capped quad surface through all supplied joint centers."""
     if not (len(centers) == len(widths) == len(depths)) or len(centers) < 2:
@@ -64,14 +87,11 @@ def _chain(name, centers, widths, depths):
     rings = []
     for index, center in enumerate(centers):
         if index == 0:
-            tangent = (centers[1][0] - center[0], centers[1][2] - center[2])
+            tangent = _subtract(centers[1], center)
         elif index == len(centers) - 1:
-            tangent = (center[0] - centers[index - 1][0], center[2] - centers[index - 1][2])
+            tangent = _subtract(center, centers[index - 1])
         else:
-            tangent = (
-                centers[index + 1][0] - centers[index - 1][0],
-                centers[index + 1][2] - centers[index - 1][2],
-            )
+            tangent = _subtract(centers[index + 1], centers[index - 1])
         rings.append(_ring(center, widths[index], depths[index], tangent))
 
     vertices = tuple(vertex for ring in rings for vertex in ring)
