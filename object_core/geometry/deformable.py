@@ -6,7 +6,7 @@ The rigid rig still depends on one mesh object per bound bone, so callers can
 adopt this surface incrementally while skinning support is developed.
 """
 
-from math import cos, hypot, pi, sin
+from math import cos, sqrt, pi, sin
 
 from ..models import HumanoidProportions
 from ..models.mesh import MeshPart, ObjectMesh
@@ -14,21 +14,70 @@ from ..proportions.landmarks import generate_landmarks
 from .primitives import RING_SIDES, vertical_loft
 
 
-def _ring(center, width, depth, tangent=(0.0, 1.0)):
-    """Return an elliptical ring normal to a tangent in the XZ plane."""
-    dx, dz = tangent
-    length = hypot(dx, dz)
+def _cross(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def _normalize(vector):
+    length = sqrt(sum(component * component for component in vector))
     if length == 0:
         raise ValueError("ring tangent must have nonzero length")
-    ux, uz = dz / length, -dx / length
+    return tuple(component / length for component in vector)
+
+
+def _ring(center, width, depth, tangent=(0.0, 0.0, 1.0)):
+    """Return an elliptical ring normal to an arbitrary 3D tangent."""
+    tangent = _normalize(tangent)
+    # Prefer world Y as the depth reference for upright limbs. Near a foot's
+    # Y-aligned direction use Z instead, avoiding a degenerate cross product.
+    reference = (0.0, 1.0, 0.0)
+    if abs(sum(tangent[i] * reference[i] for i in range(3))) > 0.95:
+        reference = (0.0, 0.0, 1.0)
+    width_axis = _normalize(_cross(reference, tangent))
+    depth_axis = _normalize(_cross(tangent, width_axis))
     return tuple(
-        (
-            center[0] + ux * width * 0.5 * cos(2 * pi * i / RING_SIDES),
-            center[1] + depth * 0.5 * sin(2 * pi * i / RING_SIDES),
-            center[2] + uz * width * 0.5 * cos(2 * pi * i / RING_SIDES),
+        tuple(
+            center[axis]
+            + width_axis[axis] * width * 0.5 * cos(2 * pi * i / RING_SIDES)
+            + depth_axis[axis] * depth * 0.5 * sin(2 * pi * i / RING_SIDES)
+            for axis in range(3)
         )
         for i in range(RING_SIDES)
     )
+
+
+def _lerp_point(a, b, amount):
+    return tuple(a[i] + (b[i] - a[i]) * amount for i in range(3))
+
+
+def _supported_joint_chain(points, widths, depths, support=0.14):
+    """Add rings immediately before/after internal joints for deformation."""
+    centers = [points[0]]
+    out_widths = [widths[0]]
+    out_depths = [depths[0]]
+    for index in range(1, len(points) - 1):
+        joint = points[index]
+        centers.extend(
+            (
+                _lerp_point(joint, points[index - 1], support),
+                joint,
+                _lerp_point(joint, points[index + 1], support),
+            )
+        )
+        out_widths.extend((widths[index], widths[index], widths[index]))
+        out_depths.extend((depths[index], depths[index], depths[index]))
+    centers.append(points[-1])
+    out_widths.append(widths[-1])
+    out_depths.append(depths[-1])
+    return tuple(centers), tuple(out_widths), tuple(out_depths)
+
+
+def _subtract(a, b):
+    return tuple(a[i] - b[i] for i in range(3))
 
 
 def _chain(name, centers, widths, depths):
@@ -38,14 +87,11 @@ def _chain(name, centers, widths, depths):
     rings = []
     for index, center in enumerate(centers):
         if index == 0:
-            tangent = (centers[1][0] - center[0], centers[1][2] - center[2])
+            tangent = _subtract(centers[1], center)
         elif index == len(centers) - 1:
-            tangent = (center[0] - centers[index - 1][0], center[2] - centers[index - 1][2])
+            tangent = _subtract(center, centers[index - 1])
         else:
-            tangent = (
-                centers[index + 1][0] - centers[index - 1][0],
-                centers[index + 1][2] - centers[index - 1][2],
-            )
+            tangent = _subtract(centers[index + 1], centers[index - 1])
         rings.append(_ring(center, widths[index], depths[index], tangent))
 
     vertices = tuple(vertex for ring in rings for vertex in ring)
@@ -61,12 +107,12 @@ def _chain(name, centers, widths, depths):
 
 
 def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
-    """Return the first Human 1.0 deformation-oriented surface.
+    """Return the Human 1.0 deformation-oriented surface in progress.
 
-    Compared with the 15-part rigid blockout, this foundation keeps topology
-    continuous through the neck/head, elbows, wrists, knees, and ankles. Arms,
-    legs, and feet remain separate from the torso in this first slice; welding
-    shoulders/hips/feet and adding skin weights are subsequent Human 1.0 work.
+    The torso/neck/head is continuous, arms have support loops around elbow and
+    wrist deformation zones, and each leg now continues through ankle into the
+    foot. Arms and legs remain separate from the torso until the shoulder/hip
+    branch topology can be welded without creating a non-manifold junction.
 
     The function is deliberately opt-in until the deforming rig replaces the
     legacy rigid part-binding contract.
@@ -79,7 +125,6 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     shoulder_z = points["shoulder_center"][2]
     chin_z = points["chin"][2]
     crown_z = points["crown"][2]
-    ankle_z = points["ankle.left"][2]
 
     body = vertical_loft(
         "body",
@@ -102,38 +147,31 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         elbow = points["elbow." + side]
         wrist = points["wrist." + side]
         fingertips = points["fingertips." + side]
-        parts.append(
-            _chain(
-                "arm." + side,
-                (shoulder, elbow, wrist, fingertips),
-                (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
-                 p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.52),
-                (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
-                 p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.30),
-            )
+        arm_centers, arm_widths, arm_depths = _supported_joint_chain(
+            (shoulder, elbow, wrist, fingertips),
+            (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
+             p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.52),
+            (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
+             p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.30),
         )
+        parts.append(_chain("arm." + side, arm_centers, arm_widths, arm_depths))
 
         hip = points["hip." + side]
         knee = points["knee." + side]
         ankle = points["ankle." + side]
-        parts.append(
-            _chain(
-                "leg." + side,
-                (hip, knee, ankle),
-                (p.thigh_thickness_cm, p.calf_thickness_cm, p.calf_thickness_cm * 0.6),
-                (p.thigh_thickness_cm, p.calf_thickness_cm, p.calf_thickness_cm * 0.6),
-            )
+        foot_height = p.foot_length_cm * 0.34
+        foot_center_z = foot_height * 0.5
+        foot_back = (ankle[0], -p.foot_length_cm * 0.18, foot_center_z)
+        foot_front = (ankle[0], p.foot_length_cm * 0.72, foot_center_z)
+        leg_centers, leg_widths, leg_depths = _supported_joint_chain(
+            (hip, knee, ankle, foot_back, foot_front),
+            (p.thigh_thickness_cm, p.calf_thickness_cm,
+             p.calf_thickness_cm * 0.6, p.calf_thickness_cm * 0.72,
+             p.calf_thickness_cm * 0.62),
+            (p.thigh_thickness_cm, p.calf_thickness_cm,
+             p.calf_thickness_cm * 0.6, foot_height,
+             p.foot_length_cm * 0.18),
         )
-        parts.append(
-            vertical_loft(
-                "foot." + side,
-                (
-                    (0.0, p.calf_thickness_cm * 0.8, p.foot_length_cm),
-                    (ankle_z, p.calf_thickness_cm * 0.6, p.foot_length_cm * 0.9),
-                ),
-                center_x=hip[0],
-                center_y=p.foot_length_cm * 0.25,
-            )
-        )
+        parts.append(_chain("leg." + side, leg_centers, leg_widths, leg_depths))
 
     return ObjectMesh(tuple(parts))

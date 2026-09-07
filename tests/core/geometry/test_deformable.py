@@ -12,11 +12,11 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         mesh = generate_deformable_mesh(p)
         self.assertEqual(
             {part.name for part in mesh.parts},
-            {"body", "arm.left", "arm.right", "leg.left", "leg.right", "foot.left", "foot.right"},
+            {"body", "arm.left", "arm.right", "leg.left", "leg.right"},
         )
-        # Human 1.0 starts by replacing torso/neck/head and segmented limbs
-        # with continuous quad chains while the rigid generator stays intact.
-        self.assertEqual(len(mesh.parts), 7)
+        # Feet are now part of each continuous leg chain; shoulders and hips
+        # remain the final torso junctions to solve with manifold topology.
+        self.assertEqual(len(mesh.parts), 5)
         self.assertGreater(mesh.vertex_count, 0)
         self.assertGreater(mesh.face_count, 0)
 
@@ -42,13 +42,26 @@ class DeformableHumanGeometryTests(unittest.TestCase):
             self.assertEqual(a.faces, b.faces)
             self.assertEqual(len(a.vertices), len(b.vertices))
 
-    def test_joint_chains_have_internal_deformation_loops(self):
+    def test_joint_chains_have_deformation_support_loops(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         parts = {part.name: part for part in generate_deformable_mesh(p).parts}
-        # Eight vertices per ring: shoulder/elbow/wrist/hand and hip/knee/ankle.
-        self.assertEqual(len(parts["arm.left"].vertices), 32)
-        self.assertEqual(len(parts["leg.left"].vertices), 24)
+        # Arm: shoulder + three rings around elbow + three around wrist + hand.
+        self.assertEqual(len(parts["arm.left"].vertices), 64)
+        # Leg: hip + support rings around knee, ankle, and foot bend + toe end.
+        self.assertEqual(len(parts["leg.left"].vertices), 88)
         self.assertEqual(len(parts["body"].vertices), 72)
+
+    def test_feet_are_integrated_into_leg_surface(self):
+        p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
+        parts = {part.name: part for part in generate_deformable_mesh(p).parts}
+        self.assertNotIn("foot.left", parts)
+        self.assertNotIn("foot.right", parts)
+        for side in ("left", "right"):
+            leg = parts["leg." + side]
+            minimum_y = min(vertex[1] for vertex in leg.vertices)
+            maximum_y = max(vertex[1] for vertex in leg.vertices)
+            self.assertLess(minimum_y, 0)
+            self.assertGreater(maximum_y, p.foot_length_cm * 0.5)
 
     def test_deterministic_and_requires_proportions(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
