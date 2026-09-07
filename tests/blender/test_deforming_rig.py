@@ -108,6 +108,24 @@ class BlenderDeformingRigTests(unittest.TestCase):
         self.assertGreater(max((after[index] - before[index]).length for index in shoulder_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
 
+    def test_hand_pose_deforms_blended_wrist_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        wrist_indices = self._indices_with_bones(weights, "forearm.left", "hand.left")
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(wrist_indices)
+        self.assertTrue(right_indices)
+
+        before = self._evaluated_points(obj)
+        pose_bone = armature.pose.bones["hand.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.y = 0.45
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+
+        self.assertGreater(max((after[index] - before[index]).length for index in wrist_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
     def test_upper_leg_pose_deforms_blended_hip_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
         bpy.context.view_layer.update()
@@ -142,6 +160,24 @@ class BlenderDeformingRigTests(unittest.TestCase):
         after = self._evaluated_points(obj)
 
         self.assertGreater(max((after[index] - before[index]).length for index in knee_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
+    def test_foot_pose_deforms_blended_ankle_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        ankle_indices = self._indices_with_bones(weights, "lower_leg.left", "foot.left")
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(ankle_indices)
+        self.assertTrue(right_indices)
+
+        before = self._evaluated_points(obj)
+        pose_bone = armature.pose.bones["foot.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.x = 0.45
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+
+        self.assertGreater(max((after[index] - before[index]).length for index in ankle_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
 
     def test_neck_pose_deforms_torso_neck_transition(self):
