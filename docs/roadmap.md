@@ -104,13 +104,15 @@ These items are already implemented and should not be treated as open work unles
 
 Before expanding target support, verify that the files we produce actually behave correctly in their destination applications.
 
-- [ ] Create a repeatable target-verification checklist and record application/version used.
+Initial Godot import, Unity/Unreal model and idle checks, and Cura Box import/slicing have user-confirmed results. See the [verification record](target-verification.md) for evidence and version gaps. The detailed target checks below remain open; basic success does not establish full validation.
+
+- [x] Create a repeatable target-verification checklist with available version evidence and explicit gaps: [verification record](target-verification.md).
 - [ ] Godot: repeat the GLB import as a formal verification pass. Confirm hierarchy, mesh parts, skeleton, skinning behavior, animation playback, materials/textures, orientation, scale and expected edit/scene workflow.
 - [ ] Unity: import generated FBX and verify hierarchy, rig/avatar behavior where applicable, animation playback, materials/textures, axes and scale.
 - [ ] Unreal Engine: import generated FBX and verify skeleton, animation, materials/textures, axes, scale and compatibility with Unreal's expected FBX pipeline.
 - [ ] Cura: import generated STL assets that pass validation and verify physical dimensions, orientation and slicer acceptance.
 - [ ] Capture target-specific failures as tests or validation rules whenever practical instead of relying only on documentation.
-- [ ] Document known target limitations and the exact manual checks that cannot yet be automated.
+- [x] Document current target limitations and outstanding manual checks in the [verification record](target-verification.md).
 
 Definition of done: each supported destination has at least one documented successful end-to-end import using a generated asset, with known limitations recorded.
 
