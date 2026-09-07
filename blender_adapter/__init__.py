@@ -23,6 +23,9 @@ bl_info = {
 
 def register():
     from . import ui
+    # Keep stable class/operator IDs for compatibility while presenting the new
+    # product name to artists in Blender.
+    ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
     ui.register()
 
 
