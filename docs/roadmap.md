@@ -28,6 +28,8 @@ Current target families are enough to prove the abstraction:
 ## Engineering direction
 
 - `object_core` must remain independent of Blender APIs.
+- `blender_adapter` is the canonical Blender-specific source package.
+- The packaged add-on retains the historical `humanoid_blender` module ID and legacy `humanoid.*` operator/settings identifiers for compatibility unless a future migration provides a safe replacement.
 - Blender scene manipulation belongs in the Blender adapter.
 - Generic infrastructure must not assume humanoid/biped anatomy.
 - Workflow requirements should follow provider/asset capabilities.
@@ -40,8 +42,11 @@ Current target families are enough to prove the abstraction:
 
 ## Completed foundation
 
+- [x] Product identity renamed to **Asset Assistant** in Blender-facing metadata, documentation, and release packaging.
+- [x] Release artifact renamed to `asset_assistant.zip` while preserving the historical installed Blender module ID for compatibility.
 - [x] Host-independent `object_core` architecture.
-- [x] Blender adapter/package separated from the core.
+- [x] Canonical `blender_adapter` source package separated from the core.
+- [x] Blender/core import bridge clarified as `core_gateway.py` while preserving the historical `.core` import path.
 - [x] Provider registry/input/capability foundation.
 - [x] Parameterized humanoid blockout generation.
 - [x] Box provider proving a non-character/static workflow.
@@ -56,6 +61,7 @@ Current target families are enough to prove the abstraction:
 - [x] Compact export readiness/status UI.
 - [x] Core unit tests plus Blender integration tests.
 - [x] GitHub Actions CI covering standalone Python plus Blender 5.2.1 and legacy Blender 2.92.0 integration tests.
+- [x] Isolated packaged-add-on CI verifies `asset_assistant.zip` can load, register, generate, rig, animate, validate, and exercise all four export paths in a fresh headless Blender process.
 - [x] Blender 5.2 layered-action support and active-scene glTF export scoping.
 - [x] Provider-aware rig/idle workflow gating based on the selected asset.
 - [x] Generic `part_name` rigid binding with legacy `body_part` fallback.
@@ -63,10 +69,11 @@ Current target families are enough to prove the abstraction:
 - [x] Provider declaration validation for identity, boolean capability flags, required methods, parameter definitions, and registry-key consistency before generation.
 - [x] Provider contract and current rigid-adapter limits documented in `docs/providers.md`.
 - [x] Remote GitHub Actions run confirmed successful after the Blender 5.2.1/provider-hardening work.
+- [x] Remote GitHub Actions run confirmed successful after the architecture naming cleanup and Asset Assistant product rename.
 
 ## P0 - Verify the existing target pipeline
 
-Initial destination smoke checks exist for all four targets. These are useful evidence, not full production certification.
+Initial destination smoke checks exist for all four targets. These are useful evidence, not full production certification. Automated export checks prove that Asset Assistant can create the files; destination certification still requires reviewing those files in the destination application.
 
 - [x] Create a repeatable target-verification checklist and record known version gaps in `target-verification.md`.
 - [x] Godot smoke verification: generated humanoid GLB imported with hierarchy, skeleton/rig, and animation visible.
@@ -74,6 +81,7 @@ Initial destination smoke checks exist for all four targets. These are useful ev
 - [x] Unity smoke verification: generated FBX model/idle behavior confirmed from the earlier Blender 2.92 export.
 - [x] Unreal smoke verification: generated FBX model/animation confirmed from the earlier Blender 2.92 export.
 - [x] Cura smoke verification: Box STL imported and sliced successfully from the earlier Blender 2.92 export.
+- [x] Packaged `asset_assistant.zip` automated export smoke coverage for Godot, Unity, Unreal, and Cura paths.
 - [ ] Formal Godot pass: record exact destination version and confirm hierarchy, mesh parts, skinning behavior, materials/textures, orientation, scale, and expected edit/scene workflow.
 - [ ] Detailed Unity pass: confirm importer/version, hierarchy, rig/avatar behavior, skinning, materials/textures, axes, and scale.
 - [ ] Detailed Unreal pass: confirm skeleton/deformation, materials/textures, axes, scale, and broader FBX compatibility.
