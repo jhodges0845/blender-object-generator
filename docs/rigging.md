@@ -1,69 +1,54 @@
-# Piece 5: basic rigid rigging
+# Rigging
 
-A generated humanoid can now include a 16-bone skeleton: one root control and
-15 bones matching the separate mesh parts. Parent relationships let the hand
-follow the forearm and upper arm, and the foot follow the lower and upper leg.
-This is forward kinematics: rotate bones directly to pose the character.
-There are no IK controls, joint limits, or smooth joints yet. A basic [idle animation](animation.md) is available.
+Asset Assistant currently has two Human rigging paths: the established rigid blockout path and the Human 1.0 deformation-oriented path. The rigid path remains useful for compatibility and pipeline smoke testing; Human 1.0 is the path toward an editable game character that bends as one skinned surface.
 
-## Try it in Blender
+## Legacy rigid rig
 
-1. Update to the rebuilt add-on ZIP using the steps in [the Blender guide](blender.md).
-2. In Object Mode, open N > Generator > Model and choose Object Type: Humanoid.
-3. Choose your measurements and click **Generate Model**. Open **Rigging** and
-   click **Add Basic Rig** to rig that same character.
-4. Click **Enter Pose Mode**, or choose Pose Mode in the viewport mode dropdown.
-5. Select an upper-arm bone and press R to rotate it; its forearm and hand follow.
-6. Press Alt-R on selected bones to clear their rotations and return them to rest.
+The legacy generated humanoid uses a 16-bone skeleton: one root control and 15 bones corresponding to the separate mesh parts. Parent relationships let hands follow forearms/upper arms and feet follow lower/upper legs. It uses forward kinematics.
 
-To pose an existing generated character, select its `Humanoid.Rig` armature in
-the Outliner first. Bones display in front of the mesh. The Empty parent still
-moves the whole character. The Model tab always generates meshes without a rig.
-The Rigging tab can add a rig to a previously generated, unrigged character;
-it preserves existing rigs. Choose the intended root in its Character field.
+Each mesh part receives an Armature modifier and a single full-weight vertex group. That means each part moves as a solid piece. Gaps or overlaps can therefore appear at joints when posing. This behavior is intentional for the legacy blockout and should not be confused with Human 1.0 deformation.
 
-Each mesh part has an Armature modifier and one vertex group. Every vertex in
-that part has weight 1.0 for its assigned bone. This is rigid skinning: parts
-move as solid pieces. Gaps or overlaps can appear at joints when posing. Smooth
-bending will require different mesh topology and blended weights in a later step.
+The existing idle animation and export pipeline continue to use this proven path where appropriate.
 
-Removing the add-on leaves the bones, modifiers, groups, and meshes editable.
-Pose rotations, translations, and scales remain ordinary Blender operations.
-The stored measurements describe generation inputs, not live controls.
+## Human 1.0 deforming rig
 
-## Core contracts and generation
+Human 1.0 adds a separate deformation-oriented skeleton and skin-weight pipeline for the connected Human mesh.
 
-```python
-from object_core import BodyType, HumanoidSpec
-from object_core import generate_proportions, generate_mesh, generate_skeleton
+The core deformation path currently provides:
 
-proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
-mesh = generate_mesh(proportions)
-skeleton = generate_skeleton(proportions)
-```
+- a 16-bone hierarchy with a non-deforming root and 15 deform bones;
+- bone locations derived from the same Human proportions/landmarks as the geometry;
+- generated per-vertex skin weights;
+- normalized deterministic weights with a configurable maximum influence count;
+- left/right limb isolation so a vertex on one side does not accidentally receive the opposite-side limb bones;
+- connected-joint localization: weights are selected from the nearest deform bone and its structural parent/children rather than simply choosing unrelated geometrically nearby bones;
+- Blender armature/vertex-group application for the connected Human surface; and
+- automated pose/deformation smoke coverage.
 
-`Bone` stores its name, head and tail in centimeters, parent name, and optional
-bound part name. `Skeleton` validates a single-root tree in parent-before-child
-order, unique names, nonzero bone lengths, finite coordinates, and unique part
-bindings. These immutable models contain no Blender data. Bone roll is currently
-chosen by Blender; the animation adapter converts rest armature axes into each bone's local coordinates.
+This establishes that the mesh can be skinned and deformed. It does **not** establish that every joint already deforms at production quality.
 
-`proportions/landmarks.py` is the shared source of joint positions for geometry
-and rigging. Mesh generation remains unchanged in appearance. The skeleton uses
-the same A-pose, axes, units, and initial supported dimensions as the blockout.
-The root bone starts at the hip center; torso and both upper legs are its children.
+### Current quality boundary
 
-`humanoid_blender/rigging.py` translates the core tree into an armature and full
-vertex weights. `create_character(..., skeleton=skeleton)` requires Object Mode
-in the active scene because Blender creates bones in Edit Mode. It restores
-selection and active object after that temporary mode change. The UI then
-selects the generated character and activates its armature for posing.
+Shoulders, elbows, wrists, hips, knees, ankles, and the neck still need representative visual pose review and refinement. In particular, the root is intentionally non-deforming, while the upper legs are children of that root. The current connected-neighborhood weighting therefore does not by itself provide a deliberate torso-to-upper-leg blend across the hip junction. Hip/root weighting is a specific next refinement rather than something the documentation should claim is solved.
 
-## Validation
+Automated smoke tests answer questions such as “does deformation occur?”, “are weights normalized and deterministic?”, and “are influences kept anatomically local?” They are not a substitute for inspecting silhouette, volume preservation, collapsing, pinching, and twisting in representative poses.
 
-The test suite checks skeleton hierarchy, mirrored joints, correspondence with
-mesh endpoints throughout the supported input grid, unit conversion, unchanged
-rest geometry, actual evaluated limb motion, rigid part lengths, and cleanup
-after a simulated failure. Run the normal Python and Blender commands from the
-[Blender guide](blender.md). The isolated ZIP check generates a rigged preview
-scene at `artifacts/blockout-preview.blend`.
+## Core contracts
+
+The core rigging models contain no Blender data. `Bone` stores its name, head/tail coordinates, parent name, and optional rigid bound-part name. `Skeleton` validates hierarchy and bone data.
+
+The legacy path uses rigid part bindings. The Human 1.0 deforming skeleton deliberately does not depend on those bindings; skinning is represented by generated vertex influences instead.
+
+Human anatomy-specific bone placement and weighting behavior stays in the Human deformation implementation. Shared workflow/provider infrastructure should not learn Human bone names as a consequence of this work.
+
+## Blender behavior
+
+The Blender adapter translates the core skeleton into an editable armature and applies the appropriate weighting strategy. Provider-aware rigging UI selects the correct behavior for the generated asset instead of assuming every riggable provider is the legacy humanoid.
+
+Removing the add-on leaves generated Blender armatures, modifiers, vertex groups, and meshes as ordinary editable scene data. Generation measurements remain generation inputs rather than live procedural controls.
+
+## Validation and tests
+
+Current automated coverage includes legacy skeleton hierarchy/motion checks plus Human 1.0 deformation tests for skeleton structure, normalized bounded weights, determinism, side isolation, connected-joint influence neighborhoods, Blender deformation application, and pose smoke behavior.
+
+The remaining Human 1.0 deformation milestone is quality validation: representative joint poses must be inspected/refined and useful regressions converted into automated tests where practical. See [the roadmap](roadmap.md) for the current order of work.
