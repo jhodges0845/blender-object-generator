@@ -59,20 +59,31 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libgl1 libxi6 libxrender1 libxxf86vm1 libxfixes3 libxkbcommon0
 
-      - name: Download and verify Blender
+      - name: Restore Blender runtime cache
+        id: blender-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/asset-assistant/blender/${{ matrix.directory }}
+          key: blender-runtime-${{ runner.os }}-${{ matrix.version }}-${{ matrix.directory }}
+
+      - name: Download, verify, and extract Blender
+        if: steps.blender-cache.outputs.cache-hit != 'true'
         working-directory: ${{ runner.temp }}
         run: |
           base_url=https://mirror.blender.org/release/${{ matrix.release }}
           archive=${{ matrix.directory }}.tar.xz
+          cache_root="$HOME/.cache/asset-assistant/blender"
+          mkdir -p "$cache_root"
           curl --fail --location --retry 3 --output "$archive" "$base_url/$archive"
           curl --fail --location --retry 3 --output blender.sha256 "$base_url/blender-${{ matrix.version }}.sha256"
           grep " $archive\$" blender.sha256 > selected.sha256
           sha256sum --check selected.sha256
-          tar -xf "$archive"
+          tar -xf "$archive" -C "$cache_root"
+          test -x "$cache_root/${{ matrix.directory }}/blender"
 
       - name: Run tests inside Blender
         run: |
-          "${{ runner.temp }}/${{ matrix.directory }}/blender" \
+          "$HOME/.cache/asset-assistant/blender/${{ matrix.directory }}/blender" \
             --background --factory-startup --python-exit-code 1 \
             --python scripts/test_blender.py
 
@@ -83,6 +94,6 @@ jobs:
       - name: Test isolated Asset Assistant release ZIP
         if: matrix.version == '2.92.0'
         run: |
-          "${{ runner.temp }}/${{ matrix.directory }}/blender" \
+          "$HOME/.cache/asset-assistant/blender/${{ matrix.directory }}/blender" \
             --background --factory-startup --python-exit-code 1 \
             --python scripts/test_blender_package.py
