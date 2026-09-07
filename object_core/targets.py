@@ -42,7 +42,7 @@ UNITY = OutputTarget(
     preferred_formats=("FBX",),
     require_rig=True,
     require_animation=True,
-    notes=("Review humanoid/avatar mapping, scale, materials, collision, and LODs after import.",),
+    notes=("Review rig/avatar configuration appropriate to the provider, scale, materials, collision, and LODs after import.",),
 )
 
 UNREAL = OutputTarget(
