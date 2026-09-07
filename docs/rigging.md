@@ -22,16 +22,19 @@ The core deformation path currently provides:
 - normalized deterministic weights with a configurable maximum influence count;
 - left/right limb isolation so a vertex on one side does not accidentally receive the opposite-side limb bones;
 - connected-joint localization: weights are selected from the nearest deform bone and its structural parent/children rather than simply choosing unrelated geometrically nearby bones;
+- a Human-specific hip bridge that deliberately blends torso and same-side upper leg across the non-deforming root while preserving side isolation;
 - Blender armature/vertex-group application for the connected Human surface; and
-- automated pose/deformation smoke coverage.
+- automated representative pose/deformation coverage.
 
-This establishes that the mesh can be skinned and deformed. It does **not** establish that every joint already deforms at production quality.
+This establishes that the mesh can be skinned and deformed through representative joints. It does **not** establish that every joint already deforms at production quality.
 
 ### Current quality boundary
 
-Shoulders, elbows, wrists, hips, knees, ankles, and the neck still need representative visual pose review and refinement. In particular, the root is intentionally non-deforming, while the upper legs are children of that root. The current connected-neighborhood weighting therefore does not by itself provide a deliberate torso-to-upper-leg blend across the hip junction. Hip/root weighting is a specific next refinement rather than something the documentation should claim is solved.
+The hip/root relationship is now deliberate rather than an accidental consequence of hierarchy proximity: vertices near each hip junction can blend between `torso` and the same-side `upper_leg`, while the opposite leg remains excluded.
 
-Automated smoke tests answer questions such as “does deformation occur?”, “are weights normalized and deterministic?”, and “are influences kept anatomically local?” They are not a substitute for inspecting silhouette, volume preservation, collapsing, pinching, and twisting in representative poses.
+Representative Blender pose regressions now cover shoulder, elbow/forearm, hip, knee, and neck behavior. These tests answer questions such as “does deformation occur?”, “are weights normalized and deterministic?”, “are influences kept anatomically local?”, and, for side-specific limb poses, “does posing one side avoid dragging the opposite side?”
+
+They are not a substitute for visual inspection of silhouette, volume preservation, collapsing, pinching, and twisting. Wrists and ankles also remain part of the visual quality pass even though their topology/weighting path is covered structurally.
 
 ## Core contracts
 
@@ -49,6 +52,6 @@ Removing the add-on leaves generated Blender armatures, modifiers, vertex groups
 
 ## Validation and tests
 
-Current automated coverage includes legacy skeleton hierarchy/motion checks plus Human 1.0 deformation tests for skeleton structure, normalized bounded weights, determinism, side isolation, connected-joint influence neighborhoods, Blender deformation application, and pose smoke behavior.
+Current automated coverage includes legacy skeleton hierarchy/motion checks plus Human 1.0 deformation tests for skeleton structure, normalized bounded weights, determinism, side isolation, connected-joint influence neighborhoods, explicit hip bridging, Blender deformation application, and representative shoulder, elbow/forearm, hip, knee, and neck poses.
 
-The remaining Human 1.0 deformation milestone is quality validation: representative joint poses must be inspected/refined and useful regressions converted into automated tests where practical. See [the roadmap](roadmap.md) for the current order of work.
+The remaining Human 1.0 deformation milestone is visual quality refinement: representative poses must be inspected and improved, with reproducible failures converted into focused automated tests where practical. See [the roadmap](roadmap.md) for the current order of work.
