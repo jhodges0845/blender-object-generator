@@ -6,9 +6,10 @@ Run Script, or launched from the repository root with:
 
     blender --python scripts/inspect_human_deformation.py
 
-The script leaves one neutral reference plus seven posed deforming Humans in the
-scene. Each pose exercises a joint already protected by Blender deformation
-regression tests; this harness is for the complementary visual-quality review.
+The script leaves one neutral reference plus seven posed deforming Humans in a
+compact 2x4 inspection grid. Each pose exercises a joint already protected by
+Blender deformation regression tests; this harness is for the complementary
+visual-quality review.
 """
 
 import math
@@ -85,21 +86,28 @@ def _label(name, location):
     label.name = name + "_Label"
     label.data.body = name
     label.data.align_x = "CENTER"
-    label.data.size = 8.0
+    label.data.size = 7.0
     label.rotation_euler.x = math.radians(90.0)
 
 
 def main():
     _clear_scene()
-    spacing = 115.0
     cases = (("Neutral", None, None, 0.0),) + POSES
-    offset = -spacing * (len(cases) - 1) / 2.0
+
+    columns = 4
+    column_spacing = 90.0
+    row_spacing = 225.0
+    x_offset = -column_spacing * (columns - 1) / 2.0
+    y_offset = row_spacing / 2.0
 
     for index, (name, bone_name, axis, angle) in enumerate(cases):
-        x = offset + index * spacing
+        row, column = divmod(index, columns)
+        x = x_offset + column * column_spacing
+        y = y_offset - row * row_spacing
         root, armature = _human("Human_" + name)
         root.location.x = x
-        _label(name, (x, -30.0, 195.0))
+        root.location.y = y
+        _label(name, (x, y - 28.0, 195.0))
 
         if bone_name is not None:
             pose_bone = armature.pose.bones[bone_name]
@@ -107,7 +115,7 @@ def main():
             setattr(pose_bone.rotation_euler, axis.lower(), angle)
 
     bpy.context.view_layer.update()
-    print("Human deformation inspection scene ready: Neutral + " + ", ".join(name for name, *_ in POSES))
+    print("Human deformation inspection scene ready in a 2x4 grid: Neutral + " + ", ".join(name for name, *_ in POSES))
 
 
 if __name__ == "__main__":
