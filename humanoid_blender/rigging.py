@@ -28,7 +28,7 @@ def attach_rig(root, skeleton, scale):
     if any(obj.type == "ARMATURE" for obj in root.children):
         raise ValueError("Character already has a rig.")
     mesh_objects = [obj for obj in root.children if obj.type == "MESH"]
-    parts = {obj.get("body_part"): obj for obj in mesh_objects}
+    parts = {obj.get("part_name", obj.get("body_part")): obj for obj in mesh_objects}
     bindings = {bone.part_name for bone in skeleton.bones if bone.part_name is not None}
     if len(parts) != len(mesh_objects) or set(parts) != bindings:
         raise ValueError("Character parts no longer match the generated skeleton.")

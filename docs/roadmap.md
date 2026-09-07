@@ -135,10 +135,10 @@ Before species-specific systems become deeply embedded, make the multi-asset int
 
 - [ ] Review shared code for hidden humanoid/biped assumptions.
 - [ ] Strengthen provider capability contracts for static, riggable, animatable, surfaced and printable assets.
-- [ ] Ensure workflow stages can be enabled/disabled based on provider capabilities.
+- [x] Gate rig/idle operator availability using the selected asset provider and armature state, matching the capability-aware panels.
 - [ ] Keep anatomy-specific skeleton/proportion/animation logic inside appropriate providers or reusable anatomy components rather than generic target/export code.
-- [ ] Add tests proving that a static provider and an animated character provider can share the pipeline without requiring the same stages.
-- [ ] Document the minimum contract for implementing a new provider.
+- [x] Cover static Box capability guards and a test-only non-humanoid rotor through rigging, animation, validation and GLB export.
+- [x] Document the current minimum provider contract and rigid-adapter limits in [providers.md](providers.md).
 
 Definition of done: adding a fundamentally different provider does not require rewriting the shared workflow or pretending that every asset is a humanoid.
 

@@ -37,7 +37,7 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
                                    for i in range(4) for j in range(4)):
             raise ValueError('Start from an unconstrained rest pose; existing pose preserved.')
     if any(track.bone not in rig.pose.bones for track in clip.tracks):
-        raise ValueError('This rig is missing required humanoid bones.')
+        raise ValueError('This rig is missing bones required by the provider animation.')
     fps = scene.render.fps / scene.render.fps_base
     start = scene.frame_start
     action = bpy.data.actions.new(rig.name + '.Idle')

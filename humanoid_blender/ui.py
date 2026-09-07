@@ -28,6 +28,18 @@ def _character(context):
     return root if root and context.scene.objects.get(root.name) == root else None
 
 
+def _supports_operation(context, capability):
+    if context.scene is None or context.mode != 'OBJECT':
+        return False
+    root = _character(context)
+    if root is None:
+        return False
+    try:
+        return bool(getattr(provider_for(root), capability))
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def _select(context, obj):
     for selected in context.selected_objects:
         selected.select_set(False)
@@ -128,7 +140,8 @@ class HUMANOID_OT_rig(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene is not None and context.mode == "OBJECT" and _character(context) is not None
+        return _supports_operation(context, 'supports_rig') and not any(
+            obj.type == 'ARMATURE' for obj in _character(context).children)
 
     def execute(self, context):
         try:
@@ -165,7 +178,8 @@ class HUMANOID_OT_idle(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.scene is not None and context.mode == "OBJECT" and _character(context) is not None
+        return _supports_operation(context, 'supports_idle') and sum(
+            obj.type == 'ARMATURE' for obj in _character(context).children) == 1
 
     def execute(self, context):
         settings = context.scene.humanoid_settings
