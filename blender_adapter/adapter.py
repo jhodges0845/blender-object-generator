@@ -61,6 +61,8 @@ def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None):
             created_objects.append(obj)
             obj.parent = root
             obj["part_name"] = part.name
+            # Retain the historical tag for old files/tests; shared rigging prefers part_name.
+            obj["body_part"] = part.name
             collection.objects.link(obj)
         scene.collection.children.link(collection)
         if skeleton is not None:
