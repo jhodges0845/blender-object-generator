@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Test the release ZIP in a fresh Blender process and save a preview."""
+"""Test the Asset Assistant release ZIP in a fresh Blender process and save a preview."""
 
 from pathlib import Path
 import sys
@@ -18,7 +18,7 @@ assert "object_core" not in sys.modules
 assert "humanoid_blender" not in sys.modules
 
 with tempfile.TemporaryDirectory() as directory:
-    with ZipFile(root / "dist" / "object_generator.zip") as archive:
+    with ZipFile(root / "dist" / "asset_assistant.zip") as archive:
         assert b"GNU GENERAL PUBLIC LICENSE" in archive.read("humanoid_blender/LICENSE")
         assert b"GPL-3.0-or-later" in archive.read("humanoid_blender/NOTICE")
         archive.extractall(directory)
@@ -28,9 +28,10 @@ with tempfile.TemporaryDirectory() as directory:
     from humanoid_blender.targets import get_adapter
     Path(core._core.__file__).resolve().relative_to(Path(directory).resolve())
     assert core._core.__name__ == "humanoid_blender.object_core"
+    assert humanoid_blender.bl_info["name"] == "Asset Assistant"
     humanoid_blender.register()
     try:
-        scene = bpy.data.scenes.new("Humanoid Preview")
+        scene = bpy.data.scenes.new("Asset Assistant Preview")
         bpy.context.window.scene = scene
         scene.unit_settings.system = "METRIC"
         scene.humanoid_settings.body_type = "average"
@@ -110,6 +111,6 @@ with tempfile.TemporaryDirectory() as directory:
                     area.spaces.active.region_3d.view_rotation = camera.rotation_euler.to_quaternion()
         bpy.ops.wm.save_as_mainfile(filepath=str(output / "blockout-preview.blend"))
         bpy.ops.render.render(write_still=True)
-        print("PACKAGED_ADDON_OK: isolated ZIP generated humanoid idle and Box; both passed applicable validation")
+        print("PACKAGED_ADDON_OK: Asset Assistant isolated ZIP generated humanoid idle and Box; both passed applicable validation")
     finally:
         humanoid_blender.unregister()
