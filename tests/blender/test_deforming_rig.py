@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+"""Real Blender integration tests; skipped by ordinary Python discovery."""
+
 import unittest
 
-import bpy
+try:
+    import bpy
+except ModuleNotFoundError:
+    bpy = None
 
 from blender_adapter.adapter import create_asset
 from object_core import BodyType, HumanoidSpec, generate_proportions
@@ -9,6 +14,7 @@ from object_core.geometry import generate_deformable_mesh
 from object_core.rigging import generate_deforming_skeleton, generate_skin_weights
 
 
+@unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
 class BlenderDeformingRigTests(unittest.TestCase):
     def setUp(self):
         bpy.ops.object.select_all(action="SELECT")
