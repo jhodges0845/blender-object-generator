@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build representative Human 1.0 poses for repeatable visual deformation review.
 
-Run from the repository root with Blender, for example:
+The script can be opened directly in Blender's Scripting workspace and run with
+Run Script, or launched from the repository root with:
 
     blender --python scripts/inspect_human_deformation.py
 
@@ -11,8 +12,30 @@ regression tests; this harness is for the complementary visual-quality review.
 """
 
 import math
+import sys
+from pathlib import Path
 
 import bpy
+
+
+# Blender's Text Editor does not automatically add the script's repository root
+# to sys.path. Resolve it from the opened text block's filepath so this helper can
+# be run directly from the Scripting workspace without environment setup.
+def _ensure_repo_on_path():
+    script_path = Path(bpy.path.abspath(__file__)).resolve()
+    repo_root = script_path.parent.parent
+    if not (repo_root / "object_core").is_dir() or not (repo_root / "blender_adapter").is_dir():
+        raise RuntimeError(
+            "Could not locate the Asset Assistant repository root from "
+            + str(script_path)
+            + ". Open scripts/inspect_human_deformation.py from the repository checkout before running it."
+        )
+    repo_root_text = str(repo_root)
+    if repo_root_text not in sys.path:
+        sys.path.insert(0, repo_root_text)
+
+
+_ensure_repo_on_path()
 
 from blender_adapter.adapter import create_asset
 from object_core import BodyType, HumanoidSpec, generate_proportions
