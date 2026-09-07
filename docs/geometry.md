@@ -32,9 +32,9 @@ This is a meaningful topology/deformation foundation, but it is still generated 
 
 ## Deformation status
 
-The connected mesh is now paired with a deforming skeleton, generated skin weights, Blender skinning, and automated pose smoke coverage. See [rigging.md](rigging.md) for the current weighting behavior and quality boundary.
+The connected mesh is paired with a deforming skeleton, generated skin weights, Blender skinning, connected-joint influence localization, and an explicit torso-to-upper-leg hip bridge. Automated Blender pose regressions now exercise shoulder, elbow/forearm, hip, knee, and neck deformation. See [rigging.md](rigging.md) for the weighting behavior and test boundary.
 
-The presence of support loops and successful deformation tests should not be read as “finished production topology.” Representative poses still need to be reviewed for silhouette, pinching, collapsing, twisting, and volume preservation, especially around shoulders and hips.
+The presence of support loops and successful deformation tests should not be read as “finished production topology.” The tests establish representative deformation behavior and regression protection, not acceptable final silhouette or volume. Visual refinement remains necessary around shoulders, elbows, hips, knees, neck, wrists, and ankles.
 
 ## Surfacing limits
 
@@ -46,6 +46,6 @@ The deformation-oriented geometry continues to consume `HumanoidProportions`, pr
 
 ## Validation direction
 
-Current automated geometry coverage establishes structural properties of the connected deformation-oriented surface and protects the topology foundation from regressions. Future quality work should turn reproducible deformation failures into focused geometry, weighting, or validation tests where practical.
+Current automated geometry and deformation coverage protects structural properties of the connected surface, skinning locality, the hip bridge, and representative joint motion. Future visual-quality work should turn reproducible deformation failures into focused geometry, weighting, or validation tests where practical rather than broadening tests without a demonstrated failure mode.
 
 See [the roadmap](roadmap.md) for the remaining Human Provider 1.0 sequence.
