@@ -20,24 +20,20 @@ class BlenderDeformingRigTests(unittest.TestCase):
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.object.delete(use_global=False)
 
-    def test_unified_human_gets_vertex_groups_and_armature_modifier(self):
+    def _deforming_human(self):
         proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         mesh = generate_deformable_mesh(proportions)
         skeleton = generate_deforming_skeleton(proportions)
         weights = generate_skin_weights(mesh, skeleton)
-        root = create_asset(
-            mesh,
-            name="DeformingHuman",
-            skeleton=skeleton,
-            skin_weights=weights,
-        )
+        root = create_asset(mesh, name="DeformingHuman", skeleton=skeleton, skin_weights=weights)
+        obj = next(child for child in root.children if child.type == "MESH")
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        return mesh, skeleton, weights, root, obj, armature
 
-        mesh_objects = [obj for obj in root.children if obj.type == "MESH"]
-        armatures = [obj for obj in root.children if obj.type == "ARMATURE"]
-        self.assertEqual(len(mesh_objects), 1)
-        self.assertEqual(len(armatures), 1)
-        obj = mesh_objects[0]
-        armature = armatures[0]
+    def test_unified_human_gets_vertex_groups_and_armature_modifier(self):
+        _mesh, skeleton, weights, root, obj, armature = self._deforming_human()
+        self.assertEqual(sum(child.type == "MESH" for child in root.children), 1)
+        self.assertEqual(sum(child.type == "ARMATURE" for child in root.children), 1)
         self.assertEqual(root["stage"], "deforming_rig")
         self.assertEqual({bone.name for bone in armature.data.bones}, {bone.name for bone in skeleton.bones})
         self.assertTrue(all(bone.use_deform for bone in armature.data.bones))
@@ -59,6 +55,34 @@ class BlenderDeformingRigTests(unittest.TestCase):
             self.assertAlmostEqual(sum(actual.values()), 1.0, places=5)
             for influence in expected:
                 self.assertAlmostEqual(actual[influence.bone_name], influence.weight, places=5)
+
+    def test_forearm_pose_deforms_local_vertices_without_dragging_opposite_side(self):
+        mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        graph = bpy.context.evaluated_depsgraph_get()
+
+        def evaluated_points():
+            evaluated = obj.evaluated_get(graph)
+            return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
+
+        left_indices = [
+            index for index, influences in enumerate(weights[0].vertices)
+            if any(influence.bone_name == "forearm.left" for influence in influences)
+            and mesh.parts[0].vertices[index][0] > 0
+        ]
+        right_indices = [index for index, vertex in enumerate(mesh.parts[0].vertices) if vertex[0] < 0]
+        self.assertTrue(left_indices)
+        self.assertTrue(right_indices)
+
+        before = evaluated_points()
+        pose_bone = armature.pose.bones["forearm.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.z = 0.6
+        bpy.context.view_layer.update()
+        after = evaluated_points()
+
+        self.assertGreater(max((after[index] - before[index]).length for index in left_indices), 1e-3)
+        self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
 
     def test_weighted_path_requires_complete_matching_weights(self):
         proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
