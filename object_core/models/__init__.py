@@ -5,5 +5,9 @@ from .spec import BodyType, HumanoidSpec
 from .proportions import HumanoidProportions
 from .mesh import ObjectMesh, MeshPart
 from .skeleton import Bone, Skeleton
+from .skinning import BoneWeight, SkinWeights
 
-__all__ = ["BodyType", "HumanoidSpec", "HumanoidProportions", "ObjectMesh", "MeshPart", "Bone", "Skeleton"]
+__all__ = [
+    "BodyType", "HumanoidSpec", "HumanoidProportions", "ObjectMesh", "MeshPart",
+    "Bone", "Skeleton", "BoneWeight", "SkinWeights",
+]
