@@ -280,6 +280,7 @@ class WorkflowTests(unittest.TestCase):
             before = set(bpy.data.objects)
             invalid = SimpleNamespace(key='box', label='Broken Box', parameters=(),
                                       supports_rig=False, supports_idle=True,
+                                      uses_skin_weights=False,
                                       mesh=lambda values: self.fail('invalid provider generated a mesh'))
             with patch.dict(OBJECT_TYPES, {'box': invalid}):
                 with self.assertRaisesRegex(RuntimeError, 'idle support requires rig support'):
@@ -306,7 +307,7 @@ class WorkflowTests(unittest.TestCase):
         del part['body_part']
         provider = SimpleNamespace(
             key='test_rotor', label='Rotor', parameters=(), mesh=box.mesh,
-            supports_rig=True, supports_idle=True,
+            supports_rig=True, supports_idle=True, uses_skin_weights=False,
             skeleton=lambda values: Skeleton((Bone('spindle', (0, 0, 0), (0, 0, 100), part_name='box'),)),
             idle=lambda duration, strength: IdleClip(duration, (
                 RotationTrack('spindle', (0, 0, 1), ((0, 0), (duration/2, 0.5), (duration, 0))),)))
