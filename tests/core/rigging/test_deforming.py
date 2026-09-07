@@ -61,6 +61,10 @@ class DeformingRigTests(unittest.TestCase):
                 neighborhood.add(bone.parent)
             neighborhood.update(children.get(bone.name, set()))
             neighborhoods.append(neighborhood)
+        neighborhoods.extend((
+            {"torso", "upper_leg.left", "lower_leg.left"},
+            {"torso", "upper_leg.right", "lower_leg.right"},
+        ))
 
         for influences in weights.vertices:
             names = {item.bone_name for item in influences}
@@ -68,6 +72,20 @@ class DeformingRigTests(unittest.TestCase):
                 any(names <= neighborhood for neighborhood in neighborhoods),
                 "unconnected influences found: {}".format(sorted(names)),
             )
+
+    def test_each_hip_has_torso_upper_leg_blending(self):
+        mesh, skeleton = self._fixture()
+        weights = generate_skin_weights(mesh, skeleton)[0]
+        for side, sign in (("left", 1), ("right", -1)):
+            upper_leg = "upper_leg." + side
+            blended = []
+            for vertex, influences in zip(mesh.parts[0].vertices, weights.vertices):
+                names = {item.bone_name for item in influences}
+                if sign * vertex[0] > 1e-6 and {"torso", upper_leg} <= names:
+                    blended.append((vertex, names))
+            self.assertTrue(blended, "{} hip has no torso/upper-leg blend".format(side))
+            forbidden = "upper_leg.right" if side == "left" else "upper_leg.left"
+            self.assertTrue(all(forbidden not in names for _vertex, names in blended))
 
     def test_max_influences_is_validated(self):
         mesh, skeleton = self._fixture()
