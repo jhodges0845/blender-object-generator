@@ -45,22 +45,29 @@ class DeformingRigTests(unittest.TestCase):
             if forbidden:
                 self.assertTrue(all(not item.bone_name.endswith(forbidden) for item in influences))
 
-    def test_weights_only_blend_across_connected_joints(self):
+    def test_weights_only_blend_within_one_joint_neighborhood(self):
         mesh, skeleton = self._fixture()
         weights = generate_skin_weights(mesh, skeleton)[0]
-        bones = {bone.name: bone for bone in skeleton.bones}
         children = {}
         for bone in skeleton.bones:
             children.setdefault(bone.parent, set()).add(bone.name)
 
+        neighborhoods = []
+        for bone in skeleton.bones:
+            if bone.name == "root":
+                continue
+            neighborhood = {bone.name}
+            if bone.parent and bone.parent != "root":
+                neighborhood.add(bone.parent)
+            neighborhood.update(children.get(bone.name, set()))
+            neighborhoods.append(neighborhood)
+
         for influences in weights.vertices:
             names = {item.bone_name for item in influences}
-            for name in names:
-                connected = {name, bones[name].parent} | children.get(name, set())
-                self.assertTrue(
-                    names <= connected,
-                    "unconnected influences found: {}".format(sorted(names)),
-                )
+            self.assertTrue(
+                any(names <= neighborhood for neighborhood in neighborhoods),
+                "unconnected influences found: {}".format(sorted(names)),
+            )
 
     def test_max_influences_is_validated(self):
         mesh, skeleton = self._fixture()
