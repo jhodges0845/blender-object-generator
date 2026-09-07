@@ -80,9 +80,9 @@ def _human_hip_bridge_names(vertex, nearest, candidates):
 
     bridge_radius = _distance(torso.head, upper_leg.head) * 1.5
     if nearest.name == "torso" and _distance(vertex, torso.head) <= bridge_radius:
-        return {upper_leg_name}
+        return {"torso", upper_leg_name}
     if nearest.name == upper_leg_name and _distance(vertex, upper_leg.head) <= bridge_radius:
-        return {"torso"}
+        return {"torso", upper_leg_name}
     return set()
 
 
@@ -94,11 +94,16 @@ def _local_joint_bones(vertex, bones, max_influences):
         key=lambda item: (item[0], item[1].name),
     )
     nearest = ranked[0][1]
+
+    hip_bridge_names = _human_hip_bridge_names(vertex, nearest, candidates)
+    if hip_bridge_names:
+        local = [(distance, bone) for distance, bone in ranked if bone.name in hip_bridge_names]
+        return local[:max_influences]
+
     connected_names = {nearest.name}
     if nearest.parent:
         connected_names.add(nearest.parent)
     connected_names.update(bone.name for bone in candidates if bone.parent == nearest.name)
-    connected_names.update(_human_hip_bridge_names(vertex, nearest, candidates))
     local = [(distance, bone) for distance, bone in ranked if bone.name in connected_names]
     return local[:max_influences]
 
