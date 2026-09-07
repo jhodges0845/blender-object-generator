@@ -159,15 +159,17 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         hip = points["hip." + side]
         knee = points["knee." + side]
         ankle = points["ankle." + side]
-        foot_back = (ankle[0], -p.foot_length_cm * 0.18, 0.0)
-        foot_front = (ankle[0], p.foot_length_cm * 0.72, 0.0)
+        foot_height = p.foot_length_cm * 0.34
+        foot_center_z = foot_height * 0.5
+        foot_back = (ankle[0], -p.foot_length_cm * 0.18, foot_center_z)
+        foot_front = (ankle[0], p.foot_length_cm * 0.72, foot_center_z)
         leg_centers, leg_widths, leg_depths = _supported_joint_chain(
             (hip, knee, ankle, foot_back, foot_front),
             (p.thigh_thickness_cm, p.calf_thickness_cm,
              p.calf_thickness_cm * 0.6, p.calf_thickness_cm * 0.72,
              p.calf_thickness_cm * 0.62),
             (p.thigh_thickness_cm, p.calf_thickness_cm,
-             p.calf_thickness_cm * 0.6, p.foot_length_cm * 0.34,
+             p.calf_thickness_cm * 0.6, foot_height,
              p.foot_length_cm * 0.18),
         )
         parts.append(_chain("leg." + side, leg_centers, leg_widths, leg_depths))
