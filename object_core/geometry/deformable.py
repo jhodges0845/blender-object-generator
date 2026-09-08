@@ -131,10 +131,9 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
 def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     """Return one connected Human 1.0 deformation-oriented surface.
 
-    Shoulder and hip roots are stitched into explicit torso openings. Elbows,
-    wrists, knees, ankles, and foot bends retain support loops. The result is
-    still opt-in until a deforming skeleton and skin weights replace the legacy
-    rigid part-binding contract.
+    Shoulder and hip roots are stitched into explicit torso openings. Neck,
+    shoulders, elbows, wrists, knees, ankles, and foot bends retain support
+    loops so skinning has enough local geometry to distribute motion.
     """
     if not isinstance(proportions, HumanoidProportions):
         raise TypeError("proportions must be HumanoidProportions")
@@ -144,6 +143,7 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     shoulder_z = points["shoulder_center"][2]
     chin_z = points["chin"][2]
     crown_z = points["crown"][2]
+    neck_length = chin_z - shoulder_z
 
     body = vertical_loft(
         "human",
@@ -152,7 +152,10 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
             (hip_z + p.torso_length_cm * 0.35, p.waist_width_cm, p.waist_depth_cm),
             (hip_z + p.torso_length_cm * 0.78, p.chest_width_cm, p.chest_depth_cm),
             (shoulder_z, p.shoulder_width_cm, p.chest_depth_cm * 0.8),
-            (shoulder_z + (chin_z - shoulder_z) * 0.35, p.neck_width_cm, p.neck_width_cm),
+            (shoulder_z + neck_length * 0.18, p.neck_width_cm * 1.08, p.neck_width_cm * 1.08),
+            (shoulder_z + neck_length * 0.38, p.neck_width_cm, p.neck_width_cm),
+            (shoulder_z + neck_length * 0.62, p.neck_width_cm * 0.96, p.neck_width_cm * 0.96),
+            (shoulder_z + neck_length * 0.82, p.neck_width_cm * 0.92, p.neck_width_cm * 0.92),
             (chin_z, p.neck_width_cm * 0.9, p.neck_width_cm * 0.9),
             (chin_z + p.head_height_cm * 0.3, p.head_width_cm, p.head_depth_cm),
             (chin_z + p.head_height_cm * 0.8, p.head_width_cm, p.head_depth_cm),
@@ -185,11 +188,13 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         fingertips = points["fingertips." + side]
         shoulder_exit = _lerp_point(shoulder, elbow, 0.12)
         arm_centers, arm_widths, arm_depths = _supported_joint_chain(
-            (shoulder_exit, elbow, wrist, fingertips),
-            (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
-             p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.52),
-            (p.upper_arm_thickness_cm, p.upper_arm_thickness_cm * 0.82,
-             p.forearm_thickness_cm * 0.72, p.forearm_thickness_cm * 0.30),
+            (shoulder, shoulder_exit, elbow, wrist, fingertips),
+            (p.upper_arm_thickness_cm * 1.05, p.upper_arm_thickness_cm,
+             p.upper_arm_thickness_cm * 0.82, p.forearm_thickness_cm * 0.72,
+             p.forearm_thickness_cm * 0.52),
+            (p.upper_arm_thickness_cm * 1.05, p.upper_arm_thickness_cm,
+             p.upper_arm_thickness_cm * 0.82, p.forearm_thickness_cm * 0.72,
+             p.forearm_thickness_cm * 0.30),
         )
         _append_branch(
             vertices,
