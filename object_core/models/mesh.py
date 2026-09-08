@@ -87,7 +87,7 @@ class MeshPart:
                         if not isfinite(number):
                             raise ValueError("UV coordinates must be finite")
                         normalized_uv.append(number)
-                    uvs.append(tuple(normalized_uv)) if False else normalized_face.append(tuple(normalized_uv))
+                    normalized_face.append(tuple(normalized_uv))
                 uvs.append(tuple(normalized_face))
 
         object.__setattr__(self, "vertices", tuple(vertices))
