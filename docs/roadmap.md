@@ -64,11 +64,12 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Deterministic face-corner UV generation with an editable Blender `UVMap` layer.
 - [x] Portable provider material contract plus an editable Human 1.0 Principled base surface.
 - [x] Portable generated-image texture contract with Human UV-driven base texture and editable Blender Image Texture translation.
+- [x] Portable Human in-place walk cycle with shared Blender clip-to-action translation and automated core/Blender coverage.
 
 ### Remaining Human 1.0 work
 
 - [ ] Perform a milestone visual pass of accumulated deformation/geometry changes and refine any reproducible issues.
-- [ ] Add at least one locomotion animation in addition to idle.
+- [ ] Expose/select idle plus locomotion cleanly in Blender and strengthen multi-clip export handling.
 - [ ] Ensure the completed Human 1.0 animated character validates and exports successfully to GLB.
 - [ ] Verify the completed Human 1.0 character in Godot, then Unity and Unreal.
 
@@ -115,7 +116,7 @@ Initial smoke checks exist for all four destinations. Formal certification remai
 
 ## Suggested implementation order
 
-1. Add locomotion and strengthen animation export handling.
+1. Expose idle/locomotion selection and strengthen multi-clip animation export handling.
 2. Run a meaningful Human 1.0 visual/deformation milestone pass rather than per-PR visual checks.
 3. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
 4. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.

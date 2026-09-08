@@ -1,34 +1,19 @@
-# Looping idle (0.7)
+# Generated animation
 
-Install the rebuilt ZIP, then restart Blender to load the updated modules.
-Generate a Model, add its Basic Rig, and return to Object Mode if needed.
-Open Animation, choose the cycle duration and motion strength, and click
-Generate Idle. Click Preview Motion Pose to see the middle of the cycle without
-playing the timeline, or Play / Pause for continuous movement. The clip starts at
-the scene's start frame; Set Playback Range sets one cycle and disables any old
-preview range. Generation and preview put the armature in Pose Position.
+Asset Assistant keeps animation intent host-independent. Providers return immutable sampled rotation tracks in seconds/radians around axes expressed in rest-armature coordinates. The Blender adapter translates those samples into editable quaternion action curves, converts seconds using FPS / FPS Base, adds Cycles modifiers for looping clips, and preserves generated actions with a fake user.
 
-This clip adds visible breathing motion to the torso, head and upper arms
-from the generated A-pose. Root and legs stay still. It is editable in Blender's
-Action Editor. Existing actions, NLA tracks, drivers, constraints and non-rest
-poses are refused without replacement. Use a newly generated character to try
-different settings. Removing the add-on preserves the action and its keyframes.
+## Idle
 
-The core returns immutable rotation tracks: seconds and angle radians about an
-axis in rest armature coordinates. The adapter converts that axis into each
-bone's local coordinates, avoiding dependency on Blender's choice of bone roll.
-Parent rotations compose normally. Thirty-two linear segments approximate a
-cosine breathing cycle; endpoints match exactly. This is sampled motion rather
-than a mathematically smooth interpolation curve.
+The existing idle generator produces a closed breathing cycle affecting torso, head, and upper arms while leaving root and legs stationary. In Blender, generate a model, add its basic rig, then use the Animation panel to choose cycle duration and motion strength and generate the idle. Preview Motion Pose shows the middle of the active clip without playback.
 
-Blender converts seconds using FPS / FPS Base, creates quaternion curves with
-Cycles modifiers, and keeps the action saved with a fake user. The playback end
-excludes the duplicate endpoint; fractional-frame periods are rounded up for
-the integer timeline. Engine export may require baking the repeating curves.
-Validation checks changing unmuted curves, missing targets, non-finite values,
-Rest Position and zero action influence. It is a conservative inspection, not
-an evaluation of every constraint/NLA combination or engine compatibility.
+## Human 1.0 locomotion
 
-If movement is hidden, confirm the Object field points to the intended model,
-hide other models overlapping it, and use Preview Motion Pose. To try the stronger
-0.7 idle, generate a fresh humanoid; existing 0.6 clips are deliberately preserved.
+Human 1.0 now exposes a portable in-place walk cycle in addition to idle. The cycle uses opposing upper-leg and upper-arm swing, lower-leg motion, and a small torso counter-rotation. It is deliberately an in-place game-animation foundation rather than root-motion navigation. The core cycle is deterministic, closed, strength-scalable, and independent of Blender.
+
+The Blender adapter translates locomotion through the same shared clip-to-action path as idle and creates an editable `.Walk` action. A direct Blender integration test verifies cyclic action curves, opposing leg motion, and animation validation. The Blender sidebar still exposes the existing idle workflow only; adding clip selection/multi-action handling is part of the next animation-export hardening slice rather than duplicating temporary UI here.
+
+## Preservation and validation
+
+Generated animation refuses to overwrite existing actions, NLA tracks, drivers, constraints, or non-rest poses. Use a fresh rig for a generated clip until multi-clip action management is implemented. Removing the add-on preserves the action and keyframes.
+
+Validation checks changing unmuted curves, missing targets, non-finite values, Rest Position, and zero action influence. A successful Blender action is not destination certification; engine export may still require baking or explicit multi-clip handling.

@@ -2,3 +2,4 @@
 """Software-independent animation generation."""
 
 from .idle import IdleClip, RotationTrack, generate_idle
+from .walk import WalkClip, generate_walk
