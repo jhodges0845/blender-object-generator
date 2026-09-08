@@ -3,7 +3,7 @@
 
 from ..animation import generate_idle
 from ..geometry import generate_deformable_mesh, generate_mesh
-from ..models import BodyType, HumanoidSpec
+from ..models import BodyType, HumanoidSpec, MaterialSpec
 from ..proportions import generate_proportions
 from ..rigging import generate_deforming_skeleton, generate_skin_weights, generate_skeleton
 from .base import Parameter
@@ -36,7 +36,7 @@ def _proportions(values):
 class HumanoidProvider:
     key, label = "humanoid", "Humanoid"
     supports_rig = supports_idle = True
-    uses_skin_weights = False
+    uses_skin_weights = supports_materials = False
     parameters = HUMAN_PARAMETERS
 
     def proportions(self, values):
@@ -56,7 +56,7 @@ class HumanExperimentalProvider:
     """Opt-in Human 1.0 surface for deformation testing; not the production default."""
 
     key, label = "human_experimental", "Human 1.0 (Experimental)"
-    supports_rig = True
+    supports_rig = supports_materials = True
     supports_idle = False
     uses_skin_weights = True
     parameters = HUMAN_PARAMETERS
@@ -72,3 +72,16 @@ class HumanExperimentalProvider:
 
     def skin_weights(self, mesh, values):
         return generate_skin_weights(mesh, self.skeleton(values))
+
+    def materials(self, values):
+        # A neutral warm clay-like base is intentionally generic and easy for an
+        # artist to replace. It proves portable surfacing without implying final skin.
+        return (
+            MaterialSpec(
+                "Human Base Surface",
+                ("human",),
+                (0.55, 0.36, 0.28, 1.0),
+                metallic=0.0,
+                roughness=0.68,
+            ),
+        )
