@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Convert portable idle samples into editable Blender action curves."""
+"""Convert portable provider animation samples into editable Blender actions."""
 
 from math import ceil
 from .workflow import provider_for
@@ -17,21 +17,17 @@ def action_curves(action, slot=None):
                  for curve in bag.fcurves)
 
 
-def add_idle(root, scene, duration=4.0, strength=1.0):
+def _add_clip(root, scene, clip, suffix):
     import bpy
     from mathutils import Vector, Quaternion, Matrix
 
-    provider = provider_for(root)
-    if not provider.supports_idle:
-        raise ValueError(provider.label + ' does not support idle animation.')
-    clip = provider.idle(duration, strength)
     rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
     if len(rigs) != 1:
-        raise ValueError('Add one basic rig before generating an idle.')
+        raise ValueError('Add one basic rig before generating animation.')
     rig = rigs[0]
     data = rig.animation_data
     if data and (data.action or data.nla_tracks or data.drivers):
-        raise ValueError('Existing animation preserved. Use a fresh rig for this idle generator.')
+        raise ValueError('Existing animation preserved. Use a fresh rig for this animation generator.')
     for bone in rig.pose.bones:
         if bone.constraints or any(abs(bone.matrix_basis[i][j] - Matrix.Identity(4)[i][j]) > 1e-6
                                    for i in range(4) for j in range(4)):
@@ -40,7 +36,7 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
         raise ValueError('This rig is missing bones required by the provider animation.')
     fps = scene.render.fps / scene.render.fps_base
     start = scene.frame_start
-    action = bpy.data.actions.new(rig.name + '.Idle')
+    action = bpy.data.actions.new(rig.name + '.' + suffix)
     modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
     had_data = data is not None
     try:
@@ -82,3 +78,17 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
         bpy.data.actions.remove(action)
         raise
     return action, max(start, ceil(start + clip.duration * fps) - 1)
+
+
+def add_idle(root, scene, duration=4.0, strength=1.0):
+    provider = provider_for(root)
+    if not provider.supports_idle:
+        raise ValueError(provider.label + ' does not support idle animation.')
+    return _add_clip(root, scene, provider.idle(duration, strength), 'Idle')
+
+
+def add_locomotion(root, scene, duration=1.2, strength=1.0):
+    provider = provider_for(root)
+    if not getattr(provider, 'supports_locomotion', False):
+        raise ValueError(provider.label + ' does not support locomotion animation.')
+    return _add_clip(root, scene, provider.locomotion(duration, strength), 'Walk')
