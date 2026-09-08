@@ -1,68 +1,42 @@
 # Provider implementation contract
 
-Providers live in `object_core/objects.py`; they must not import Blender APIs.
-Add a provider instance to `OBJECT_TYPES` before the Blender UI is registered.
-The registry is currently built in, not a dynamic third-party plugin API.
-Call `validate_provider(provider)` before adding a new instance. Built-in providers
-are validated at registry construction, and `get_provider()` rechecks declarations
-and registry-key agreement before an operation can use them. Validation checks
-nonempty identity, boolean capability flags, required callable methods, and unique
-parameter keys. It does not invoke generation or certify returned geometry.
+Concrete providers live under `object_core/providers`; `object_core/objects.py` owns declaration validation, registry construction, and lookup. Providers must not import Blender APIs. Add a provider instance to `OBJECT_TYPES` before the Blender UI is registered. The registry is currently built in, not a dynamic third-party plugin API.
+
+Call `validate_provider(provider)` before adding a new instance. Built-in providers are validated at registry construction, and `get_provider()` rechecks declarations and registry-key agreement before an operation can use them. Validation checks nonempty identity, boolean capability flags, required callable methods, and unique parameter keys. It does not invoke generation or certify returned geometry/materials.
 
 ## Required members
 
 - Unique string `key` and user-facing `label`.
 - `parameters`: a tuple of `Parameter` definitions used to build the input UI.
-- `mesh(values)`: return an immutable `ObjectMesh` with named `MeshPart` entries.
-  Validate input values in the provider. Geometry coordinates are centimetres;
-  the Blender adapter converts them using scene unit scale.
-- Boolean `supports_rig` and `supports_idle`. A static provider sets both false
-  and need not implement skeleton or idle methods. Current idle generation
-  requires a rig, so providers supporting idle must also support rigging.
+- `mesh(values)`: return an immutable `ObjectMesh` with named `MeshPart` entries. Validate input values in the provider. Geometry coordinates are centimetres; the Blender adapter converts them using scene unit scale.
+- Boolean `supports_rig`, `supports_idle`, `uses_skin_weights`, and `supports_materials` capability declarations.
 
-When `supports_rig` is true, implement `skeleton(values)` returning `Skeleton`.
-The generated root retains parameter values so rigging can happen later without
-using the currently selected Generator type or its current input values.
-The current rigid adapter requires one binding per mesh part, with bones in
-parent-before-child order. It does not yet support smooth multi-bone skin weights.
+A static provider may set all four capabilities false and only implement `mesh(values)`.
 
-When `supports_idle` is true, implement `idle(duration, strength)` returning
-`IdleClip` with `RotationTrack` entries. Track bone names must exist in the
-provider skeleton. Tracks use rest-armature-space axes and seconds/radians;
-keep anatomy and motion design in the provider. The shared adapter does not
-require head, torso, arm or leg bones.
+When `supports_rig` is true, implement `skeleton(values)` returning `Skeleton`. When `uses_skin_weights` is also true, implement `skin_weights(mesh, values)`. The generated root retains parameter values so rigging can happen later without using the currently selected Generator type or its current input values.
+
+When `supports_idle` is true, implement `idle(duration, strength)`. Idle support requires rig support. Animation tracks use rest-armature-space axes and seconds/radians; anatomy and motion design belong with the provider rather than shared Blender workflow code.
+
+When `supports_materials` is true, implement `materials(values)` returning portable `MaterialSpec` entries. Each spec identifies the mesh part or parts it owns and supplies a conservative base-color/metallic/roughness PBR intent. The Blender adapter translates that intent into ordinary editable Principled materials. This capability describes generation intent only; actual material state is still inspected by validation before export.
+
+Human 1.0 is the first provider using this material capability. Its generated surface is intentionally a simple neutral warm base that artists can replace rather than a claim of final skin or finished texturing.
 
 ## Blender workflow and compatibility
 
-Mesh objects use `part_name` for rigid binding; `body_part` remains a fallback
-for older saved assets. Existing root tags, package names and operator IDs are
-retained for saved-file/script compatibility, including the historical humanoid
-fallback when no `object_type` is stored. New generated assets must store their
-actual provider key.
+Mesh objects use `part_name` for shared binding/material assignment; `body_part` remains a fallback for older saved assets. Existing root tags, package names, and operator IDs are retained for saved-file/script compatibility, including the historical humanoid fallback when no `object_type` is stored. New generated assets must store their actual provider key.
 
-Rig and idle operator polls inspect the selected asset's provider capabilities.
-Rigging requires no existing armature; idle requires exactly one. Static assets
-cannot invoke these operators through search or Python merely because a
-character type is selected for future generation. The execution methods retain
-state validation and preserve existing rig/animation data.
+Rig and idle operator polls inspect the selected asset's provider capabilities. Rigging requires no existing armature; idle requires exactly one. Static assets cannot invoke these operators merely because a different Generator type is selected for future generation.
 
-Shared material preparation, target validation and export operate on actual asset
-state. Provider flags do not certify materials, UVs, connected geometry or Cura
-printability. The Box can pass Cura checks; the multipart humanoid cannot.
-The rig/idle declaration contract is enforced; a broader surface/UV/print
-capability contract remains roadmap work and should
-only describe implemented operations, not bypass output validation.
+Material preparation is explicit and undoable. If a provider declares generated materials and the relevant mesh is completely unsurfaced, the preparation step uses that provider's portable material spec. Existing artist assignments are preserved. Providers without generated material support continue to receive the conservative neutral fallback only when material slots are missing.
+
+Provider capabilities do not certify current asset state. UVs, materials, rigging, animation, connected geometry, and destination-specific readiness are all validated from the generated/edited asset itself.
 
 ## Minimum verification
 
 1. Test deterministic valid mesh generation and invalid inputs in ordinary Python.
-2. Test static providers without requesting rig or animation stages.
-3. For animated providers, test actual evaluated motion, saved parameter use,
-   validation, and scoped export in Blender. Test failure preservation as needed.
-4. Confirm unsupported operations are unavailable and legacy saved assets still work.
+2. Test each declared capability contract without requiring unrelated operations.
+3. For generated materials, test portable `MaterialSpec` data plus actual Blender Principled translation and preservation of artist assignments.
+4. For animated providers, test actual evaluated motion, saved parameter use, validation, and scoped export in Blender.
+5. Confirm unsupported operations remain unavailable and legacy saved assets still work.
 
-`tests/blender/test_workflow.py` includes a test-only non-humanoid rotor with a
-single `spindle` bone. It exercises the shared rigid rig, sampled animation,
-validation and GLB export without body-part metadata or humanoid bone names.
-This is regression coverage, not a shipped Rotor provider or proof that arbitrary
-smooth characters already fit the current rigid adapter.
+`tests/blender/test_workflow.py` includes a test-only non-humanoid rotor that exercises shared rigid rig/animation behavior. Human 1.0 separately exercises weighted deformation, UV, and generated-material paths. These tests protect shared architecture boundaries without claiming arbitrary providers are automatically production-ready.
