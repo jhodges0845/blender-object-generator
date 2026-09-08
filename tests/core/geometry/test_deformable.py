@@ -36,6 +36,18 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         self.assertEqual(slim.parts[0].faces, obese.parts[0].faces)
         self.assertEqual(len(slim.parts[0].vertices), len(obese.parts[0].vertices))
 
+    def test_all_body_types_keep_identical_deformable_topology(self):
+        reference = generate_deformable_mesh(
+            generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
+        ).parts[0]
+        for body_type in BodyType:
+            with self.subTest(body_type=body_type):
+                part = generate_deformable_mesh(
+                    generate_proportions(HumanoidSpec(180, 95, body_type))
+                ).parts[0]
+                self.assertEqual(part.faces, reference.faces)
+                self.assertEqual(len(part.vertices), len(reference.vertices))
+
     def test_unified_surface_retains_joint_support_geometry(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         part = generate_deformable_mesh(p).parts[0]
@@ -67,6 +79,26 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         tip_radius = max(radial_distance(v, 1.0) for v in tip_vertices)
         self.assertGreater(palm_radius, tip_radius)
 
+    def test_hand_blockout_survives_supported_height_extremes(self):
+        for height in (120, 240):
+            with self.subTest(height=height):
+                p = generate_proportions(HumanoidSpec(height, 95, BodyType.AVERAGE))
+                points = generate_landmarks(p)
+                part = generate_deformable_mesh(p).parts[0]
+                wrist = points["wrist.left"]
+                fingertips = points["fingertips.left"]
+                axis = tuple(fingertips[i] - wrist[i] for i in range(3))
+                length_sq = sum(value * value for value in axis)
+
+                def along_hand(vertex):
+                    offset = tuple(vertex[i] - wrist[i] for i in range(3))
+                    return sum(offset[i] * axis[i] for i in range(3)) / length_sq
+
+                palm = [v for v in part.vertices if abs(along_hand(v) - 0.42) < 1e-6]
+                tip = [v for v in part.vertices if abs(along_hand(v) - 1.0) < 1e-6]
+                self.assertGreaterEqual(len(palm), 8)
+                self.assertGreaterEqual(len(tip), 8)
+
     def test_feet_have_heel_ball_and_tapered_toe_sections(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         points = generate_landmarks(p)
@@ -93,6 +125,18 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         toe_height = max(v[2] for v in toe_vertices) - min(v[2] for v in toe_vertices)
         self.assertGreater(ball_width, toe_width)
         self.assertGreater(ball_height, toe_height)
+
+    def test_foot_blockout_survives_supported_height_extremes(self):
+        for height in (120, 240):
+            with self.subTest(height=height):
+                p = generate_proportions(HumanoidSpec(height, 95, BodyType.AVERAGE))
+                part = generate_deformable_mesh(p).parts[0]
+                ball_y = p.foot_length_cm * 0.56
+                toe_y = p.foot_length_cm * 0.82
+                ball = [v for v in part.vertices if abs(v[1] - ball_y) < 1e-6 and v[0] > 0]
+                toe = [v for v in part.vertices if abs(v[1] - toe_y) < 1e-6 and v[0] > 0]
+                self.assertGreaterEqual(len(ball), 4)
+                self.assertGreaterEqual(len(toe), 4)
 
     def test_feet_remain_integrated_and_above_ground(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
