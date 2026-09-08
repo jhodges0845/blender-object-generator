@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from pathlib import Path
 
-from humanoid_blender.targets import GodotAdapter, asset_objects, get_adapter, is_ready
+from blender_adapter.targets import GodotAdapter, asset_objects, get_adapter, is_ready
 from object_core.models.validation import ValidationIssue
 from object_core.targets import GODOT
 
