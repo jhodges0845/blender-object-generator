@@ -15,9 +15,11 @@ class ObjectProviderTests(unittest.TestCase):
             self.assertEqual(mesh, provider.mesh(values))
             self.assertIsInstance(provider.uses_skin_weights, bool)
             self.assertIsInstance(provider.supports_materials, bool)
+            self.assertIsInstance(getattr(provider, 'supports_locomotion', False), bool)
         box = get_provider('box')
         self.assertFalse(box.supports_rig)
         self.assertFalse(box.supports_idle)
+        self.assertFalse(getattr(box, 'supports_locomotion', False))
         self.assertFalse(box.uses_skin_weights)
         self.assertFalse(box.supports_materials)
         with self.assertRaisesRegex(ValueError, 'Unsupported'):
@@ -32,7 +34,8 @@ class ObjectProviderTests(unittest.TestCase):
         materials = provider.materials(values)
         self.assertEqual(provider.label, 'Human 1.0 (Experimental)')
         self.assertTrue(provider.supports_rig)
-        self.assertFalse(provider.supports_idle)
+        self.assertTrue(provider.supports_idle)
+        self.assertTrue(provider.supports_locomotion)
         self.assertTrue(provider.uses_skin_weights)
         self.assertTrue(provider.supports_materials)
         self.assertEqual(len(mesh.parts), 1)
@@ -64,9 +67,11 @@ class ObjectProviderTests(unittest.TestCase):
         cases = [dict(supports_rig='yes'), dict(supports_idle=True),
                  dict(uses_skin_weights='yes'), dict(uses_skin_weights=True),
                  dict(supports_materials='yes'), dict(supports_materials=True),
+                 dict(supports_locomotion='yes'), dict(supports_locomotion=True),
                  dict(supports_rig=True),
                  dict(supports_rig=True, skeleton=lambda values: None, supports_idle=True),
                  dict(supports_rig=True, skeleton=lambda values: None, uses_skin_weights=True),
+                 dict(supports_rig=True, skeleton=lambda values: None, supports_locomotion=True),
                  dict(mesh=None), dict(key=''), dict(label='')]
         for changes in cases:
             with self.subTest(changes=changes):
