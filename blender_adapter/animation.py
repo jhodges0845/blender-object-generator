@@ -67,7 +67,7 @@ def _add_clip(root, scene, clip, suffix):
     rig = _rig(root)
     data = rig.animation_data
     if generated_action(root, suffix) is not None:
-        raise ValueError(suffix + ' already exists. Select that clip instead of overwriting it.')
+        raise ValueError('Existing animation preserved. ' + suffix + ' already exists; select that clip instead of overwriting it.')
     if data and (data.nla_tracks or data.drivers):
         raise ValueError('Existing animation preserved. NLA tracks and drivers require manual preparation.')
     if data and data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
