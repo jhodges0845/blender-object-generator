@@ -5,6 +5,11 @@ from math import ceil
 from .workflow import provider_for
 
 
+_GENERATED = 'asset_assistant_generated'
+_GENERATED_RIG = 'asset_assistant_rig'
+_GENERATED_CLIP = 'asset_assistant_clip'
+
+
 def action_curves(action, slot=None):
     """Read only the assigned slot on layered actions, or legacy action curves."""
     if hasattr(action, 'fcurves') and not getattr(action, 'is_action_layered', False):
@@ -17,17 +22,56 @@ def action_curves(action, slot=None):
                  for curve in bag.fcurves)
 
 
+def _rig(root):
+    rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
+    if len(rigs) != 1:
+        raise ValueError('Add one basic rig before generating animation.')
+    return rigs[0]
+
+
+def generated_actions(root):
+    """Return generated Asset Assistant actions belonging to this rig."""
+    import bpy
+    rig = _rig(root)
+    return tuple(action for action in bpy.data.actions
+                 if action.get(_GENERATED) and action.get(_GENERATED_RIG) == rig.name)
+
+
+def generated_action(root, clip_name):
+    return next((action for action in generated_actions(root)
+                 if action.get(_GENERATED_CLIP) == clip_name), None)
+
+
+def activate_generated_action(root, clip_name):
+    """Activate an existing generated clip without changing or rebuilding it."""
+    rig = _rig(root)
+    action = generated_action(root, clip_name)
+    if action is None:
+        raise ValueError('Generate the ' + clip_name + ' clip first.')
+    data = rig.animation_data_create()
+    if data.nla_tracks or data.drivers:
+        raise ValueError('Existing NLA tracks or drivers are preserved; prepare them manually before switching clips.')
+    if data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
+        raise ValueError('Existing artist animation preserved; generated clips cannot replace it.')
+    data.action = action
+    if hasattr(action, 'slots') and len(action.slots):
+        data.action_slot = action.slots[0]
+    rig.data.pose_position = 'POSE'
+    return action
+
+
 def _add_clip(root, scene, clip, suffix):
     import bpy
     from mathutils import Vector, Quaternion, Matrix
 
-    rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
-    if len(rigs) != 1:
-        raise ValueError('Add one basic rig before generating animation.')
-    rig = rigs[0]
+    rig = _rig(root)
     data = rig.animation_data
-    if data and (data.action or data.nla_tracks or data.drivers):
-        raise ValueError('Existing animation preserved. Use a fresh rig for this animation generator.')
+    if generated_action(root, suffix) is not None:
+        raise ValueError(suffix + ' already exists. Select that clip instead of overwriting it.')
+    if data and (data.nla_tracks or data.drivers):
+        raise ValueError('Existing animation preserved. NLA tracks and drivers require manual preparation.')
+    if data and data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
+        raise ValueError('Existing animation preserved. Use a fresh rig or keep the artist action active.')
     for bone in rig.pose.bones:
         if bone.constraints or any(abs(bone.matrix_basis[i][j] - Matrix.Identity(4)[i][j]) > 1e-6
                                    for i in range(4) for j in range(4)):
@@ -37,8 +81,13 @@ def _add_clip(root, scene, clip, suffix):
     fps = scene.render.fps / scene.render.fps_base
     start = scene.frame_start
     action = bpy.data.actions.new(rig.name + '.' + suffix)
+    action[_GENERATED] = True
+    action[_GENERATED_RIG] = rig.name
+    action[_GENERATED_CLIP] = suffix
     modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
     had_data = data is not None
+    previous_action = data.action if data else None
+    previous_slot = getattr(data, 'action_slot', None) if data else None
     try:
         if hasattr(action, 'slots'):
             from bpy_extras.anim_utils import action_ensure_channelbag_for_slot
@@ -70,7 +119,9 @@ def _add_clip(root, scene, clip, suffix):
         rig.data.pose_position = 'POSE'
     except Exception:
         if rig.animation_data:
-            rig.animation_data.action = None
+            rig.animation_data.action = previous_action
+            if previous_action is not None and previous_slot is not None and hasattr(rig.animation_data, 'action_slot'):
+                rig.animation_data.action_slot = previous_slot
         if not had_data:
             rig.animation_data_clear()
         for name, mode in modes.items():
