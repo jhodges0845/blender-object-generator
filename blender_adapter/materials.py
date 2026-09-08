@@ -42,7 +42,7 @@ def _provider_materials(root):
     from .core import get_provider
 
     provider = get_provider(root.get('object_type', 'humanoid'))
-    if not provider.supports_materials:
+    if not getattr(provider, 'supports_materials', False):
         return ()
     try:
         values = {field.key: root[field.key] for field in provider.parameters}
