@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Human provider implementations."""
 
-from ..animation import generate_idle
+from ..animation import generate_idle, generate_walk
 from ..geometry import generate_deformable_mesh, generate_mesh
 from ..models import BodyType, HumanoidSpec, ImageTextureSpec, MaterialSpec
 from ..proportions import generate_proportions
@@ -36,6 +36,7 @@ def _proportions(values):
 class HumanoidProvider:
     key, label = "humanoid", "Humanoid"
     supports_rig = supports_idle = True
+    supports_locomotion = False
     uses_skin_weights = supports_materials = False
     parameters = HUMAN_PARAMETERS
 
@@ -56,8 +57,7 @@ class HumanExperimentalProvider:
     """Opt-in Human 1.0 surface for deformation testing; not the production default."""
 
     key, label = "human_experimental", "Human 1.0 (Experimental)"
-    supports_rig = supports_materials = True
-    supports_idle = False
+    supports_rig = supports_materials = supports_idle = supports_locomotion = True
     uses_skin_weights = True
     parameters = HUMAN_PARAMETERS
 
@@ -72,6 +72,12 @@ class HumanExperimentalProvider:
 
     def skin_weights(self, mesh, values):
         return generate_skin_weights(mesh, self.skeleton(values))
+
+    def idle(self, duration, strength):
+        return generate_idle(duration, strength)
+
+    def locomotion(self, duration, strength):
+        return generate_walk(duration, strength)
 
     def materials(self, values):
         # This tiny warm texture is a portable UV/texturing proof and artist starting
