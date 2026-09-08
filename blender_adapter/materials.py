@@ -38,25 +38,44 @@ def apply_generated_materials(root, specs):
     return tuple(created)
 
 
+def _provider_materials(root):
+    from .core import get_provider
+
+    provider = get_provider(root.get('object_type', 'humanoid'))
+    if not provider.supports_materials:
+        return ()
+    try:
+        values = {field.key: root[field.key] for field in provider.parameters}
+    except KeyError:
+        return ()
+    return provider.materials(values)
+
+
 def prepare_materials(root):
-    """Fill missing face materials only; preserve existing materials and shared meshes."""
+    """Fill missing face materials while preserving artist assignments."""
     import bpy
 
-    default = None
-    for obj in asset_objects(root):
-        if obj.type != 'MESH':
-            continue
+    meshes = [obj for obj in asset_objects(root) if obj.type == 'MESH']
+    missing_by_object = {}
+    for obj in meshes:
         missing = [face.index for face in obj.data.polygons
                    if face.material_index >= len(obj.material_slots)
                    or obj.material_slots[face.material_index].material is None]
-        if not missing:
-            continue
+        if missing:
+            missing_by_object[obj] = missing
+    if not missing_by_object:
+        return None
+
+    specs = _provider_materials(root)
+    if specs and all(len(indices) == len(obj.data.polygons)
+                     for obj, indices in missing_by_object.items()):
+        created = apply_generated_materials(root, specs)
+        return created[0] if len(created) == 1 else created
+
+    default = None
+    for obj, missing in missing_by_object.items():
         if default is None:
-            default = bpy.data.materials.new('Generator Material')
-            default.use_nodes = True
-            shader = default.node_tree.nodes.get('Principled BSDF')
-            shader.inputs['Base Color'].default_value = (0.55, 0.55, 0.55, 1)
-            shader.inputs['Roughness'].default_value = 0.65
+            default = _principled_material('Generator Material', (0.55, 0.55, 0.55, 1), 0.0, 0.65)
         if obj.data.users > 1:
             obj.data = obj.data.copy()
         index = len(obj.data.materials)
