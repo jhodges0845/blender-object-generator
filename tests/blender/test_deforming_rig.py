@@ -42,6 +42,11 @@ class BlenderDeformingRigTests(unittest.TestCase):
             if required <= {influence.bone_name for influence in influences}
         ]
 
+    def _spread(self, points, indices):
+        selected = [points[index] for index in indices]
+        center = sum(selected, selected[0].copy() * 0.0) / len(selected)
+        return max((point - center).length for point in selected)
+
     def test_unified_human_gets_vertex_groups_and_armature_modifier(self):
         _mesh, skeleton, weights, root, obj, armature = self._deforming_human()
         self.assertEqual(sum(child.type == "MESH" for child in root.children), 1)
@@ -107,6 +112,23 @@ class BlenderDeformingRigTests(unittest.TestCase):
 
         self.assertGreater(max((after[index] - before[index]).length for index in shoulder_indices), 1e-3)
         self.assertLess(max((after[index] - before[index]).length for index in right_indices), 1e-6)
+
+    def test_shoulder_bend_retains_transition_spread(self):
+        _mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        shoulder_indices = self._indices_with_bones(weights, "torso", "upper_arm.left")
+        self.assertGreaterEqual(len(shoulder_indices), 4)
+
+        before = self._evaluated_points(obj)
+        before_spread = self._spread(before, shoulder_indices)
+        pose_bone = armature.pose.bones["upper_arm.left"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.z = 0.95
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+        after_spread = self._spread(after, shoulder_indices)
+
+        self.assertGreater(after_spread, before_spread * 0.55)
 
     def test_hand_pose_deforms_blended_wrist_without_dragging_opposite_side(self):
         mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
@@ -194,6 +216,23 @@ class BlenderDeformingRigTests(unittest.TestCase):
         after = self._evaluated_points(obj)
 
         self.assertGreater(max((after[index] - before[index]).length for index in neck_indices), 1e-3)
+
+    def test_neck_bend_retains_transition_spread(self):
+        _mesh, _skeleton, weights, _root, obj, armature = self._deforming_human()
+        bpy.context.view_layer.update()
+        neck_indices = self._indices_with_bones(weights, "torso", "neck")
+        self.assertGreaterEqual(len(neck_indices), 4)
+
+        before = self._evaluated_points(obj)
+        before_spread = self._spread(before, neck_indices)
+        pose_bone = armature.pose.bones["neck"]
+        pose_bone.rotation_mode = "XYZ"
+        pose_bone.rotation_euler.x = 0.75
+        bpy.context.view_layer.update()
+        after = self._evaluated_points(obj)
+        after_spread = self._spread(after, neck_indices)
+
+        self.assertGreater(after_spread, before_spread * 0.55)
 
     def test_weighted_path_requires_complete_matching_weights(self):
         proportions = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
