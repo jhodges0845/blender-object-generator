@@ -62,14 +62,7 @@ def _candidate_bones(vertex, bones):
 
 
 def _human_hip_bridge_names(vertex, nearest, candidates):
-    """Bridge torso and same-side upper leg near the non-deforming root.
-
-    The Human skeleton deliberately keeps ``root`` as a non-deforming control.
-    Torso and upper legs are therefore siblings in the hierarchy even though the
-    surface must bend continuously across each hip. Only vertices close to the
-    hip junction receive this anatomy-specific adjacency; the existing candidate
-    filter still prevents left/right leg cross-influence.
-    """
+    """Bridge torso and same-side upper leg near the non-deforming root."""
     by_name = {bone.name: bone for bone in candidates}
     side = "left" if vertex[0] >= 0 else "right"
     upper_leg_name = "upper_leg." + side
@@ -108,13 +101,28 @@ def _local_joint_bones(vertex, bones, max_influences):
     return local[:max_influences]
 
 
+def _uses_soft_upper_body_transition(ranked):
+    """Use gentler falloff across the visible neck and shoulder junctions."""
+    names = {bone.name for _distance_value, bone in ranked}
+    if {"torso", "neck"} <= names:
+        return True
+    return any({"torso", "upper_arm." + side} <= names for side in ("left", "right"))
+
+
 def _weights_for_vertex(vertex, bones, max_influences=4):
     ranked = _local_joint_bones(vertex, bones, max_influences)
-    # A small epsilon makes vertices lying directly on a bone deterministic and finite.
-    raw = [(bone.name, 1.0 / ((distance + 1e-3) ** 2)) for distance, bone in ranked]
+    # Neck and shoulder silhouettes looked hinge-like with inverse-square falloff.
+    # A slightly wider, inverse-linear transition keeps the same local bone
+    # neighborhood while sharing motion more gradually across those junctions.
+    if _uses_soft_upper_body_transition(ranked):
+        epsilon = 2e-2
+        power = 1.0
+    else:
+        epsilon = 1e-3
+        power = 2.0
+    raw = [(bone.name, 1.0 / ((distance + epsilon) ** power)) for distance, bone in ranked]
     total = sum(value for _, value in raw)
     normalized = [(name, value / total) for name, value in raw]
-    # Force exact normalization after floating point division.
     correction = 1.0 - sum(value for _, value in normalized)
     name, value = normalized[0]
     normalized[0] = (name, value + correction)
