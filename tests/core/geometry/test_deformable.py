@@ -4,6 +4,7 @@ import unittest
 
 from object_core import BodyType, HumanoidSpec, generate_proportions
 from object_core.geometry import generate_deformable_mesh
+from object_core.proportions.landmarks import generate_landmarks
 
 
 class DeformableHumanGeometryTests(unittest.TestCase):
@@ -38,9 +39,54 @@ class DeformableHumanGeometryTests(unittest.TestCase):
     def test_unified_surface_retains_joint_support_geometry(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
         part = generate_deformable_mesh(p).parts[0]
-        # The unified mesh should be substantially denser than the 72-vertex
-        # torso because all four supported limb chains are now stitched in.
-        self.assertGreater(len(part.vertices), 300)
+        self.assertGreater(len(part.vertices), 400)
+
+    def test_hands_have_palm_volume_and_tapered_fingertips(self):
+        p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
+        points = generate_landmarks(p)
+        part = generate_deformable_mesh(p).parts[0]
+        wrist = points["wrist.left"]
+        fingertips = points["fingertips.left"]
+        palm_x = wrist[0] + (fingertips[0] - wrist[0]) * 0.42
+
+        palm_vertices = [v for v in part.vertices if abs(v[0] - palm_x) < 1e-6]
+        tip_vertices = [v for v in part.vertices if abs(v[0] - fingertips[0]) < 1e-6]
+        self.assertGreaterEqual(len(palm_vertices), 8)
+        self.assertGreaterEqual(len(tip_vertices), 8)
+
+        palm_depth = max(v[1] for v in palm_vertices) - min(v[1] for v in palm_vertices)
+        palm_height = max(v[2] for v in palm_vertices) - min(v[2] for v in palm_vertices)
+        tip_depth = max(v[1] for v in tip_vertices) - min(v[1] for v in tip_vertices)
+        tip_height = max(v[2] for v in tip_vertices) - min(v[2] for v in tip_vertices)
+        self.assertGreater(palm_depth, tip_depth)
+        self.assertGreater(palm_height, tip_height)
+
+    def test_feet_have_heel_ball_and_tapered_toe_sections(self):
+        p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
+        points = generate_landmarks(p)
+        part = generate_deformable_mesh(p).parts[0]
+        ankle_x = points["ankle.left"][0]
+        ball_y = p.foot_length_cm * 0.56
+        toe_y = p.foot_length_cm * 0.82
+
+        ball_vertices = [
+            v for v in part.vertices
+            if abs(v[1] - ball_y) < 1e-6 and v[0] > 0
+        ]
+        toe_vertices = [
+            v for v in part.vertices
+            if abs(v[1] - toe_y) < 1e-6 and v[0] > 0
+        ]
+        self.assertGreaterEqual(len(ball_vertices), 4)
+        self.assertGreaterEqual(len(toe_vertices), 4)
+        self.assertTrue(any(abs(v[0] - ankle_x) > 1e-3 for v in ball_vertices))
+
+        ball_width = max(v[0] for v in ball_vertices) - min(v[0] for v in ball_vertices)
+        toe_width = max(v[0] for v in toe_vertices) - min(v[0] for v in toe_vertices)
+        ball_height = max(v[2] for v in ball_vertices) - min(v[2] for v in ball_vertices)
+        toe_height = max(v[2] for v in toe_vertices) - min(v[2] for v in toe_vertices)
+        self.assertGreater(ball_width, toe_width)
+        self.assertGreater(ball_height, toe_height)
 
     def test_feet_remain_integrated_and_above_ground(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
@@ -49,7 +95,7 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         maximum_y = max(vertex[1] for vertex in part.vertices)
         minimum_z = min(vertex[2] for vertex in part.vertices)
         self.assertLess(minimum_y, 0)
-        self.assertGreater(maximum_y, p.foot_length_cm * 0.5)
+        self.assertGreater(maximum_y, p.foot_length_cm * 0.75)
         self.assertAlmostEqual(minimum_z, 0)
 
     def test_deterministic_and_requires_proportions(self):
