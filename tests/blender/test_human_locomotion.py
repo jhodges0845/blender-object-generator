@@ -17,6 +17,8 @@ from object_core.objects import get_provider
 class HumanLocomotionTests(unittest.TestCase):
     def setUp(self):
         self.previous_scene = bpy.context.window.scene
+        self.before = {name: set(getattr(bpy.data, name)) for name in
+                       ('objects', 'meshes', 'armatures', 'collections', 'materials', 'images', 'actions')}
         self.scene = bpy.data.scenes.new('HumanLocomotionTest')
         bpy.context.window.scene = self.scene
         provider = get_provider('human_experimental')
@@ -31,6 +33,10 @@ class HumanLocomotionTests(unittest.TestCase):
             bpy.ops.object.mode_set(mode='OBJECT')
         bpy.context.window.scene = self.previous_scene
         bpy.data.scenes.remove(self.scene)
+        for name, original in self.before.items():
+            data = getattr(bpy.data, name)
+            for item in set(data) - original:
+                data.remove(item, do_unlink=True)
 
     def test_walk_creates_editable_cyclic_action_and_moves_opposing_legs(self):
         rig = add_basic_rig(self.root, bpy.context)
