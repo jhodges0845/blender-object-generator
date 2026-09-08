@@ -61,11 +61,11 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Improved blockout hands with palm, knuckle, and tapered fingertip sections.
 - [x] Improved blockout feet with heel, midfoot, ball, and tapered toe sections.
 - [x] Geometry regressions across all five body presets and supported height extremes.
+- [x] Deterministic face-corner UV generation with an editable Blender `UVMap` layer.
 
 ### Remaining Human 1.0 work
 
 - [ ] Perform a milestone visual pass of accumulated deformation/geometry changes and refine any reproducible issues.
-- [ ] Generate UVs.
 - [ ] Provide a basic portable generated material/texture workflow.
 - [ ] Add at least one locomotion animation in addition to idle.
 - [ ] Ensure the completed Human 1.0 animated character validates and exports successfully to GLB.
@@ -73,15 +73,15 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 
 Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
-## Current cleanup gate before UV work
+## Cleanup gate before UV work
 
-Before adding UV generation:
+The pre-UV cleanup gate is complete:
 
 - [x] Test-coverage audit and targeted Human geometry coverage expansion.
-- [ ] Documentation sync/cleanup.
-- [ ] Architecture audit/cleanup.
+- [x] Documentation sync/cleanup.
+- [x] Architecture audit/cleanup.
 
-The architecture pass should be bounded: remove concrete duplication/confusion and strengthen dependency boundaries, but do not add speculative abstractions without a demonstrated need.
+Future architecture cleanup should remain evidence-driven: remove concrete duplication/confusion and strengthen dependency boundaries only when a real feature exposes the need.
 
 ## Target verification
 
@@ -114,13 +114,11 @@ Initial smoke checks exist for all four destinations. Formal certification remai
 
 ## Suggested implementation order
 
-1. Finish this test/docs/architecture cleanup gate.
-2. Add Human UV generation.
-3. Add basic portable material/texture generation.
-4. Add locomotion and strengthen animation export handling.
-5. Run a meaningful Human 1.0 visual/deformation milestone pass rather than per-PR visual checks.
-6. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
-7. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
+1. Add basic portable material/texture generation on top of the Human UV foundation.
+2. Add locomotion and strengthen animation export handling.
+3. Run a meaningful Human 1.0 visual/deformation milestone pass rather than per-PR visual checks.
+4. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
+5. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
 
 ## Near-term release milestone
 
