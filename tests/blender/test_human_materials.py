@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+import unittest
+
+try:
+    import bpy
+except ModuleNotFoundError:
+    bpy = None
+
+from blender_adapter.adapter import create_asset
+from blender_adapter.materials import material_issues, prepare_materials
+from object_core.objects import get_provider
+
+
+@unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
+class HumanGeneratedMaterialTests(unittest.TestCase):
+    def setUp(self):
+        bpy.ops.object.select_all(action="SELECT")
+        bpy.ops.object.delete(use_global=False)
+
+    def _human(self):
+        provider = get_provider("human_experimental")
+        values = {field.key: field.default for field in provider.parameters}
+        root = create_asset(provider.mesh(values), name="MaterialHuman")
+        root["object_type"] = provider.key
+        for key, value in values.items():
+            root[key] = value
+        return root, provider
+
+    def test_prepare_uses_portable_human_surface(self):
+        root, provider = self._human()
+        created = prepare_materials(root)
+        mesh = next(obj for obj in root.children if obj.type == "MESH")
+        expected = provider.materials({field.key: field.default for field in provider.parameters})[0]
+        self.assertIsNotNone(created)
+        self.assertEqual(len(mesh.material_slots), 1)
+        material = mesh.material_slots[0].material
+        self.assertEqual(material.name, expected.name)
+        shader = material.node_tree.nodes.get("Principled BSDF")
+        self.assertEqual(tuple(round(v, 6) for v in shader.inputs["Base Color"].default_value),
+                         tuple(round(v, 6) for v in expected.base_color))
+        self.assertAlmostEqual(shader.inputs["Metallic"].default_value, expected.metallic)
+        self.assertAlmostEqual(shader.inputs["Roughness"].default_value, expected.roughness)
+        self.assertFalse(material_issues((mesh,)))
+
+    def test_prepare_preserves_existing_artist_material(self):
+        root, _provider = self._human()
+        mesh = next(obj for obj in root.children if obj.type == "MESH")
+        artist = bpy.data.materials.new("Artist Material")
+        mesh.data.materials.append(artist)
+        for face in mesh.data.polygons:
+            face.material_index = 0
+        self.assertIsNone(prepare_materials(root))
+        self.assertIs(mesh.material_slots[0].material, artist)
+
+
+if __name__ == "__main__":
+    unittest.main()
