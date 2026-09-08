@@ -62,11 +62,12 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Improved blockout feet with heel, midfoot, ball, and tapered toe sections.
 - [x] Geometry regressions across all five body presets and supported height extremes.
 - [x] Deterministic face-corner UV generation with an editable Blender `UVMap` layer.
+- [x] Portable provider material contract plus an editable Human 1.0 Principled base surface.
 
 ### Remaining Human 1.0 work
 
 - [ ] Perform a milestone visual pass of accumulated deformation/geometry changes and refine any reproducible issues.
-- [ ] Provide a basic portable generated material/texture workflow.
+- [ ] Extend the Human UV/material foundation with a basic portable image-texture workflow.
 - [ ] Add at least one locomotion animation in addition to idle.
 - [ ] Ensure the completed Human 1.0 animated character validates and exports successfully to GLB.
 - [ ] Verify the completed Human 1.0 character in Godot, then Unity and Unreal.
@@ -114,7 +115,7 @@ Initial smoke checks exist for all four destinations. Formal certification remai
 
 ## Suggested implementation order
 
-1. Add basic portable material/texture generation on top of the Human UV foundation.
+1. Add a basic portable image-texture workflow on top of the Human UV/material foundation.
 2. Add locomotion and strengthen animation export handling.
 3. Run a meaningful Human 1.0 visual/deformation milestone pass rather than per-PR visual checks.
 4. Complete GLB validation/export and formal Godot/Unity/Unreal verification.

@@ -4,25 +4,78 @@
 from .targets import asset_objects
 
 
-def prepare_materials(root):
-    """Fill missing face materials only; preserve existing materials and shared meshes."""
+def _principled_material(name, base_color, metallic, roughness):
     import bpy
 
-    default = None
-    for obj in asset_objects(root):
-        if obj.type != 'MESH':
-            continue
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    shader = material.node_tree.nodes.get('Principled BSDF')
+    shader.inputs['Base Color'].default_value = base_color
+    shader.inputs['Metallic'].default_value = metallic
+    shader.inputs['Roughness'].default_value = roughness
+    return material
+
+
+def apply_generated_materials(root, specs):
+    """Translate portable provider material specs into editable Blender materials."""
+    by_part = {obj.get('part_name'): obj for obj in asset_objects(root) if obj.type == 'MESH'}
+    created = []
+    assigned = set()
+    for spec in specs:
+        if any(part_name not in by_part for part_name in spec.part_names):
+            raise ValueError(spec.name + ': material references a missing mesh part')
+        overlap = assigned.intersection(spec.part_names)
+        if overlap:
+            raise ValueError(spec.name + ': mesh part already has a generated material')
+        material = _principled_material(spec.name, spec.base_color, spec.metallic, spec.roughness)
+        created.append(material)
+        for part_name in spec.part_names:
+            obj = by_part[part_name]
+            obj.data.materials.append(material)
+            for face in obj.data.polygons:
+                face.material_index = len(obj.data.materials) - 1
+            assigned.add(part_name)
+    return tuple(created)
+
+
+def _provider_materials(root):
+    from .core import get_provider
+
+    provider = get_provider(root.get('object_type', 'humanoid'))
+    if not getattr(provider, 'supports_materials', False):
+        return ()
+    try:
+        values = {field.key: root[field.key] for field in provider.parameters}
+    except KeyError:
+        return ()
+    return provider.materials(values)
+
+
+def prepare_materials(root):
+    """Fill missing face materials while preserving artist assignments."""
+    import bpy
+
+    meshes = [obj for obj in asset_objects(root) if obj.type == 'MESH']
+    missing_by_object = {}
+    for obj in meshes:
         missing = [face.index for face in obj.data.polygons
                    if face.material_index >= len(obj.material_slots)
                    or obj.material_slots[face.material_index].material is None]
-        if not missing:
-            continue
+        if missing:
+            missing_by_object[obj] = missing
+    if not missing_by_object:
+        return None
+
+    specs = _provider_materials(root)
+    if specs and all(len(indices) == len(obj.data.polygons)
+                     for obj, indices in missing_by_object.items()):
+        created = apply_generated_materials(root, specs)
+        return created[0] if len(created) == 1 else created
+
+    default = None
+    for obj, missing in missing_by_object.items():
         if default is None:
-            default = bpy.data.materials.new('Generator Material')
-            default.use_nodes = True
-            shader = default.node_tree.nodes.get('Principled BSDF')
-            shader.inputs['Base Color'].default_value = (0.55, 0.55, 0.55, 1)
-            shader.inputs['Roughness'].default_value = 0.65
+            default = _principled_material('Generator Material', (0.55, 0.55, 0.55, 1), 0.0, 0.65)
         if obj.data.users > 1:
             obj.data = obj.data.copy()
         index = len(obj.data.materials)

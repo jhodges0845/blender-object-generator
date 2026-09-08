@@ -9,7 +9,7 @@ from .base import Parameter
 
 class BoxProvider:
     key, label = "box", "Box"
-    supports_rig = supports_idle = uses_skin_weights = False
+    supports_rig = supports_idle = uses_skin_weights = supports_materials = False
     parameters = tuple(
         Parameter(key, label, 100, 1, 1000)
         for key, label in (

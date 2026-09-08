@@ -14,10 +14,12 @@ class ObjectProviderTests(unittest.TestCase):
             self.assertIsInstance(mesh, ObjectMesh)
             self.assertEqual(mesh, provider.mesh(values))
             self.assertIsInstance(provider.uses_skin_weights, bool)
+            self.assertIsInstance(provider.supports_materials, bool)
         box = get_provider('box')
         self.assertFalse(box.supports_rig)
         self.assertFalse(box.supports_idle)
         self.assertFalse(box.uses_skin_weights)
+        self.assertFalse(box.supports_materials)
         with self.assertRaisesRegex(ValueError, 'Unsupported'):
             get_provider('unknown')
 
@@ -27,12 +29,15 @@ class ObjectProviderTests(unittest.TestCase):
         mesh = provider.mesh(values)
         skeleton = provider.skeleton(values)
         weights = provider.skin_weights(mesh, values)
+        materials = provider.materials(values)
         self.assertEqual(provider.label, 'Human 1.0 (Experimental)')
         self.assertTrue(provider.supports_rig)
         self.assertFalse(provider.supports_idle)
         self.assertTrue(provider.uses_skin_weights)
+        self.assertTrue(provider.supports_materials)
         self.assertEqual(len(mesh.parts), 1)
         self.assertEqual(mesh.parts[0].name, 'human')
+        self.assertEqual(tuple(materials[0].part_names), ('human',))
         self.assertTrue(all(bone.part_name is None for bone in skeleton.bones))
         self.assertEqual(tuple(weight.part_name for weight in weights), ('human',))
         self.assertEqual(len(weights[0].vertices), len(mesh.parts[0].vertices))
@@ -45,6 +50,7 @@ class ObjectProviderTests(unittest.TestCase):
     def test_static_provider_does_not_need_rig_or_idle_methods(self):
         provider = SimpleNamespace(key='static_test', label='Static Test', parameters=(),
                                    supports_rig=False, supports_idle=False, uses_skin_weights=False,
+                                   supports_materials=False,
                                    mesh=lambda values: get_provider('box').mesh(
                                        dict(width_cm=10, depth_cm=10, height_cm=10)))
         self.assertIs(validate_provider(provider), provider)
@@ -54,9 +60,10 @@ class ObjectProviderTests(unittest.TestCase):
     def test_invalid_capabilities_fail_before_generation(self):
         baseline = dict(key='invalid', label='Invalid', parameters=(),
                         supports_rig=False, supports_idle=False, uses_skin_weights=False,
-                        mesh=lambda values: None)
+                        supports_materials=False, mesh=lambda values: None)
         cases = [dict(supports_rig='yes'), dict(supports_idle=True),
                  dict(uses_skin_weights='yes'), dict(uses_skin_weights=True),
+                 dict(supports_materials='yes'), dict(supports_materials=True),
                  dict(supports_rig=True),
                  dict(supports_rig=True, skeleton=lambda values: None, supports_idle=True),
                  dict(supports_rig=True, skeleton=lambda values: None, uses_skin_weights=True),
@@ -70,8 +77,16 @@ class ObjectProviderTests(unittest.TestCase):
     def test_skin_weight_provider_contract_is_generic(self):
         provider = SimpleNamespace(key='deforming_test', label='Deforming Test', parameters=(),
                                    supports_rig=True, supports_idle=False, uses_skin_weights=True,
-                                   mesh=lambda values: None, skeleton=lambda values: None,
+                                   supports_materials=False, mesh=lambda values: None,
+                                   skeleton=lambda values: None,
                                    skin_weights=lambda mesh, values: ())
+        self.assertIs(validate_provider(provider), provider)
+
+    def test_material_provider_contract_is_generic(self):
+        provider = SimpleNamespace(key='surface_test', label='Surface Test', parameters=(),
+                                   supports_rig=False, supports_idle=False, uses_skin_weights=False,
+                                   supports_materials=True, mesh=lambda values: None,
+                                   materials=lambda values: ())
         self.assertIs(validate_provider(provider), provider)
 
     def test_registry_key_mismatch_is_rejected(self):
@@ -84,6 +99,6 @@ class ObjectProviderTests(unittest.TestCase):
         field = Parameter('size', 'Size', 10, 1, 20)
         provider = SimpleNamespace(key='duplicate', label='Duplicate', parameters=(field, field),
                                    supports_rig=False, supports_idle=False, uses_skin_weights=False,
-                                   mesh=lambda values: None)
+                                   supports_materials=False, mesh=lambda values: None)
         with self.assertRaisesRegex(ValueError, 'parameter'):
             validate_provider(provider)
