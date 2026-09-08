@@ -4,7 +4,7 @@
 from .targets import asset_objects
 
 
-def _principled_material(name, base_color, metallic, roughness):
+def _principled_material(name, base_color, metallic, roughness, base_color_texture=None):
     import bpy
 
     material = bpy.data.materials.new(name)
@@ -13,6 +13,19 @@ def _principled_material(name, base_color, metallic, roughness):
     shader.inputs['Base Color'].default_value = base_color
     shader.inputs['Metallic'].default_value = metallic
     shader.inputs['Roughness'].default_value = roughness
+    if base_color_texture is not None:
+        image = bpy.data.images.new(
+            base_color_texture.name,
+            width=base_color_texture.width,
+            height=base_color_texture.height,
+            alpha=True,
+        )
+        image.pixels = base_color_texture.pixels
+        texture = material.node_tree.nodes.new('ShaderNodeTexImage')
+        texture.name = base_color_texture.name
+        texture.label = base_color_texture.name
+        texture.image = image
+        material.node_tree.links.new(texture.outputs['Color'], shader.inputs['Base Color'])
     return material
 
 
@@ -27,7 +40,13 @@ def apply_generated_materials(root, specs):
         overlap = assigned.intersection(spec.part_names)
         if overlap:
             raise ValueError(spec.name + ': mesh part already has a generated material')
-        material = _principled_material(spec.name, spec.base_color, spec.metallic, spec.roughness)
+        material = _principled_material(
+            spec.name,
+            spec.base_color,
+            spec.metallic,
+            spec.roughness,
+            spec.base_color_texture,
+        )
         created.append(material)
         for part_name in spec.part_names:
             obj = by_part[part_name]

@@ -3,7 +3,7 @@
 
 from ..animation import generate_idle
 from ..geometry import generate_deformable_mesh, generate_mesh
-from ..models import BodyType, HumanoidSpec, MaterialSpec
+from ..models import BodyType, HumanoidSpec, ImageTextureSpec, MaterialSpec
 from ..proportions import generate_proportions
 from ..rigging import generate_deforming_skeleton, generate_skin_weights, generate_skeleton
 from .base import Parameter
@@ -74,8 +74,19 @@ class HumanExperimentalProvider:
         return generate_skin_weights(mesh, self.skeleton(values))
 
     def materials(self, values):
-        # A neutral warm clay-like base is intentionally generic and easy for an
-        # artist to replace. It proves portable surfacing without implying final skin.
+        # This tiny warm texture is a portable UV/texturing proof and artist starting
+        # point, not an attempt to synthesize finished skin detail.
+        texture = ImageTextureSpec(
+            "Human Base Texture",
+            2,
+            2,
+            (
+                0.50, 0.31, 0.24, 1.0,
+                0.58, 0.38, 0.29, 1.0,
+                0.60, 0.40, 0.31, 1.0,
+                0.53, 0.34, 0.26, 1.0,
+            ),
+        )
         return (
             MaterialSpec(
                 "Human Base Surface",
@@ -83,5 +94,6 @@ class HumanExperimentalProvider:
                 (0.55, 0.36, 0.28, 1.0),
                 metallic=0.0,
                 roughness=0.68,
+                base_color_texture=texture,
             ),
         )

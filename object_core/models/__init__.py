@@ -6,9 +6,9 @@ from .proportions import HumanoidProportions
 from .mesh import ObjectMesh, MeshPart
 from .skeleton import Bone, Skeleton
 from .skinning import BoneWeight, SkinWeights
-from .material import MaterialSpec
+from .material import ImageTextureSpec, MaterialSpec
 
 __all__ = [
     "BodyType", "HumanoidSpec", "HumanoidProportions", "ObjectMesh", "MeshPart",
-    "Bone", "Skeleton", "BoneWeight", "SkinWeights", "MaterialSpec",
+    "Bone", "Skeleton", "BoneWeight", "SkinWeights", "ImageTextureSpec", "MaterialSpec",
 ]
