@@ -20,21 +20,16 @@ def _populate_mesh(data, part, coordinate_scale):
                 uv_layer.data[polygon.loop_start + offset].uv = uv
 
 
-def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None, skin_weights=None):
-    """Create an editable asset with an optional rigid or weighted deforming rig.
-
-    Returns the root object. Source coordinates are converted from centimeters
-    using the scene's meters-per-unit scale. Existing objects, unit settings,
-    cursor, and selection are preserved. On failure only resources created by
-    this call are removed. A skeleton requires the active scene in Object Mode.
-    Requires execution inside Blender.
-    """
+def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None,
+                 skin_weights=None, materials=()):
+    """Create an editable asset with optional rigging and portable materials."""
     if not isinstance(mesh, ObjectMesh):
         raise TypeError("mesh must be ObjectMesh")
     if not isinstance(name, str) or not name.strip():
         raise ValueError("name must be a nonempty string")
     if skin_weights is not None and skeleton is None:
         raise ValueError("skin_weights require a skeleton")
+    materials = tuple(materials)
     import bpy
 
     scene = bpy.context.scene if scene is None else scene
@@ -58,6 +53,7 @@ def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None, s
     collection = bpy.data.collections.new(name)
     created_objects = []
     created_meshes = []
+    created_materials = []
     try:
         root = bpy.data.objects.new(name, None)
         created_objects.append(root)
@@ -75,10 +71,12 @@ def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None, s
             created_objects.append(obj)
             obj.parent = root
             obj["part_name"] = part.name
-            # Retain the historical tag for old files/tests; shared rigging prefers part_name.
             obj["body_part"] = part.name
             collection.objects.link(obj)
         scene.collection.children.link(collection)
+        if materials:
+            from .materials import apply_generated_materials
+            created_materials.extend(apply_generated_materials(root, materials))
         if skeleton is not None:
             if skin_weights is None:
                 from .rigging import attach_rig
@@ -92,9 +90,11 @@ def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None, s
             bpy.data.objects.remove(obj, do_unlink=True)
         for data in created_meshes:
             bpy.data.meshes.remove(data)
+        for material in created_materials:
+            if material.users == 0:
+                bpy.data.materials.remove(material)
         bpy.data.collections.remove(collection)
         raise
 
 
-# Historical public name retained for callers that imported the original adapter API.
 create_character = create_asset
