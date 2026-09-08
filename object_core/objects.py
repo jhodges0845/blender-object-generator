@@ -23,11 +23,16 @@ def validate_provider(provider):
     for field in ("supports_rig", "supports_idle", "uses_skin_weights"):
         if not isinstance(getattr(provider, field, None), bool):
             raise TypeError(provider.key + ": " + field + " must be a boolean")
+    supports_locomotion = getattr(provider, "supports_locomotion", False)
+    if not isinstance(supports_locomotion, bool):
+        raise TypeError(provider.key + ": supports_locomotion must be a boolean")
     supports_materials = getattr(provider, "supports_materials", False)
     if not isinstance(supports_materials, bool):
         raise TypeError(provider.key + ": supports_materials must be a boolean")
     if provider.supports_idle and not provider.supports_rig:
         raise ValueError(provider.key + ": idle support requires rig support")
+    if supports_locomotion and not provider.supports_rig:
+        raise ValueError(provider.key + ": locomotion support requires rig support")
     if provider.uses_skin_weights and not provider.supports_rig:
         raise ValueError(provider.key + ": skin weights require rig support")
 
@@ -36,6 +41,8 @@ def validate_provider(provider):
         required.append("skeleton")
     if provider.supports_idle:
         required.append("idle")
+    if supports_locomotion:
+        required.append("locomotion")
     if provider.uses_skin_weights:
         required.append("skin_weights")
     if supports_materials:
