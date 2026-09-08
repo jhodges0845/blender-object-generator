@@ -65,13 +65,14 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Portable provider material contract plus an editable Human 1.0 Principled base surface.
 - [x] Portable generated-image texture contract with Human UV-driven base texture and editable Blender Image Texture translation.
 - [x] Portable Human in-place walk cycle with shared Blender clip-to-action translation and automated core/Blender coverage.
+- [x] Explicit Idle/Walk selection with separate editable generated actions, safe clip switching, and active-clip GLB export coverage.
 
 ### Remaining Human 1.0 work
 
-- [ ] Perform a milestone visual pass of accumulated deformation/geometry changes and refine any reproducible issues.
-- [ ] Expose/select idle plus locomotion cleanly in Blender and strengthen multi-clip export handling.
+- [ ] Perform a milestone visual pass of accumulated deformation/geometry/animation changes and refine any reproducible issues.
 - [ ] Ensure the completed Human 1.0 animated character validates and exports successfully to GLB.
 - [ ] Verify the completed Human 1.0 character in Godot, then Unity and Unreal.
+- [ ] Run the Human Provider 1.0 checkpoint: test coverage, documentation, architecture, target-verification evidence, and remaining-risk review.
 
 Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
@@ -116,9 +117,9 @@ Initial smoke checks exist for all four destinations. Formal certification remai
 
 ## Suggested implementation order
 
-1. Expose idle/locomotion selection and strengthen multi-clip animation export handling.
-2. Run a meaningful Human 1.0 visual/deformation milestone pass rather than per-PR visual checks.
-3. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
+1. Run the Human 1.0 milestone visual/deformation/animation pass.
+2. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
+3. Run the Human Provider 1.0 checkpoint across tests, docs, architecture, and verification evidence.
 4. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
 
 ## Near-term release milestone
