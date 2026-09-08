@@ -133,7 +133,9 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
 
     Shoulder and hip roots are stitched into explicit torso openings. Neck,
     shoulders, elbows, wrists, knees, ankles, and foot bends retain support
-    loops so skinning has enough local geometry to distribute motion.
+    loops so skinning has enough local geometry to distribute motion. Hands
+    and feet use simple multi-ring silhouettes suitable for first-pass artist
+    refinement rather than ending as featureless limb caps.
     """
     if not isinstance(proportions, HumanoidProportions):
         raise TypeError("proportions must be HumanoidProportions")
@@ -166,7 +168,6 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
     vertices = list(body.vertices)
     body_faces = list(body.faces)
 
-    # One quad opening per branch. Paired segment choices mirror across X.
     openings = {
         ("hip", "left"): body_faces[_side_face_index(0, 0)],
         ("hip", "right"): body_faces[_side_face_index(0, 3)],
@@ -187,14 +188,18 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         wrist = points["wrist." + side]
         fingertips = points["fingertips." + side]
         shoulder_exit = _lerp_point(shoulder, elbow, 0.12)
+        palm = _lerp_point(wrist, fingertips, 0.42)
+        knuckles = _lerp_point(wrist, fingertips, 0.72)
+        hand_width = p.forearm_thickness_cm * 0.92
+        hand_depth = p.forearm_thickness_cm * 0.40
         arm_centers, arm_widths, arm_depths = _supported_joint_chain(
-            (shoulder, shoulder_exit, elbow, wrist, fingertips),
+            (shoulder, shoulder_exit, elbow, wrist, palm, knuckles, fingertips),
             (p.upper_arm_thickness_cm * 1.05, p.upper_arm_thickness_cm,
              p.upper_arm_thickness_cm * 0.82, p.forearm_thickness_cm * 0.72,
-             p.forearm_thickness_cm * 0.52),
+             hand_width, hand_width * 0.94, hand_width * 0.48),
             (p.upper_arm_thickness_cm * 1.05, p.upper_arm_thickness_cm,
              p.upper_arm_thickness_cm * 0.82, p.forearm_thickness_cm * 0.72,
-             p.forearm_thickness_cm * 0.30),
+             hand_depth, hand_depth * 0.88, hand_depth * 0.54),
         )
         _append_branch(
             vertices,
@@ -209,18 +214,21 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         knee = points["knee." + side]
         ankle = points["ankle." + side]
         hip_exit = _lerp_point(hip, knee, 0.10)
-        foot_height = p.foot_length_cm * 0.34
+        foot_height = p.foot_height_cm
         foot_center_z = foot_height * 0.5
-        foot_back = (ankle[0], -p.foot_length_cm * 0.18, foot_center_z)
-        foot_front = (ankle[0], p.foot_length_cm * 0.72, foot_center_z)
+        heel = (ankle[0], -p.foot_length_cm * 0.18, foot_center_z)
+        midfoot = (ankle[0], p.foot_length_cm * 0.22, foot_center_z)
+        ball = (ankle[0], p.foot_length_cm * 0.56, foot_center_z)
+        toe = (ankle[0], p.foot_length_cm * 0.82, foot_center_z)
+        foot_width = p.calf_thickness_cm * 0.88
         leg_centers, leg_widths, leg_depths = _supported_joint_chain(
-            (hip_exit, knee, ankle, foot_back, foot_front),
+            (hip_exit, knee, ankle, heel, midfoot, ball, toe),
             (p.thigh_thickness_cm, p.calf_thickness_cm,
-             p.calf_thickness_cm * 0.6, p.calf_thickness_cm * 0.72,
-             p.calf_thickness_cm * 0.62),
+             p.calf_thickness_cm * 0.6, foot_width * 0.82,
+             foot_width, foot_width * 1.06, foot_width * 0.74),
             (p.thigh_thickness_cm, p.calf_thickness_cm,
-             p.calf_thickness_cm * 0.6, foot_height,
-             p.foot_length_cm * 0.18),
+             p.calf_thickness_cm * 0.6, foot_height * 0.92,
+             foot_height, foot_height * 0.82, foot_height * 0.56),
         )
         _append_branch(
             vertices,
