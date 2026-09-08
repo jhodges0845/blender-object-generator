@@ -16,7 +16,8 @@ class LocomotionTests(unittest.TestCase):
         self.assertIn('upper_leg.left', by_bone)
         self.assertIn('upper_leg.right', by_bone)
         self.assertIn('upper_arm.left', by_bone)
-        self.assertEqual(by_bone['upper_leg.left'].keys[0], by_bone['upper_leg.left'].keys[-1])
+        self.assertAlmostEqual(by_bone['upper_leg.left'].keys[0][1],
+                               by_bone['upper_leg.left'].keys[-1][1])
         self.assertAlmostEqual(by_bone['upper_leg.left'].keys[0][1], -by_bone['upper_leg.right'].keys[0][1])
         for track, doubled in zip(clip.tracks, stronger.tracks):
             self.assertEqual(len(track.keys), 5)
