@@ -36,15 +36,13 @@ Providers declare what operations they actually support. Current shared architec
 
 Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
 
-Deforming providers explicitly supply skin weights. Human-specific geometry, bone names, landmarks, and weighting heuristics stay in Human-focused implementation rather than leaking into generic workflow code.
-
-Future capabilities such as UV generation or provider-specific surfacing should be added only when implementation requires them, not predeclared speculatively.
+Deforming providers explicitly supply skin weights. Human-specific geometry, bone names, landmarks, UV generation, surfacing choices, and weighting heuristics stay in Human-focused implementation rather than leaking into generic workflow code. Shared contracts should grow only when a real provider needs them.
 
 ## Blender adapter boundary
 
 `blender_adapter` is the canonical Blender-specific source package. It translates core contracts into editable Blender objects and owns Blender scene inspection, UI, rigging application, animation application, material preparation, validation inspection, and export orchestration.
 
-`humanoid_blender` remains as a compatibility entry point/module ID for historical Blender/add-on identifiers. New Blender implementation should live in `blender_adapter`; compatibility code should stay thin and should not become a second implementation.
+`humanoid_blender` remains as a compatibility entry point/module ID for historical Blender/add-on identifiers. New Blender implementation and primary tests should use `blender_adapter`; compatibility code should stay thin and should not become a second implementation. Historical import paths get focused regression coverage rather than serving as the canonical API in new tests.
 
 The adapter may import `object_core`; the core may never import the adapter.
 
@@ -61,7 +59,7 @@ Human currently has two paths:
 - a legacy multipart/rigid path kept for compatibility and pipeline smoke testing; and
 - an opt-in connected deforming path used for Human 1.0.
 
-The deforming path reuses the existing Human proportion foundation, generates one connected mesh, creates a separate deforming skeleton, generates deterministic localized skin weights, and lets `blender_adapter` apply those results to Blender.
+The deforming path reuses the existing Human proportion foundation, generates one connected mesh, creates a separate deforming skeleton, generates deterministic localized skin weights, and lets `blender_adapter` apply those results to Blender. Portable UV, material, generated-image texture, idle, and locomotion intent remain outside Blender and are translated into ordinary editable Blender data by the adapter.
 
 This split is intentional while Human 1.0 is being completed. Shared provider/workflow code should depend on capabilities and contracts rather than branching on Human anatomy.
 
@@ -77,7 +75,7 @@ The destination flow is:
 
 `Generate -> optional Rig -> optional Animate -> Surface -> Validate -> Target Profile -> Blender Target Adapter -> Export -> Destination Review`
 
-`object_core/targets.py` owns destination profiles and target-independent requirements. `blender_adapter/targets.py` owns Blender-side Godot, Unity, Unreal, and Cura export behavior.
+`object_core/targets.py` owns destination profiles and target-independent requirements. `blender_adapter/targets.py` owns Blender-side Godot, Unity, Unreal, and Cura export behavior, including Blender-version-specific exporter options when required.
 
 Current defaults are:
 
@@ -86,18 +84,21 @@ Current defaults are:
 - Unreal: FBX; and
 - Cura: STL.
 
-Target adapters should preserve source scene state where practical, scope exports to the intended hierarchy, and avoid turning a successful file write into a claim of production readiness.
+Target adapters should preserve source scene state where practical, scope exports to the intended hierarchy, and avoid turning a successful file write into a claim of production readiness. Version-specific Blender behavior belongs at this adapter boundary rather than in `object_core` or provider logic.
 
 ## Tests and compatibility
 
 Tests mirror the boundaries:
 
 - standalone/core tests under `tests/core`;
-- Blender integration tests under `tests/blender`;
+- canonical Blender integration tests under `tests/blender`;
+- focused compatibility-import coverage for `humanoid_blender`;
 - CI on Python 3.9-3.12; and
 - Blender integration on 2.92.0 and 5.2.1.
 
-Blender-dependent tests explicitly skip during ordinary Python discovery. CI additionally runs inside both Blender versions and exercises packaged-add-on/export paths.
+Blender 5.2.x is the primary current runtime target. Older Blender compatibility is valuable and should be retained while it remains reasonably small, clean, and testable. Current-version correctness and a clean architecture take precedence over preserving an old runtime indefinitely. If an older Blender version begins forcing duplicated implementations, awkward cross-layer workarounds, or weaker current-version behavior, raise the minimum supported Blender version deliberately and document the migration rather than degrading the design.
+
+Blender-dependent tests explicitly skip during ordinary Python discovery. CI additionally runs inside both Blender versions and exercises packaged-add-on/export paths. A version difference is acceptable only when the user-visible contract remains correct; tests should verify the contract rather than incidental exporter naming or implementation details.
 
 The historical `humanoid.*` operator identifiers and `humanoid_blender` module compatibility exist because saved Blender data/scripts may reference them. Renaming those compatibility identifiers is a migration problem, not ordinary cleanup.
 
