@@ -72,63 +72,79 @@ def _add_clip(root, scene, clip, suffix):
         raise ValueError('Existing animation preserved. NLA tracks and drivers require manual preparation.')
     if data and data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
         raise ValueError('Existing animation preserved. Use a fresh rig or keep the artist action active.')
-    for bone in rig.pose.bones:
-        if bone.constraints or any(abs(bone.matrix_basis[i][j] - Matrix.Identity(4)[i][j]) > 1e-6
-                                   for i in range(4) for j in range(4)):
-            raise ValueError('Start from an unconstrained rest pose; existing pose preserved.')
-    if any(track.bone not in rig.pose.bones for track in clip.tracks):
-        raise ValueError('This rig is missing bones required by the provider animation.')
-    fps = scene.render.fps / scene.render.fps_base
-    start = scene.frame_start
-    action = bpy.data.actions.new(rig.name + '.' + suffix)
-    action[_GENERATED] = True
-    action[_GENERATED_RIG] = rig.name
-    action[_GENERATED_CLIP] = suffix
-    modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
-    had_data = data is not None
+
     previous_action = data.action if data else None
     previous_slot = getattr(data, 'action_slot', None) if data else None
+    previous_frame, previous_subframe = scene.frame_current, scene.frame_subframe
+    if previous_action is not None:
+        data.action = None
+        scene.frame_set(previous_frame, subframe=previous_subframe)
+
     try:
-        if hasattr(action, 'slots'):
-            from bpy_extras.anim_utils import action_ensure_channelbag_for_slot
-            slot = action.slots.new('OBJECT', rig.name)
-            curves = action_ensure_channelbag_for_slot(action, slot).fcurves
-        else:
-            slot = None
-            curves = action.fcurves
-        for track in clip.tracks:
-            bone = rig.pose.bones[track.bone]
-            axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
-            samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
-            group = {'group_name' if slot is not None else 'action_group': bone.name}
-            for component in range(4):
-                curve = curves.new(bone.path_from_id('rotation_quaternion'), index=component,
-                                   **group)
-                curve.keyframe_points.add(len(samples))
-                for key, (frame, rotation) in zip(curve.keyframe_points, samples):
-                    key.co = (frame, rotation[component])
-                    key.interpolation = 'LINEAR'
-                curve.modifiers.new('CYCLES')
-                curve.update()
-        for track in clip.tracks:
-            rig.pose.bones[track.bone].rotation_mode = 'QUATERNION'
-        rig.animation_data_create().action = action
-        if slot is not None:
-            rig.animation_data.action_slot = slot
-        action.use_fake_user = True
-        rig.data.pose_position = 'POSE'
+        for bone in rig.pose.bones:
+            if bone.constraints or any(abs(bone.matrix_basis[i][j] - Matrix.Identity(4)[i][j]) > 1e-6
+                                       for i in range(4) for j in range(4)):
+                raise ValueError('Start from an unconstrained rest pose; existing pose preserved.')
+        if any(track.bone not in rig.pose.bones for track in clip.tracks):
+            raise ValueError('This rig is missing bones required by the provider animation.')
+
+        fps = scene.render.fps / scene.render.fps_base
+        start = scene.frame_start
+        action = bpy.data.actions.new(rig.name + '.' + suffix)
+        action[_GENERATED] = True
+        action[_GENERATED_RIG] = rig.name
+        action[_GENERATED_CLIP] = suffix
+        modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
+        had_data = data is not None
+        try:
+            if hasattr(action, 'slots'):
+                from bpy_extras.anim_utils import action_ensure_channelbag_for_slot
+                slot = action.slots.new('OBJECT', rig.name)
+                curves = action_ensure_channelbag_for_slot(action, slot).fcurves
+            else:
+                slot = None
+                curves = action.fcurves
+            for track in clip.tracks:
+                bone = rig.pose.bones[track.bone]
+                axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
+                samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
+                group = {'group_name' if slot is not None else 'action_group': bone.name}
+                for component in range(4):
+                    curve = curves.new(bone.path_from_id('rotation_quaternion'), index=component,
+                                       **group)
+                    curve.keyframe_points.add(len(samples))
+                    for key, (frame, rotation) in zip(curve.keyframe_points, samples):
+                        key.co = (frame, rotation[component])
+                        key.interpolation = 'LINEAR'
+                    curve.modifiers.new('CYCLES')
+                    curve.update()
+            for track in clip.tracks:
+                rig.pose.bones[track.bone].rotation_mode = 'QUATERNION'
+            rig.animation_data_create().action = action
+            if slot is not None:
+                rig.animation_data.action_slot = slot
+            action.use_fake_user = True
+            rig.data.pose_position = 'POSE'
+        except Exception:
+            if rig.animation_data:
+                rig.animation_data.action = previous_action
+                if previous_action is not None and previous_slot is not None and hasattr(rig.animation_data, 'action_slot'):
+                    rig.animation_data.action_slot = previous_slot
+            if not had_data:
+                rig.animation_data_clear()
+            for name, mode in modes.items():
+                rig.pose.bones[name].rotation_mode = mode
+            bpy.data.actions.remove(action)
+            raise
+        return action, max(start, ceil(start + clip.duration * fps) - 1)
     except Exception:
-        if rig.animation_data:
-            rig.animation_data.action = previous_action
-            if previous_action is not None and previous_slot is not None and hasattr(rig.animation_data, 'action_slot'):
-                rig.animation_data.action_slot = previous_slot
-        if not had_data:
-            rig.animation_data_clear()
-        for name, mode in modes.items():
-            rig.pose.bones[name].rotation_mode = mode
-        bpy.data.actions.remove(action)
+        if data and data.action is None and previous_action is not None:
+            data.action = previous_action
+            if previous_slot is not None and hasattr(data, 'action_slot'):
+                data.action_slot = previous_slot
         raise
-    return action, max(start, ceil(start + clip.duration * fps) - 1)
+    finally:
+        scene.frame_set(previous_frame, subframe=previous_subframe)
 
 
 def add_idle(root, scene, duration=4.0, strength=1.0):
