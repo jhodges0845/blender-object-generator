@@ -29,6 +29,21 @@ def read_glb(path):
     return json.loads(data[20:20 + size].decode('utf8'))
 
 
+def animation_duration(document):
+    """Return the longest exported animation input time in seconds."""
+    animation = document['animations'][0]
+    accessors = document['accessors']
+    maxima = []
+    for sampler in animation.get('samplers', []):
+        accessor = accessors[sampler['input']]
+        values = accessor.get('max', ())
+        if values:
+            maxima.append(float(values[0]))
+    if not maxima:
+        raise AssertionError('Exported animation has no time accessor maxima.')
+    return max(maxima)
+
+
 @unittest.skipIf(bpy is None, 'requires Blender; use scripts/test_blender.py')
 class AnimationExportTests(unittest.TestCase):
     def setUp(self):
@@ -71,7 +86,7 @@ class AnimationExportTests(unittest.TestCase):
         self.assertTrue(idle_result.success, idle_result.issues)
         idle_document = read_glb(idle_result.filepath)
         self.assertEqual(len(idle_document.get('animations', [])), 1)
-        self.assertIn('Idle', idle_document['animations'][0].get('name', ''))
+        self.assertAlmostEqual(animation_duration(idle_document), 4.0, delta=0.05)
 
         activate_generated_action(self.root, 'Walk')
         walk_path = Path(self.temp.name) / 'walk.glb'
@@ -79,7 +94,9 @@ class AnimationExportTests(unittest.TestCase):
         self.assertTrue(walk_result.success, walk_result.issues)
         walk_document = read_glb(walk_result.filepath)
         self.assertEqual(len(walk_document.get('animations', [])), 1)
-        self.assertIn('Walk', walk_document['animations'][0].get('name', ''))
+        self.assertAlmostEqual(animation_duration(walk_document), 1.2, delta=0.05)
+
+        self.assertNotAlmostEqual(animation_duration(idle_document), animation_duration(walk_document), delta=0.5)
 
 
 if __name__ == '__main__':
