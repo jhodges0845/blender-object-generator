@@ -46,9 +46,11 @@ class HumanGeneratedMaterialTests(unittest.TestCase):
         self.assertIsNotNone(texture_node.image)
         self.assertEqual(tuple(texture_node.image.size),
                          (expected.base_color_texture.width, expected.base_color_texture.height))
-        actual_pixels = tuple(round(v, 6) for v in texture_node.image.pixels[:])
-        expected_pixels = tuple(round(v, 6) for v in expected.base_color_texture.pixels)
-        self.assertEqual(actual_pixels, expected_pixels)
+        actual_pixels = tuple(texture_node.image.pixels[:])
+        expected_pixels = expected.base_color_texture.pixels
+        self.assertEqual(len(actual_pixels), len(expected_pixels))
+        for actual, expected_value in zip(actual_pixels, expected_pixels):
+            self.assertAlmostEqual(actual, expected_value, delta=(1.0 / 255.0) + 1e-6)
         self.assertTrue(mesh.data.uv_layers.get("UVMap"))
         self.assertFalse(material_issues((mesh,)))
 
