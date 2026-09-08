@@ -4,9 +4,9 @@ Asset Assistant currently keeps two Human geometry paths: the original multipart
 
 ## Coordinates and core data
 
-`ObjectMesh` contains immutable `MeshPart` data with XYZ vertices and polygon faces. Core coordinates are centimeters in a right-handed system: Z is up, positive Y is forward, and positive X is the character's left. Adapters are responsible for host unit/axis conversion.
+`ObjectMesh` contains immutable `MeshPart` data with XYZ vertices, polygon faces, and optional face-corner UV coordinates. Core coordinates are centimeters in a right-handed system: Z is up, positive Y is forward, and positive X is the character's left. Adapters are responsible for host unit/axis conversion.
 
-Mesh contracts validate finite coordinates, face indices, non-empty data, and unique part names. They do not by themselves prove arbitrary geometry is manifold, intersection-free, or production ready.
+Mesh contracts validate finite coordinates, face indices, optional UV shape/finite values, non-empty data, and unique part names. They do not by themselves prove arbitrary geometry is manifold, intersection-free, UV-overlap-free, or production ready.
 
 ## Legacy multipart blockout
 
@@ -26,7 +26,8 @@ The current surface:
 - integrates the feet into the leg chains;
 - adds local support geometry around shoulders, elbows, wrists, hips, knees, ankles, foot bends, and the neck transition;
 - gives each hand a simple palm -> knuckle -> tapered fingertip blockout;
-- gives each foot a heel -> midfoot -> ball -> tapered toe blockout; and
+- gives each foot a heel -> midfoot -> ball -> tapered toe blockout;
+- generates deterministic face-corner UVs packed into the 0-1 UV square; and
 - derives dimensions and landmarks from the existing Human proportion system.
 
 This is still deliberately low-detail generated geometry. Hands do not have individual fingers, feet do not have individual toes, and the head has no facial features. The goal is a useful editable artist starting point rather than finished anatomy.
@@ -40,10 +41,11 @@ Current core tests protect:
 - identical topology across all five body-type presets;
 - hand and foot blockout sections at the supported 120 cm and 240 cm height extremes;
 - hand palm volume relative to the fingertip taper;
-- forefoot/ball volume relative to the toe taper; and
-- retained joint-support geometry.
+- forefoot/ball volume relative to the toe taper;
+- retained joint-support geometry; and
+- complete deterministic UV coverage across body presets and supported height extremes.
 
-The connected mesh is also exercised through Blender skinning/deformation tests on both supported Blender runtimes.
+The connected mesh is also exercised through Blender skinning/deformation tests on both supported Blender runtimes. Blender integration additionally verifies that generated Human UV data becomes an ordinary editable `UVMap` layer.
 
 ## Deformation status
 
@@ -53,12 +55,14 @@ Automated Blender regressions exercise shoulder, elbow, wrist, hip, knee, ankle,
 
 These tests establish regression protection, not final aesthetic quality. The manual inspection harness remains the milestone-level check for silhouette, pinching, bunching, and other artist-facing issues.
 
-## Surfacing limits
+## UV and surfacing status
 
-Human 1.0 does not yet generate UVs or a complete portable material/texture setup. Those are the next feature steps after the current test/documentation/architecture cleanup gate.
+Human 1.0 now has a deterministic portable UV foundation. The first layout intentionally favors complete, non-overlapping face islands and a stable core/Blender contract over artist-optimized continuous islands. It is suitable for generated basic surfacing and remains editable in Blender; later providers or artist-quality refinements can improve island continuity without changing the mesh UV contract.
+
+A complete portable generated material/texture setup remains the next surfacing step.
 
 ## Parameters and editability
 
-The deformation-oriented geometry consumes `HumanoidProportions`, preserving the existing supported Human measurements and body presets. Generated Blender output remains ordinary editable mesh data rather than a locked procedural object.
+The deformation-oriented geometry consumes `HumanoidProportions`, preserving the existing supported Human measurements and body presets. Generated Blender output remains ordinary editable mesh and UV data rather than a locked procedural object.
 
 See [the roadmap](roadmap.md) for the remaining Human Provider 1.0 sequence.

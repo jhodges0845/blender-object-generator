@@ -11,6 +11,13 @@ def _populate_mesh(data, part, coordinate_scale):
                 for vertex in part.vertices]
     data.from_pydata(vertices, [], part.faces)
     data.update()
+    if part.uvs:
+        uv_layer = data.uv_layers.new(name="UVMap")
+        for polygon, face_uvs in zip(data.polygons, part.uvs):
+            if polygon.loop_total != len(face_uvs):
+                raise ValueError("core UV corner count does not match Blender polygon")
+            for offset, uv in enumerate(face_uvs):
+                uv_layer.data[polygon.loop_start + offset].uv = uv
 
 
 def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None, skin_weights=None):
