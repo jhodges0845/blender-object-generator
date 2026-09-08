@@ -47,19 +47,25 @@ class DeformableHumanGeometryTests(unittest.TestCase):
         part = generate_deformable_mesh(p).parts[0]
         wrist = points["wrist.left"]
         fingertips = points["fingertips.left"]
-        palm_x = wrist[0] + (fingertips[0] - wrist[0]) * 0.42
+        hand_axis = tuple(fingertips[i] - wrist[i] for i in range(3))
+        hand_length_sq = sum(value * value for value in hand_axis)
 
-        palm_vertices = [v for v in part.vertices if abs(v[0] - palm_x) < 1e-6]
-        tip_vertices = [v for v in part.vertices if abs(v[0] - fingertips[0]) < 1e-6]
+        def along_hand(vertex):
+            offset = tuple(vertex[i] - wrist[i] for i in range(3))
+            return sum(offset[i] * hand_axis[i] for i in range(3)) / hand_length_sq
+
+        def radial_distance(vertex, amount):
+            center = tuple(wrist[i] + hand_axis[i] * amount for i in range(3))
+            return sum((vertex[i] - center[i]) ** 2 for i in range(3)) ** 0.5
+
+        palm_vertices = [v for v in part.vertices if abs(along_hand(v) - 0.42) < 1e-6]
+        tip_vertices = [v for v in part.vertices if abs(along_hand(v) - 1.0) < 1e-6]
         self.assertGreaterEqual(len(palm_vertices), 8)
         self.assertGreaterEqual(len(tip_vertices), 8)
 
-        palm_depth = max(v[1] for v in palm_vertices) - min(v[1] for v in palm_vertices)
-        palm_height = max(v[2] for v in palm_vertices) - min(v[2] for v in palm_vertices)
-        tip_depth = max(v[1] for v in tip_vertices) - min(v[1] for v in tip_vertices)
-        tip_height = max(v[2] for v in tip_vertices) - min(v[2] for v in tip_vertices)
-        self.assertGreater(palm_depth, tip_depth)
-        self.assertGreater(palm_height, tip_height)
+        palm_radius = max(radial_distance(v, 0.42) for v in palm_vertices)
+        tip_radius = max(radial_distance(v, 1.0) for v in tip_vertices)
+        self.assertGreater(palm_radius, tip_radius)
 
     def test_feet_have_heel_ball_and_tapered_toe_sections(self):
         p = generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))
