@@ -6,7 +6,7 @@ The rigid rig still depends on one mesh object per bound bone, so callers can
 adopt this surface incrementally while skinning support is developed.
 """
 
-from math import cos, sqrt, pi, sin
+from math import ceil, cos, sqrt, pi, sin
 
 from ..models import HumanoidProportions
 from ..models.mesh import MeshPart, ObjectMesh
@@ -84,12 +84,7 @@ def _side_face_index(level, segment):
 
 
 def _append_branch(vertices, faces, root, centers, widths, depths):
-    """Stitch a 4-edge torso opening into an 8-sided deformable chain.
-
-    ``root`` contains the four existing torso vertex indices in the same
-    winding as the removed torso quad. The transition reuses those vertices,
-    so the branch shares topology with the torso instead of overlapping it.
-    """
+    """Stitch a 4-edge torso opening into an 8-sided deformable chain."""
     if len(root) != 4:
         raise ValueError("branch root must contain four torso vertices")
     if not (len(centers) == len(widths) == len(depths)) or len(centers) < 2:
@@ -128,15 +123,50 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
     faces.append(tuple(rings[-1]))
 
 
-def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
-    """Return one connected Human 1.0 deformation-oriented surface.
+def _generate_face_atlas_uvs(vertices, faces, padding=0.08):
+    """Pack deterministic per-face UV islands into the 0-1 square.
 
-    Shoulder and hip roots are stitched into explicit torso openings. Neck,
-    shoulders, elbows, wrists, knees, ankles, and foot bends retain support
-    loops so skinning has enough local geometry to distribute motion. Hands
-    and feet use simple multi-ring silhouettes suitable for first-pass artist
-    refinement rather than ending as featureless limb caps.
+    This first Human UV layout favors a portable, non-overlapping foundation
+    over artist-optimized island continuity. Each polygon is projected on its
+    two widest local axes and packed into its own padded atlas cell.
     """
+    if not faces:
+        return ()
+    columns = int(ceil(sqrt(len(faces))))
+    cell = 1.0 / columns
+    scale = cell * (1.0 - padding * 2.0)
+    result = []
+    for face_index, face in enumerate(faces):
+        points = [vertices[index] for index in face]
+        spans = []
+        for axis in range(3):
+            values = [point[axis] for point in points]
+            spans.append((max(values) - min(values), axis))
+        axes = [axis for _span, axis in sorted(spans, reverse=True)[:2]]
+        first_values = [point[axes[0]] for point in points]
+        second_values = [point[axes[1]] for point in points]
+        first_min, first_max = min(first_values), max(first_values)
+        second_min, second_max = min(second_values), max(second_values)
+        first_span = first_max - first_min or 1.0
+        second_span = second_max - second_min or 1.0
+        column = face_index % columns
+        row = face_index // columns
+        origin_u = column * cell + cell * padding
+        origin_v = row * cell + cell * padding
+        result.append(
+            tuple(
+                (
+                    origin_u + ((point[axes[0]] - first_min) / first_span) * scale,
+                    origin_v + ((point[axes[1]] - second_min) / second_span) * scale,
+                )
+                for point in points
+            )
+        )
+    return tuple(result)
+
+
+def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
+    """Return one connected, UV'd Human 1.0 deformation-oriented surface."""
     if not isinstance(proportions, HumanoidProportions):
         raise TypeError("proportions must be HumanoidProportions")
     p = proportions
@@ -167,7 +197,6 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
 
     vertices = list(body.vertices)
     body_faces = list(body.faces)
-
     openings = {
         ("hip", "left"): body_faces[_side_face_index(0, 0)],
         ("hip", "right"): body_faces[_side_face_index(0, 3)],
@@ -175,10 +204,8 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         ("shoulder", "right"): body_faces[_side_face_index(2, 3)],
     }
     removed = {
-        _side_face_index(0, 0),
-        _side_face_index(0, 3),
-        _side_face_index(2, 0),
-        _side_face_index(2, 3),
+        _side_face_index(0, 0), _side_face_index(0, 3),
+        _side_face_index(2, 0), _side_face_index(2, 3),
     }
     faces = [face for index, face in enumerate(body_faces) if index not in removed]
 
@@ -201,14 +228,7 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
              p.upper_arm_thickness_cm * 0.82, p.forearm_thickness_cm * 0.72,
              hand_depth, hand_depth * 0.88, hand_depth * 0.54),
         )
-        _append_branch(
-            vertices,
-            faces,
-            openings[("shoulder", side)],
-            arm_centers,
-            arm_widths,
-            arm_depths,
-        )
+        _append_branch(vertices, faces, openings[("shoulder", side)], arm_centers, arm_widths, arm_depths)
 
         hip = points["hip." + side]
         knee = points["knee." + side]
@@ -230,13 +250,9 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
              p.calf_thickness_cm * 0.6, foot_height * 0.92,
              foot_height, foot_height * 0.82, foot_height * 0.56),
         )
-        _append_branch(
-            vertices,
-            faces,
-            openings[("hip", side)],
-            leg_centers,
-            leg_widths,
-            leg_depths,
-        )
+        _append_branch(vertices, faces, openings[("hip", side)], leg_centers, leg_widths, leg_depths)
 
-    return ObjectMesh((MeshPart("human", tuple(vertices), tuple(faces)),))
+    vertices = tuple(vertices)
+    faces = tuple(faces)
+    uvs = _generate_face_atlas_uvs(vertices, faces)
+    return ObjectMesh((MeshPart("human", vertices, faces, uvs),))
