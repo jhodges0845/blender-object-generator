@@ -42,7 +42,8 @@ class LocomotionTests(unittest.TestCase):
         base = dict(key='test', label='Test', parameters=(), supports_rig=False,
                     supports_idle=False, uses_skin_weights=False, supports_materials=False,
                     mesh=lambda values: None)
-        self.assertIs(validate_provider(SimpleNamespace(**base)), validate_provider(SimpleNamespace(**base)))
+        provider = SimpleNamespace(**base)
+        self.assertIs(validate_provider(provider), provider)
         with self.assertRaisesRegex(ValueError, 'locomotion support requires rig support'):
             validate_provider(SimpleNamespace(**dict(base, supports_locomotion=True,
                                                     locomotion=lambda duration, strength: None)))
