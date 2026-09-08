@@ -4,28 +4,34 @@
 
 Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
 
-The project uses an independent Python core with a thin Blender adapter. The first mature generator is a stylized humanoid built from height, weight, and artistic body-type parameters. A Box provider demonstrates the same workflow for static props. These are starting providers, not the boundary of the system: the architecture should support many asset families over time, including humans, dogs, birds, other creatures, robots, props, and environmental objects.
+The project uses an independent Python core with a thin Blender adapter. Human is the current primary character provider, while Box and a small non-Human animated proof exercise the shared capability architecture. These are starting providers, not the boundary of the system.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
-> **Development roadmap:** Contributors and Codex should use [docs/roadmap.md](docs/roadmap.md)
-> as the working source of truth for current priorities, TODOs, milestone definitions and
-> engineering guardrails.
+> **Development roadmap:** use [docs/roadmap.md](docs/roadmap.md) as the working source of truth for priorities, TODOs, milestone definitions, and engineering guardrails.
 
 ## Blender workflow
 
-Blender 5.2.1 LTS is the primary test target; Blender 2.92.0 remains a tested legacy runtime.
-Both pass headless workflow tests. Other versions and interactive UI review are not yet verified.
-The 3D Viewport sidebar (N) has five vertical tabs:
+Blender 5.2.1 LTS is the primary modern test target; Blender 2.92.0 remains a tested legacy runtime. CI covers both, plus standalone Python 3.9-3.12.
+
+The 3D Viewport sidebar has five workflow tabs:
 
 | Generator | Rigging | Animations | Validation | Export |
 | --- | --- | --- | --- | --- |
-| Choose Humanoid or Box | Rig supported objects and enter Pose Mode | Generate idle and preview motion | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose Godot, Cura, Unity or Unreal; prepare materials and export when ready |
+| Choose a provider and generate an editable asset | Add the provider-supported rig and enter Pose Mode | Generate supported motion such as idle | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose a target, prepare as needed, and export when ready |
 
-The current humanoid model has 15 separate parts and an optional 16-bone rigid rig.
-See [idle animation instructions](docs/animation.md). A preparation button adds missing neutral materials. Smooth joints, UV generation,
-and texture authoring remain future work. [Workflow and validation scope](docs/workflow.md) explains what a
-static, rigged, or animated game asset needs and what is actually checked today.
+Not every provider needs every stage. Shared workflow behavior follows explicit provider capabilities.
+
+## Human status
+
+Asset Assistant currently retains two Human paths:
+
+- the original 15-part rigid blockout, kept for compatibility and pipeline smoke tests; and
+- the opt-in **Human 1.0 deforming path**, which generates one connected skinned Human surface.
+
+Human 1.0 currently includes a connected torso/limb surface, integrated feet, a dedicated deforming skeleton, generated skin weights, representative deformation regressions, softer neck/shoulder transitions, and improved blockout hands/feet. The hand blockout includes palm/knuckle/tapered fingertip sections; the foot blockout includes heel/midfoot/ball/tapered toe sections.
+
+It is still a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail, UV generation, the basic portable material/texture workflow, and locomotion are still pending. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), and [deformation quality](docs/deformation-quality.md).
 
 ## Install from source
 
@@ -35,16 +41,13 @@ Clone or download this repository, then run in its root folder:
 python -m scripts.build_blender_addon
 ```
 
-In Blender, open Edit > Preferences > Add-ons > Install and select the generated
-`dist/asset_assistant.zip`. Enable **Asset Assistant**. In Object Mode, press N in
-the 3D Viewport, then open **Generator**.
+In Blender, open Edit > Preferences > Add-ons > Install and select the generated `dist/asset_assistant.zip`. Enable **Asset Assistant**. In Object Mode, press N in the 3D Viewport, then open **Generator**.
 
-Generate your asset, then use the workflow tabs appropriate to that provider and target. For the current humanoid, switch to **Rigging** and click **Add Basic Rig**. Click **Enter Pose Mode** to try the bones. Validation checks the Object shown in its field. [Installation, update, and uninstall guide](docs/blender.md).
+The packaged add-on uses Asset Assistant branding while retaining historical `humanoid_blender` / `humanoid.*` compatibility identifiers where required by existing Blender data and scripts. [Installation, update, and uninstall guide](docs/blender.md).
 
 ## Independent Python core
 
-Supports Python 3.7 or newer; tested with standalone Python 3.9 and Blender 2.92's
-Python 3.7.7. There are no third-party runtime dependencies.
+There are no third-party runtime dependencies. Core code must never import Blender APIs.
 
 ```python
 from object_core import BodyType, HumanoidSpec
@@ -56,9 +59,7 @@ mesh = generate_mesh(proportions)
 skeleton = generate_skeleton(proportions)
 ```
 
-Presets are slim, average, muscular, overweight, and obese. They are artistic
-controls, not medical classifications. The initial proportion generator supports
-120–240 cm and 30–300 kg. [Proportion rules](docs/proportions.md).
+Presets are slim, average, muscular, overweight, and obese. They are artistic controls, not medical classifications. The current proportion generator supports 120-240 cm and 30-300 kg. [Proportion rules](docs/proportions.md).
 
 ## Tests
 
@@ -66,8 +67,9 @@ controls, not medical classifications. The initial proportion generator supports
 python -m unittest discover -s tests -v
 ```
 
-This runs core tests and explicitly skips Blender integration tests. See the
-[Blender guide](docs/blender.md) for the full Blender suite and isolated ZIP check.
+Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming Human, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
+
+Recent Human geometry coverage also verifies identical deformable topology across all five body presets and exercises hand/foot blockout generation at the supported height extremes.
 
 ## Structure
 
@@ -78,48 +80,28 @@ object_core/
     models/          Independent data contracts
     proportions/     Dimensions and shared joint locations
     geometry/        Mesh generation
-    rigging/         Skeleton generation
+    rigging/         Skeleton and skin-weight generation
     animation/       Portable animation tracks and generation
     validation/      Host-independent readiness rules
-blender_adapter/     Blender adapter, UI, rigging, and scene inspection
-humanoid_blender/    Compatibility alias for the historical source package name
+blender_adapter/     Canonical Blender adapter, UI, rigging, scene inspection, and export
+humanoid_blender/    Historical compatibility entry point/module ID
 tests/               Core and Blender tests
-scripts/             Add-on build and Blender test runners
+scripts/             Add-on build, CI helpers, and Blender inspection/test runners
 examples/            Standalone core examples
-docs/                Architecture, measurements, workflow, installation, and roadmap
-dist/                Generated ZIP; ignored by Git
-artifacts/           Generated previews; ignored by Git
+docs/                Architecture, workflow, provider, target, geometry, and roadmap docs
 ```
 
-Core code must never import Blender APIs. [Architecture](docs/architecture.md),
-[mesh conventions](docs/geometry.md), and [rigging](docs/rigging.md).
-
-The repository uses `main` and tracks
-[jhodges0845/blender-object-generator](https://github.com/jhodges0845/blender-object-generator).
+See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [workflow](docs/workflow.md).
 
 ## Output targets
 
 `Define -> Generate -> Rig (if supported) -> Animate (if supported) -> Surface -> Validate -> Target Prepare -> Export -> Artist Review`
 
-Not every provider needs every stage. A static prop may have no rig or animation, while a human, dog, bird, robot, or other creature may expose different rigging and animation capabilities. Shared infrastructure should operate on provider capabilities rather than assuming a humanoid or even an animated asset.
-
-Choose a destination in **Export**:
-
 | Destination | File |
 | --- | --- |
 | Godot | GLB (default), glTF alternative |
 | Cura | STL in millimetres, evaluated current pose |
-| Unity | FBX with rig/animation and supported textures |
-| Unreal Engine | FBX with rig/animation and supported textures |
+| Unity | FBX with supported rig/animation/material data |
+| Unreal Engine | FBX with supported rig/animation/material data |
 
-In **Validation**, click **Add Missing Materials** for game assets and resolve the checklist, then
-open **Export**. **Export Asset** opens Blender's file browser. No console commands or custom
-engine import scripts are needed. The button remains disabled while requirements
-are unmet and export revalidates after the file browser closes. Blockout design
-notes and post-import reminders are informational; missing materials, geometry,
-and other actionable problems must be resolved. Cura requires a connected solid,
-so the separate humanoid parts need mesh preparation before STL export.
-
-See [export workflow and supported scope](docs/targets.md). Blender 2.92 tests
-verify the export operators and file contents; destination-application import and
-visual quality still require manual verification.
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Those checks are useful evidence, not full destination certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
