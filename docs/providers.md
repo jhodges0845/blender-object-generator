@@ -9,9 +9,10 @@ Call `validate_provider(provider)` before adding a new instance. Built-in provid
 - Unique string `key` and user-facing `label`.
 - `parameters`: a tuple of `Parameter` definitions used to build the input UI.
 - `mesh(values)`: return an immutable `ObjectMesh` with named `MeshPart` entries. Validate input values in the provider. Geometry coordinates are centimetres; the Blender adapter converts them using scene unit scale.
-- Boolean `supports_rig`, `supports_idle`, `uses_skin_weights`, and `supports_materials` capability declarations.
+- Boolean `supports_rig`, `supports_idle`, and `uses_skin_weights` capability declarations.
+- `supports_materials` for providers that participate in generated surfacing. For backward compatibility, providers that omit it are treated as `False`.
 
-A static provider may set all four capabilities false and only implement `mesh(values)`.
+A static provider may set all capabilities false and only implement `mesh(values)`.
 
 When `supports_rig` is true, implement `skeleton(values)` returning `Skeleton`. When `uses_skin_weights` is also true, implement `skin_weights(mesh, values)`. The generated root retains parameter values so rigging can happen later without using the currently selected Generator type or its current input values.
 
