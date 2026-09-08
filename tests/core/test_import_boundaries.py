@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Ensure importing the core and adapter entry point does not load Blender APIs."""
+"""Ensure importing the core and adapter entry points does not load Blender APIs."""
 
 from pathlib import Path
 import subprocess
@@ -19,9 +19,13 @@ class RejectBlender:
             raise AssertionError('Unexpected host dependency: ' + fullname)
 sys.meta_path.insert(0, RejectBlender())
 import object_core
+import blender_adapter
+import blender_adapter.adapter
+import blender_adapter.targets
 import humanoid_blender
 import humanoid_blender.adapter
 import humanoid_blender.targets
+assert blender_adapter.targets.get_adapter("GODOT").target_key == "GODOT"
 assert humanoid_blender.targets.get_adapter("GODOT").target_key == "GODOT"
 mesh = object_core.generate_mesh(object_core.generate_proportions(
     object_core.HumanoidSpec(180, 95, object_core.BodyType.AVERAGE)))
