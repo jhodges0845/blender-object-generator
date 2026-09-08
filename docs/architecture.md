@@ -20,7 +20,8 @@ Important areas include:
 - `rigging/`: skeleton and skin-weight generation;
 - `animation/`: portable animation tracks/generators;
 - `validation/`: host-independent readiness rules;
-- `objects.py`: provider registry, parameter definitions, and capabilities; and
+- `providers/`: concrete provider implementations plus shared provider parameter contracts;
+- `objects.py`: provider declaration validation, registry construction, and lookup; and
 - `targets.py`: destination profiles and target-level requirements.
 
 The public `object_core` entry points should stay small. New implementation detail should not be promoted into the root API without a caller need.
@@ -32,6 +33,8 @@ Providers declare what operations they actually support. Current shared architec
 - static assets with no rig/animation requirement;
 - rigid animated assets; and
 - skin-weight deforming assets.
+
+Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
 
 Deforming providers explicitly supply skin weights. Human-specific geometry, bone names, landmarks, and weighting heuristics stay in Human-focused implementation rather than leaking into generic workflow code.
 
@@ -108,4 +111,4 @@ When adding a feature, ask in this order:
 4. Is this destination-specific behavior? Keep it in the relevant target adapter/profile.
 5. Is a new abstraction required by more than one real implementation? If not, prefer the simpler concrete boundary.
 
-The next architecture cleanup should therefore remove concrete duplication or boundary confusion while avoiding speculative framework work before UV/material implementation provides a real need.
+Future architecture cleanup should remain evidence-driven: remove concrete duplication or boundary confusion when a real feature exposes it, rather than building speculative framework layers ahead of need.
