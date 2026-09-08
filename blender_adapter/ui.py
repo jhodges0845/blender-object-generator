@@ -2,6 +2,7 @@
 """Blender generation, preparation, validation and file export workflow."""
 
 import textwrap
+from math import ceil
 import bpy
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import BoolProperty, CollectionProperty, EnumProperty, FloatProperty, PointerProperty, StringProperty
@@ -9,7 +10,7 @@ from bpy.props import BoolProperty, CollectionProperty, EnumProperty, FloatPrope
 from .adapter import create_character
 from .core import OBJECT_TYPES, get_provider, ValidationIssue
 from .workflow import add_basic_rig, find_character, is_generated, provider_for
-from .animation import add_idle
+from .animation import add_idle, add_locomotion, activate_generated_action, generated_action
 from .targets import get_adapter, is_ready
 from .materials import prepare_materials
 
@@ -47,6 +48,10 @@ def _select(context, obj):
     context.view_layer.objects.active = obj
 
 
+def _animation_choice(settings):
+    return ('Idle', 'supports_idle') if settings.animation_clip == 'IDLE' else ('Walk', 'supports_locomotion')
+
+
 class HUMANOID_PG_result(bpy.types.PropertyGroup):
     code: StringProperty()
     status: StringProperty()
@@ -81,8 +86,14 @@ class HUMANOID_PG_settings(bpy.types.PropertyGroup):
     require_textures: BoolProperty(name="Image Textures Expected", default=False, update=_clear_report,
                                    description="Require image textures and UV maps; leave off for material-only assets")
     validation_results: CollectionProperty(type=HUMANOID_PG_result)
+    animation_clip: EnumProperty(name="Clip", default="IDLE", items=[
+        ("IDLE", "Idle", "Generate or select the idle action"),
+        ("WALK", "Walk", "Generate or select the in-place walk action"),
+    ])
     idle_duration: FloatProperty(name="Cycle (seconds)", default=4, min=1, max=20)
     idle_strength: FloatProperty(name="Motion Strength", default=1, min=0.1, max=2)
+    walk_duration: FloatProperty(name="Cycle (seconds)", default=1.2, min=0.5, max=4)
+    walk_strength: FloatProperty(name="Motion Strength", default=1, min=0.1, max=2)
     idle_set_range: BoolProperty(name="Set Playback Range", default=True)
 
 
@@ -172,6 +183,7 @@ class HUMANOID_OT_pose(bpy.types.Operator):
 
 
 class HUMANOID_OT_idle(bpy.types.Operator):
+    """Legacy idle operator retained for saved scripts and older workflows."""
     bl_idname = "humanoid.generate_idle"
     bl_label = "Generate Idle"
     bl_options = {"REGISTER", "UNDO"}
@@ -195,6 +207,49 @@ class HUMANOID_OT_idle(bpy.types.Operator):
         settings.validation_results.clear()
         self.report({"INFO"}, "Idle created. Press Play to preview.")
         return {"FINISHED"}
+
+
+class HUMANOID_OT_animation_clip(bpy.types.Operator):
+    bl_idname = 'humanoid.select_animation_clip'
+    bl_label = 'Generate / Select Clip'
+    bl_description = 'Generate the selected clip once, then switch between generated actions without overwriting edits'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        if context.scene is None or context.mode != 'OBJECT' or _character(context) is None:
+            return False
+        settings = context.scene.humanoid_settings
+        _, capability = _animation_choice(settings)
+        return _supports_operation(context, capability) and sum(
+            obj.type == 'ARMATURE' for obj in _character(context).children) == 1
+
+    def execute(self, context):
+        settings = context.scene.humanoid_settings
+        root = _character(context)
+        clip_name, _ = _animation_choice(settings)
+        existing = generated_action(root, clip_name)
+        try:
+            if existing is not None:
+                action = activate_generated_action(root, clip_name)
+                end = max(context.scene.frame_start, ceil(action.frame_range[1]) - 1)
+                message = clip_name + ' selected. Existing keys were preserved.'
+            elif clip_name == 'Idle':
+                action, end = add_idle(root, context.scene, settings.idle_duration, settings.idle_strength)
+                message = 'Idle created. Press Play to preview.'
+            else:
+                action, end = add_locomotion(root, context.scene, settings.walk_duration, settings.walk_strength)
+                message = 'Walk created. Press Play to preview.'
+        except (ValueError, TypeError, RuntimeError) as error:
+            self.report({'ERROR'}, str(error))
+            return {'CANCELLED'}
+        if settings.idle_set_range:
+            context.scene.frame_end = end
+            context.scene.use_preview_range = False
+        context.scene.frame_set(context.scene.frame_start)
+        settings.validation_results.clear()
+        self.report({'INFO'}, message)
+        return {'FINISHED'}
 
 
 class HUMANOID_OT_preview(bpy.types.Operator):
@@ -350,9 +405,14 @@ class _WorkflowPanel:
         except ValueError as error:
             layout.label(text=str(error))
             return
-        if stage in ('RIGGING', 'ANIMATION') and not getattr(provider, 'supports_rig' if stage == 'RIGGING' else 'supports_idle'):
+        if stage == 'RIGGING' and not getattr(provider, 'supports_rig', False):
             layout.label(text=provider.label + ' is a static object.')
             layout.label(text='Use Validation for static asset checks.')
+            return
+        if stage == 'ANIMATION' and not (getattr(provider, 'supports_idle', False) or
+                                         getattr(provider, 'supports_locomotion', False)):
+            layout.label(text=provider.label + ' has no generated animation clips.')
+            layout.label(text='Use Validation for static or rigged checks.')
             return
         if stage == "RIGGING":
             if has_rig:
@@ -370,15 +430,28 @@ class _WorkflowPanel:
             if not has_rig:
                 layout.label(text="Add a rig before animating.")
             else:
-                layout.prop(settings, "idle_duration")
-                layout.prop(settings, "idle_strength")
+                layout.prop(settings, 'animation_clip')
+                clip_name, capability = _animation_choice(settings)
+                supported = bool(getattr(provider, capability, False))
+                if not supported:
+                    layout.label(text=provider.label + ' does not support ' + clip_name.lower() + '.')
+                    return
+                if settings.animation_clip == 'IDLE':
+                    layout.prop(settings, "idle_duration")
+                    layout.prop(settings, "idle_strength")
+                else:
+                    layout.prop(settings, 'walk_duration')
+                    layout.prop(settings, 'walk_strength')
                 layout.prop(settings, "idle_set_range")
-                layout.operator("humanoid.generate_idle")
+                existing = generated_action(root, clip_name)
+                layout.operator('humanoid.select_animation_clip',
+                                text=('Select ' + clip_name if existing else 'Generate ' + clip_name))
                 layout.operator("humanoid.preview_idle")
                 layout.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
-                layout.label(text='Preview shows motion without playback.')
-                layout.label(text="Requires a fresh rig in rest pose.")
-                layout.label(text="Existing animation is preserved.")
+                layout.label(text=('Existing generated keys are preserved.' if existing
+                                   else 'Creates a separate editable action.'))
+                layout.label(text='Only the active clip is exported.')
+                layout.label(text="Artist actions, NLA and drivers are never overwritten.")
         else:
             layout.prop(settings, "output_target")
             if settings.output_target == 'CURA':
@@ -453,9 +526,10 @@ class HUMANOID_PT_export(_WorkflowPanel, bpy.types.Panel):
 
 
 _CLASSES = (HUMANOID_PG_result, HUMANOID_PG_settings, HUMANOID_OT_generate,
-            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_preview, HUMANOID_OT_validate,
-            HUMANOID_OT_prepare_materials, HUMANOID_OT_export, HUMANOID_PT_panel,
-            HUMANOID_PT_rigging, HUMANOID_PT_animations, HUMANOID_PT_validation, HUMANOID_PT_export)
+            HUMANOID_OT_rig, HUMANOID_OT_pose, HUMANOID_OT_idle, HUMANOID_OT_animation_clip,
+            HUMANOID_OT_preview, HUMANOID_OT_validate, HUMANOID_OT_prepare_materials, HUMANOID_OT_export,
+            HUMANOID_PT_panel, HUMANOID_PT_rigging, HUMANOID_PT_animations,
+            HUMANOID_PT_validation, HUMANOID_PT_export)
 
 
 def register():

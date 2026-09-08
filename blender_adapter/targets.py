@@ -30,9 +30,14 @@ def asset_objects(root):
 def _export_gltf(options):
     import bpy
     options = dict(options)
+    properties = bpy.ops.export_scene.gltf.get_rna_type().properties
     # Blender 2.92 scopes selected objects without this newer scene option.
-    if 'use_active_scene' not in bpy.ops.export_scene.gltf.get_rna_type().properties:
+    if 'use_active_scene' not in properties:
         options.pop('use_active_scene', None)
+    # Blender 4.4+ can otherwise export every compatible armature action.
+    # ACTIVE_ACTIONS makes the selected Asset Assistant clip the single export source.
+    if 'export_animation_mode' in properties:
+        options['export_animation_mode'] = 'ACTIVE_ACTIONS'
     return bpy.ops.export_scene.gltf(**options)
 
 
