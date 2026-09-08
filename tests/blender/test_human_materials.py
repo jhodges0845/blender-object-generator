@@ -26,7 +26,7 @@ class HumanGeneratedMaterialTests(unittest.TestCase):
             root[key] = value
         return root, provider
 
-    def test_prepare_uses_portable_human_surface(self):
+    def test_prepare_uses_portable_human_surface_and_texture(self):
         root, provider = self._human()
         created = prepare_materials(root)
         mesh = next(obj for obj in root.children if obj.type == "MESH")
@@ -40,6 +40,18 @@ class HumanGeneratedMaterialTests(unittest.TestCase):
                          tuple(round(v, 6) for v in expected.base_color))
         self.assertAlmostEqual(shader.inputs["Metallic"].default_value, expected.metallic)
         self.assertAlmostEqual(shader.inputs["Roughness"].default_value, expected.roughness)
+        self.assertTrue(shader.inputs["Base Color"].is_linked)
+        texture_node = shader.inputs["Base Color"].links[0].from_node
+        self.assertEqual(texture_node.type, "TEX_IMAGE")
+        self.assertIsNotNone(texture_node.image)
+        self.assertEqual(tuple(texture_node.image.size),
+                         (expected.base_color_texture.width, expected.base_color_texture.height))
+        actual_pixels = tuple(texture_node.image.pixels[:])
+        expected_pixels = expected.base_color_texture.pixels
+        self.assertEqual(len(actual_pixels), len(expected_pixels))
+        for actual, expected_value in zip(actual_pixels, expected_pixels):
+            self.assertAlmostEqual(actual, expected_value, delta=(1.0 / 255.0) + 1e-6)
+        self.assertTrue(mesh.data.uv_layers.get("UVMap"))
         self.assertFalse(material_issues((mesh,)))
 
     def test_prepare_preserves_existing_artist_material(self):
