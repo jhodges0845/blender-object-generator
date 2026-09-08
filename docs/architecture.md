@@ -1,119 +1,111 @@
 # Architecture
 
-## Core
+Asset Assistant separates host-independent asset logic from Blender integration and from destination-specific export behavior.
 
-`object_core` owns object generation and has no host application dependency.
-Its `models` package defines shared data contracts. Proportions, geometry,
-rigging, and animation packages will implement their respective generation
-steps using those contracts. Shared models must not import generation code or
-adapters. No core module may import `humanoid_blender` or `bpy`.
+The current high-level flow is:
 
-`objects.py` registers providers with parameter definitions, mesh generation,
-and explicit rig/idle capabilities. Humanoid wraps the existing proportion,
-geometry, skeleton and idle generators; Box supplies a static mesh. Blender
-constructs input controls from provider fields and dispatches using saved
-object_type metadata. Unsupported types fail explicitly. Add a provider and
-register it to add a type; no Blender body-generation rules are needed.
+`object_core -> provider -> blender_adapter -> validation/preparation -> target adapter -> exported asset`
 
-The shared mesh contract is ObjectMesh. Python imports now use object_core;
-the former humanoid_core package was renamed. Blender's internal module ID and
-operator names remain stable for saved-file compatibility. New roots use
-object_generator metadata; legacy humanoid_blockout roots remain recognized.
+The architecture is intentionally capability-driven. Shared workflow code should not assume that every asset is Human, rigged, animated, deforming, printable, or destined for the same application.
 
-Keep the public entry points in `object_core/__init__.py` small. They currently
-export `BodyType`, `HumanoidSpec`, `HumanoidProportions`, `MeshPart`,
-`ObjectMesh`, `generate_proportions`, and `generate_mesh`, so callers do not need to know where their
-implementation lives. The specification now lives in `models/spec.py`.
+## Core boundary
 
-## Adapters
+`object_core` owns host-independent data contracts and generation logic. It must not import `bpy`, `blender_adapter`, or `humanoid_blender`.
 
-`humanoid_blender` translates core data into Blender objects and provides
-Blender UI integration. Blender-specific code belongs here. It may import the
-core; the core must never import it. Future software adapters should be sibling
-packages with the same dependency direction.
+Important areas include:
 
-Importing the core must never require Blender or initialize a scene. The Blender
-package provides an add-on entry point and sidebar operator. Its ZIP bundles
-the independent core automatically, without a manually maintained second copy.
+- `models/`: immutable shared contracts;
+- `proportions/`: Human measurements and shared landmarks;
+- `geometry/`: generated mesh data, including legacy and Human 1.0 deformable geometry;
+- `rigging/`: skeleton and skin-weight generation;
+- `animation/`: portable animation tracks/generators;
+- `validation/`: host-independent readiness rules;
+- `objects.py`: provider registry, parameter definitions, and capabilities; and
+- `targets.py`: destination profiles and target-level requirements.
 
-## Tests
+The public `object_core` entry points should stay small. New implementation detail should not be promoted into the root API without a caller need.
 
-Tests mirror the code boundaries: `tests/core/models` currently covers the input
-contract. Add tests alongside each future core component under `tests/core`.
-Nested test folders contain `__init__.py` so Python 3.9 unittest discovery finds
-them. Keep Blender-dependent integration tests under `tests/blender`; when those
-are introduced, run them with Blender and ensure ordinary Python discovery skips
-them explicitly when Blender is unavailable.
+## Provider boundary
 
-From the repository root, run all current tests with:
+Providers declare what operations they actually support. Current shared architecture has exercised three useful shapes:
 
-```shell
-python -m unittest discover -s tests -v
-```
+- static assets with no rig/animation requirement;
+- rigid animated assets; and
+- skin-weight deforming assets.
 
-Run just core tests with:
+Deforming providers explicitly supply skin weights. Human-specific geometry, bone names, landmarks, and weighting heuristics stay in Human-focused implementation rather than leaking into generic workflow code.
 
-```shell
-python -m unittest discover -s tests/core -v
-```
+Future capabilities such as UV generation or provider-specific surfacing should be added only when implementation requires them, not predeclared speculatively.
 
-The input contract, proportion generator, and blockout mesh generator are implemented. Shared proportion
-data lives in `models/proportions.py`; calibration and calculation live in the
-`proportions` package. Mesh data lives in `models/mesh.py`; mesh construction
-lives in `geometry`. Geometry consumes proportions and does not recalculate
-them from the input specification. Rigging generates independent bone data and rigid part assignments. Animation
-generates time-based rotation tracks in rest armature coordinates. Blender translation lives in
-`humanoid_blender/adapter.py`; its sidebar lives in `ui.py`.
+## Blender adapter boundary
 
-The mesh and skeleton share joint coordinates from `proportions/landmarks.py`.
-The Blender rig adapter turns core bone data into an armature and full weights;
-it does not calculate body dimensions or joint placement.
+`blender_adapter` is the canonical Blender-specific source package. It translates core contracts into editable Blender objects and owns Blender scene inspection, UI, rigging application, animation application, material preparation, validation inspection, and export orchestration.
 
-Readiness policy lives in `object_core/validation`, operating on an
-`AssetSnapshot` data contract. Blender-specific inspection of material slots,
-image nodes, modifiers, and actions lives in `humanoid_blender/validation.py`.
-The UI stores validation snapshots separately from generated mesh data.
-`workflow.py` operates on an existing chosen character; rigging rolls back its
-own partial resources on failure without deleting that character.
+`humanoid_blender` remains as a compatibility entry point/module ID for historical Blender/add-on identifiers. New Blender implementation should live in `blender_adapter`; compatibility code should stay thin and should not become a second implementation.
 
+The adapter may import `object_core`; the core may never import the adapter.
+
+## Generated-data principle
+
+Asset Assistant should create ordinary editable Blender data wherever practical. Removing the add-on should not make generated meshes, armatures, materials, actions, or vertex groups unusable.
+
+Generation parameters are inputs to generation, not a requirement that artists continue editing through Asset Assistant afterward.
+
+## Human 1.0 architecture
+
+Human currently has two paths:
+
+- a legacy multipart/rigid path kept for compatibility and pipeline smoke testing; and
+- an opt-in connected deforming path used for Human 1.0.
+
+The deforming path reuses the existing Human proportion foundation, generates one connected mesh, creates a separate deforming skeleton, generates deterministic localized skin weights, and lets `blender_adapter` apply those results to Blender.
+
+This split is intentional while Human 1.0 is being completed. Shared provider/workflow code should depend on capabilities and contracts rather than branching on Human anatomy.
+
+## Validation boundary
+
+Core validation operates on host-independent snapshot/contracts. Blender-specific inspection reads real Blender state such as objects, materials, image references, modifiers, actions, and vertex groups, then maps that state into validation data.
+
+Validation must remain truthful. Stored validation results are informational snapshots; export revalidates current scene state rather than treating an old green result as authorization.
 
 ## Target adapters
 
-`Generate -> Rig -> Animate -> Core Validation -> Target Profile -> Blender Target Adapter -> Prepare -> Export -> Target Review`
+The destination flow is:
 
-`object_core/targets.py` owns destination profiles and `validate_for_target()`.
-`humanoid_blender/targets.py` owns a shared `BlenderOutputAdapter` lifecycle,
-Godot, Unity, Unreal and Cura adapters, registry lookup, and immutable
-`ExportResult`. Unity and Unreal share FBX option construction while keeping
-separate axis configurations. Cura reads evaluated geometry and writes binary
-STL through `printing.py`, converting scene units to millimetres. `PRINT_3D`
-remains an alias for the Cura core profile so existing callers keep working.
+`Generate -> optional Rig -> optional Animate -> Surface -> Validate -> Target Profile -> Blender Target Adapter -> Export -> Destination Review`
 
-Game adapters snapshot the exact root hierarchy through `inspect_objects()`.
-Cura builds a geometry-only `AssetSnapshot` from the evaluated current pose;
-materials, rigs and clips are not requirements for its STL payload. It checks
-closed oriented geometry, volume, connected components and non-adjacent face
-intersections. It does not claim a complete printability proof. All adapters run
-core validation before host-specific checks, without importing Blender into core.
+`object_core/targets.py` owns destination profiles and target-independent requirements. `blender_adapter/targets.py` owns Blender-side Godot, Unity, Unreal, and Cura export behavior.
 
-`prepare()` remains read-only. The UI exposes a separate undoable material
-preparation operator, which fills missing assignments and copies shared mesh data
-when needed. It preserves existing materials. Export temporarily selects the
-hierarchy and restores selection, active object and frame in `finally`.
+Current defaults are:
 
-The Export tab evaluates current readiness, and the operator checks again on
-execution after file selection. Stored Validation results do not authorize an
-export. ERROR and WARN block export; INFO contains design notes and destination
-review guidance, never false PASS claims. Missing game materials are now errors.
-Blockout metadata only produces an informational note for actual multipart
-blockouts; the Box is not flagged as a multipart character.
+- Godot: GLB/glTF;
+- Unity: FBX;
+- Unreal: FBX; and
+- Cura: STL.
 
-The UI's Static/Rigged/Animated selection creates a local profile copy. Cura
-always uses static geometry validation. The bundled-core import bridge supports
-both checkout and ZIP installations. No core generator changes are needed to add
-another target adapter.
+Target adapters should preserve source scene state where practical, scope exports to the intended hierarchy, and avoid turning a successful file write into a claim of production readiness.
 
-The five workflow panels share a layout mixin with a fixed stage per panel.
-Each registers its own Blender sidebar category (Generator, Rigging, Animations,
-Validation, Export). The old workflow_tab setting remains for saved-file/script
-compatibility but no longer controls visible navigation.
+## Tests and compatibility
+
+Tests mirror the boundaries:
+
+- standalone/core tests under `tests/core`;
+- Blender integration tests under `tests/blender`;
+- CI on Python 3.9-3.12; and
+- Blender integration on 2.92.0 and 5.2.1.
+
+Blender-dependent tests explicitly skip during ordinary Python discovery. CI additionally runs inside both Blender versions and exercises packaged-add-on/export paths.
+
+The historical `humanoid.*` operator identifiers and `humanoid_blender` module compatibility exist because saved Blender data/scripts may reference them. Renaming those compatibility identifiers is a migration problem, not ordinary cleanup.
+
+## Architecture rule of thumb
+
+When adding a feature, ask in this order:
+
+1. Is this host-independent asset behavior? Put it in `object_core`.
+2. Is this Human/provider-specific behavior? Keep it with that provider/component rather than generic workflow code.
+3. Is this Blender translation or scene behavior? Put it in `blender_adapter`.
+4. Is this destination-specific behavior? Keep it in the relevant target adapter/profile.
+5. Is a new abstraction required by more than one real implementation? If not, prefer the simpler concrete boundary.
+
+The next architecture cleanup should therefore remove concrete duplication or boundary confusion while avoiding speculative framework work before UV/material implementation provides a real need.
