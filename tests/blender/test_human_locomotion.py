@@ -60,6 +60,11 @@ class HumanLocomotionTests(unittest.TestCase):
     def test_idle_and_walk_coexist_and_switch_without_overwriting(self):
         rig = add_basic_rig(self.root, bpy.context)
         idle, _ = add_idle(self.root, self.scene)
+        # Reproduce the UI workflow: the user can be parked mid-Idle when they
+        # choose Walk. The generated pose must not be mistaken for artist work.
+        self.scene.frame_set(49)
+        self.assertTrue(any(bone.matrix_basis != bone.matrix_basis.__class__.Identity(4)
+                            for bone in rig.pose.bones))
         walk, _ = add_locomotion(self.root, self.scene)
         self.assertIs(rig.animation_data.action, walk)
         self.assertIs(generated_action(self.root, 'Idle'), idle)
