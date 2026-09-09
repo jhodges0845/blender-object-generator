@@ -66,10 +66,10 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Portable generated-image texture contract with Human UV-driven base texture and editable Blender Image Texture translation.
 - [x] Portable Human in-place walk cycle with shared Blender clip-to-action translation and automated core/Blender coverage.
 - [x] Explicit Idle/Walk selection with separate editable generated actions, safe clip switching, and active-clip GLB export coverage.
+- [x] Milestone visual/deformation review in Blender 5.2.1 covering neck, shoulder, elbow, wrist, hip, knee, ankle, silhouette, and connected deformation. No blocking separation or catastrophic collapse observed; angular low-poly joint transitions remain acceptable for the editable 1.0 foundation.
 
 ### Remaining Human 1.0 work
 
-- [ ] Perform a milestone visual pass of accumulated deformation/geometry/animation changes and refine any reproducible issues.
 - [ ] Ensure the completed Human 1.0 animated character validates and exports successfully to GLB.
 - [ ] Verify the completed Human 1.0 character in Godot, then Unity and Unreal.
 - [ ] Run the Human Provider 1.0 checkpoint: test coverage, documentation, architecture, target-verification evidence, and remaining-risk review.
@@ -117,9 +117,9 @@ Initial smoke checks exist for all four destinations. Formal certification remai
 
 ## Suggested implementation order
 
-1. Run the Human 1.0 milestone visual/deformation/animation pass.
-2. Complete GLB validation/export and formal Godot/Unity/Unreal verification.
-3. Run the Human Provider 1.0 checkpoint across tests, docs, architecture, and verification evidence.
+1. Complete Human 1.0 GLB validation/export and formal Godot verification.
+2. Repeat the final Human 1.0 verification in Unity and Unreal.
+3. Close the Human Provider 1.0 checkpoint across tests, docs, architecture, compatibility, verification evidence, and remaining risks.
 4. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
 
 ## Near-term release milestone
