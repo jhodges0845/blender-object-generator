@@ -18,7 +18,7 @@ The 3D Viewport sidebar has five workflow tabs:
 
 | Generator | Rigging | Animations | Validation | Export |
 | --- | --- | --- | --- | --- |
-| Choose a provider and generate an editable asset | Add the provider-supported rig and enter Pose Mode | Generate supported motion such as idle | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose a target, prepare as needed, and export when ready |
+| Choose a provider and generate an editable asset | Add the provider-supported rig and enter Pose Mode | Generate/select supported motion such as Idle and Walk | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose a target, prepare as needed, and export when ready |
 
 Not every provider needs every stage. Shared workflow behavior follows explicit provider capabilities.
 
@@ -29,9 +29,11 @@ Asset Assistant currently retains two Human paths:
 - the original 15-part rigid blockout, kept for compatibility and pipeline smoke tests; and
 - the opt-in **Human 1.0 deforming path**, which generates one connected skinned Human surface.
 
-Human 1.0 currently includes a connected torso/limb surface, integrated feet, a dedicated deforming skeleton, generated skin weights, representative deformation regressions, softer neck/shoulder transitions, and improved blockout hands/feet. The hand blockout includes palm/knuckle/tapered fingertip sections; the foot blockout includes heel/midfoot/ball/tapered toe sections.
+Human 1.0 now includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk actions. Generated textures are packed for self-contained export, and the selected generated clip is exported without silently combining the other stored actions.
 
-It is still a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail, UV generation, the basic portable material/texture workflow, and locomotion are still pending. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), and [deformation quality](docs/deformation-quality.md).
+The Blender 5.2.1 visual/deformation milestone has passed at foundation quality, and the completed Human has been verified through the Godot GLB path with its connected hierarchy, Skeleton3D, generated texture and separate active-clip Idle/Walk animation exports. Unity and Unreal verification remain before Human 1.0 closeout.
+
+It remains a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail and higher-fidelity joint deformation are future refinement; current low-poly shoulder/armpit and other joint transitions are intentionally angular. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), [animation](docs/animation.md), [deformation quality](docs/deformation-quality.md), and [target verification](docs/target-verification.md).
 
 ## Install from source
 
@@ -69,7 +71,7 @@ python -m unittest discover -s tests -v
 
 Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming Human, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
 
-Recent Human geometry coverage also verifies identical deformable topology across all five body presets and exercises hand/foot blockout generation at the supported height extremes.
+Recent Human coverage verifies deformable topology across all five body presets and supported height extremes, representative joint deformation, generated surface/texture preparation, Idle/Walk coexistence and switching, and selected-clip GLB export behavior.
 
 ## Structure
 
@@ -104,4 +106,4 @@ See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [w
 | Unity | FBX with supported rig/animation/material data |
 | Unreal Engine | FBX with supported rig/animation/material data |
 
-Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Those checks are useful evidence, not full destination certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 now also has direct Godot destination evidence; Unity and Unreal remain in the current closeout. These checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
