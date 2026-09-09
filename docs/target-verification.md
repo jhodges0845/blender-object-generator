@@ -15,7 +15,9 @@ These are initial import checks, not production certification. Destination obser
 
 Blender 5.2.1 LTS is the primary modern runtime target. Automated integration coverage and an isolated ZIP smoke workflow exercise generation, rigging, animation, validation and the four export paths. Remote GitHub Actions has also completed successfully with the modern/legacy Blender matrix.
 
-An interactive Blender 5.2.1 session has now additionally confirmed the user-facing workflow through successful GLB export. That GLB was imported into Godot and its animation was confirmed working. This closes the previous gap where modern Blender had only headless/package evidence, but it does not establish full Human 1.0 visual, scale, material or deformation certification.
+An interactive Blender 5.2.1 session has now additionally confirmed the user-facing workflow through successful GLB export. That GLB was imported into Godot and its animation was confirmed working. This closes the previous gap where modern Blender had only headless/package evidence, but it does not establish full Human 1.0 scale, material, texture, or destination certification.
+
+The Human 1.0 visual/deformation milestone was subsequently reviewed interactively in Blender 5.2.1 with the deformation inspection harness. Representative neck, shoulder, elbow, wrist, hip, knee, and ankle poses remained connected without obvious separation or catastrophic collapse. Shoulder/armpit and other low-poly joint transitions remain angular and are recorded as non-blocking foundation-quality limitations for 1.0.
 
 The older Unity and Unreal samples were generated with Blender 2.92 using the repository's respective target adapters, with a basic humanoid rig, generated idle and neutral materials. Export validation passed. Image textures were not included, so those checks provide no texture-fidelity evidence. Those historical results are useful smoke evidence but do not certify the completed connected/deforming Human 1.0 provider.
 
@@ -23,7 +25,7 @@ The Cura sample was generated with Blender 2.92 using the Box provider at 2 x 3 
 
 ## Human 1.0 game-target review
 
-Keep the visual/deformation pass as a separate open gate until it can be performed interactively in Blender. The engine verification should use the completed Human 1.0 provider rather than the legacy multipart humanoid path.
+The Blender visual/deformation gate is complete. Engine verification should now use the completed Human 1.0 provider rather than the legacy multipart humanoid path.
 
 For each game target, use the connected/deforming Human provider with representative default parameters, generate the model, add the deforming rig, prepare the generated material/texture, generate both Idle and Walk, and explicitly select the clip being exported. Record which clip was active. Export one clip at a time; inactive generated actions should remain editable in the `.blend` file without silently joining the destination export.
 
@@ -42,4 +44,4 @@ Record the repository commit, add-on version, Blender version, destination versi
 7. In Cura, confirm displayed dimensions of 20 x 30 x 40 mm, bed placement and orientation. Record printer/profile settings, slice, inspect layers throughout the height and record warnings. Keep physical printing separate from slicing.
 8. Save the destination project and record any editing/reimport checks performed. Convert reproducible exporter defects into regression tests where practical.
 
-Basic import success does not complete all target-review checks. Detailed visual review, texture transfer, deformation quality and physical printing remain separate work.
+Basic import success does not complete all target-review checks. Texture transfer, measured scale, importer behavior, edit/reimport workflow, and destination-specific deformation remain part of formal target review.
