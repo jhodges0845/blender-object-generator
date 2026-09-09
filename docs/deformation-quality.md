@@ -29,4 +29,12 @@ Because it requires a person at Blender, it should **not** be run after every sm
 - automated coverage exposes a new class of deformation failure; or
 - the Human 1.0 deformation milestone is about to be declared complete.
 
-The current plan is to batch the next manual inspection with a meaningful Human 1.0 milestone rather than interrupting UV/material work for per-PR screenshots.
+## Human 1.0 milestone result
+
+The accumulated Human 1.0 deformation pass was reviewed interactively in Blender 5.2.1 in September 2026 using the inspection harness and closer viewport views of representative poses.
+
+Observed result: **pass for the Human 1.0 editable blockout milestone.** The connected weighted mesh visibly follows the deforming skeleton through representative neck, shoulder, elbow, wrist, hip, knee, and ankle poses. No obvious mesh separation, detached limbs, or catastrophic joint collapse was observed. The overall neutral silhouette reads as one connected character foundation rather than the earlier multipart primitive path.
+
+Shoulder/armpit, elbow, wrist, and other joint transitions remain visibly angular in some poses. That is recorded as a quality limitation of the intentionally low-poly foundation rather than a blocking defect for Human 1.0. Higher-fidelity topology, skinning, and anatomically smoother deformation remain future refinement work rather than requirements for this milestone.
+
+This manual result complements, rather than replaces, the automated deformation regressions. Any future reproducible deformation regression should still receive automated coverage where practical.
