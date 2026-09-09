@@ -60,8 +60,10 @@ class AnimationExportTests(unittest.TestCase):
             self.root[key] = value
         self.rig = add_basic_rig(self.root, bpy.context)
         prepare_materials(self.root)
-        for image in set(bpy.data.images) - self.before['images']:
-            image.pack()
+        generated_images = set(bpy.data.images) - self.before['images']
+        self.assertTrue(generated_images)
+        self.assertTrue(all(image.packed_file or getattr(image, 'packed_files', ())
+                            for image in generated_images))
         self.temp = TemporaryDirectory()
 
     def tearDown(self):

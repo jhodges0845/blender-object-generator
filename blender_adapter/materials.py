@@ -21,6 +21,10 @@ def _principled_material(name, base_color, metallic, roughness, base_color_textu
             alpha=True,
         )
         image.pixels = base_color_texture.pixels
+        # Asset Assistant owns generated image data, so keep it self-contained in
+        # the .blend immediately. Artist-supplied external textures are never
+        # packed here and remain under artist control.
+        image.pack()
         texture = material.node_tree.nodes.new('ShaderNodeTexImage')
         texture.name = base_color_texture.name
         texture.label = base_color_texture.name
