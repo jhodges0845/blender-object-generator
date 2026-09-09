@@ -44,6 +44,7 @@ class HumanGeneratedMaterialTests(unittest.TestCase):
         texture_node = shader.inputs["Base Color"].links[0].from_node
         self.assertEqual(texture_node.type, "TEX_IMAGE")
         self.assertIsNotNone(texture_node.image)
+        self.assertTrue(texture_node.image.packed_file or getattr(texture_node.image, "packed_files", ()))
         self.assertEqual(tuple(texture_node.image.size),
                          (expected.base_color_texture.width, expected.base_color_texture.height))
         actual_pixels = tuple(texture_node.image.pixels[:])
