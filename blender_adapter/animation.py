@@ -78,6 +78,11 @@ def _add_clip(root, scene, clip, suffix):
     previous_frame, previous_subframe = scene.frame_current, scene.frame_subframe
     if previous_action is not None:
         data.action = None
+        # Blender can retain the evaluated pose from the detached generated action,
+        # especially when the user is parked on a non-start frame. Explicitly clear
+        # those generated transforms before applying the artist-pose safety check.
+        for bone in rig.pose.bones:
+            bone.matrix_basis.identity()
         scene.frame_set(previous_frame, subframe=previous_subframe)
 
     try:
