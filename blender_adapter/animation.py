@@ -30,9 +30,12 @@ def _rig(root):
 
 
 def generated_actions(root):
-    """Return generated Asset Assistant actions belonging to this rig."""
+    """Return generated actions for this rig, or none when no single rig exists."""
     import bpy
-    rig = _rig(root)
+    rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
+    if len(rigs) != 1:
+        return ()
+    rig = rigs[0]
     return tuple(action for action in bpy.data.actions
                  if action.get(_GENERATED) and action.get(_GENERATED_RIG) == rig.name)
 
