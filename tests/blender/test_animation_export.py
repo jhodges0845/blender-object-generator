@@ -129,6 +129,19 @@ class AnimationExportTests(unittest.TestCase):
         for exported in (model, idle, walk):
             self.assertTrue(exported.is_file())
             self.assertGreater(exported.stat().st_size, 0)
+
+        # The main Unreal FBX must be a real skinned skeletal model, not merely
+        # a container that happens to carry materials/textures. Unreal 5.8's
+        # Interchange importer exposed the latter as a false-positive export.
+        model_payload = model.read_bytes()
+        self.assertTrue(mesh_names)
+        for name in mesh_names:
+            self.assertIn(name, model_payload)
+        self.assertIn(self.rig.name.encode('utf8'), model_payload)
+        self.assertIn(b'Geometry', model_payload)
+        self.assertIn(b'Deformer', model_payload)
+        self.assertIn(b'Cluster', model_payload)
+
         idle_payload = idle.read_bytes()
         walk_payload = walk.read_bytes()
         # A single active-action FBX does not reliably retain Blender's action
@@ -137,7 +150,6 @@ class AnimationExportTests(unittest.TestCase):
         for payload in (idle_payload, walk_payload):
             self.assertIn(b'AnimationStack', payload)
             self.assertIn(b'AnimationCurve', payload)
-        self.assertTrue(mesh_names)
         for payload in (idle_payload, walk_payload):
             for name in mesh_names:
                 self.assertNotIn(name, payload)

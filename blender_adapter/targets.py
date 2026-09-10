@@ -296,9 +296,6 @@ class FBXAdapter(BlenderOutputAdapter):
             try:
                 image.filepath_raw = str(path)
                 image.file_format = 'PNG'
-                # save() does not reliably materialize packed/generated images in
-                # older Blender releases. save_render() writes the in-memory pixel
-                # buffer directly and works for both Blender 2.92 and current LTS.
                 image.save_render(str(path))
                 if not path.is_file() or path.stat().st_size <= 0:
                     raise RuntimeError('temporary PNG was not written')
@@ -314,9 +311,6 @@ class FBXAdapter(BlenderOutputAdapter):
 
     def validate(self, root, context):
         issues = list(super().validate(root, context))
-        # Blender FBX needs an image path while writing. Asset Assistant-owned
-        # generated images are safe to stage automatically because the original
-        # datablock remains packed and its path/format are restored after export.
         import bpy
         for obj in asset_objects(root):
             animation = obj.animation_data
@@ -375,6 +369,14 @@ class UnrealAdapter(FBXAdapter):
     target_key = 'UNREAL'
     axis_forward = '-Y'
     axis_up = 'Z'
+
+    def export_options(self, filepath):
+        """Favor a conventional skeletal FBX hierarchy for Unreal Interchange."""
+        options = super().export_options(filepath)
+        options['object_types'] = {'MESH', 'ARMATURE'}
+        options['use_mesh_modifiers'] = True
+        options['use_armature_deform_only'] = True
+        return options
 
     @staticmethod
     def _clip_path(path, clip_name):
