@@ -248,7 +248,10 @@ class FBXAdapter(BlenderOutputAdapter):
             try:
                 image.filepath_raw = str(path)
                 image.file_format = 'PNG'
-                image.save()
+                # save() does not reliably materialize packed/generated images in
+                # older Blender releases. save_render() writes the in-memory pixel
+                # buffer directly and works for both Blender 2.92 and current LTS.
+                image.save_render(str(path))
                 if not path.is_file() or path.stat().st_size <= 0:
                     raise RuntimeError('temporary PNG was not written')
             except Exception:
