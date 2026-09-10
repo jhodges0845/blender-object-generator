@@ -60,10 +60,6 @@ def _invalid_reasons(bm, check_self_intersection=True):
     return tuple(reasons)
 
 
-def _is_invalid(bm):
-    return bool(_invalid_reasons(bm))
-
-
 def _evaluated_bmesh(objects, context):
     """Combine evaluated mesh objects into one world-space bmesh."""
     import bmesh
@@ -147,20 +143,27 @@ def _voxel_repair(bm, context):
 
 
 def print_geometry(objects, context):
-    """Return validated printable geometry, repairing only the temporary print copy."""
+    """Return validated printable geometry, repairing only source self-intersections.
+
+    Cura preparation may resolve a self-intersection in an otherwise closed,
+    manifold solid (the current Human case). Structural failures such as open or
+    non-manifold geometry are never auto-closed by the repair path; those remain
+    validation errors that the source asset must fix.
+    """
     import bmesh
 
     bm, count = _evaluated_bmesh(objects, context)
     repaired = None
     try:
         source_reasons = _invalid_reasons(bm)
-        if source_reasons:
+        if source_reasons == ('self-intersection',):
             repaired = _voxel_repair(bm, context)
             working = repaired if repaired is not None else bm
+            reasons = _invalid_reasons(working, check_self_intersection=False)
         else:
             working = bm
+            reasons = source_reasons
 
-        reasons = _invalid_reasons(working, check_self_intersection=(repaired is None))
         invalid = () if not reasons else ('printable geometry (' + ', '.join(reasons) + ')',)
         components = _components(working)
         bmesh.ops.triangulate(working, faces=list(working.faces))
