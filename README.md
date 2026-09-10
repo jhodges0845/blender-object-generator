@@ -29,9 +29,9 @@ Asset Assistant currently retains two Human paths:
 - the original 15-part rigid blockout, kept for compatibility and pipeline smoke tests; and
 - the opt-in **Human 1.0 deforming path**, which generates one connected skinned Human surface.
 
-Human 1.0 now includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk actions. Generated textures are packed for self-contained export, and the selected generated clip is exported without silently combining the other stored actions.
+Human 1.0 now includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk actions. Generated textures are packed for self-contained export. Godot and Unity can export the generated clip library together, while Unreal writes one model/skeleton FBX plus one armature-only FBX per generated clip.
 
-The Blender 5.2.1 visual/deformation milestone has passed at foundation quality, and the completed Human has been verified through the Godot GLB path with its connected hierarchy, Skeleton3D, generated texture and separate active-clip Idle/Walk animation exports. Unity and Unreal verification remain before Human 1.0 closeout.
+The Blender 5.2.1 visual/deformation milestone has passed at foundation quality. The completed Human has direct Godot destination evidence with connected hierarchy, Skeleton3D, generated texture and working Idle/Walk motion, and Unity multi-clip FBX behavior has been manually validated. Unreal packaging is implemented and regression-covered; one final destination import/playback check remains before Human 1.0 closeout.
 
 It remains a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail and higher-fidelity joint deformation are future refinement; current low-poly shoulder/armpit and other joint transitions are intentionally angular. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), [animation](docs/animation.md), [deformation quality](docs/deformation-quality.md), and [target verification](docs/target-verification.md).
 
@@ -71,7 +71,7 @@ python -m unittest discover -s tests -v
 
 Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming Human, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
 
-Recent Human coverage verifies deformable topology across all five body presets and supported height extremes, representative joint deformation, generated surface/texture preparation, Idle/Walk coexistence and switching, and selected-clip GLB export behavior.
+Recent Human coverage verifies deformable topology across all five body presets and supported height extremes, representative joint deformation, generated surface/texture preparation, Idle/Walk coexistence and switching, Godot multi-clip GLB export, Unity multi-clip FBX export, and Unreal model-plus-animation-sidecar packaging.
 
 ## Structure
 
@@ -104,6 +104,6 @@ See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [w
 | Godot | GLB (default), glTF alternative |
 | Cura | STL in millimetres, evaluated current pose |
 | Unity | FBX with supported rig/animation/material data |
-| Unreal Engine | FBX with supported rig/animation/material data |
+| Unreal Engine | Model/skeleton FBX plus animation-only FBX sidecars for generated clips |
 
-Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 now also has direct Godot destination evidence; Unity and Unreal remain in the current closeout. These checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 has direct Godot destination evidence and completed Unity multi-clip validation; Unreal's corrected sidecar bundle is the final manual destination gate. These checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
