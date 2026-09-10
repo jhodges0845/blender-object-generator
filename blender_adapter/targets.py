@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Blender output adapters; metadata and options are usable without bpy."""
 
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from math import isfinite
 from pathlib import Path
@@ -35,18 +36,65 @@ def _is_generated_texture(image):
     return image.source == 'GENERATED' or bool(image.get(_GENERATED_TEXTURE_MARKER, False))
 
 
-def _export_gltf(options):
+@contextmanager
+def _stage_generated_animation_tracks(root):
+    """Temporarily stash generated clips as one NLA track each for engine export.
+
+    Blender keeps one action active for editing/preview. Engine files need a clip
+    library, so generated actions are associated with the rig through temporary
+    single-strip NLA tracks only while the exporter runs. Existing artist NLA or
+    drivers remain a preservation boundary and are never modified.
+    """
+    from .animation import generated_actions
+
+    rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
+    if len(rigs) != 1:
+        yield False
+        return
+    actions = generated_actions(root)
+    if len(actions) <= 1:
+        yield False
+        return
+
+    rig = rigs[0]
+    data = rig.animation_data_create()
+    if data.nla_tracks or data.drivers:
+        raise RuntimeError('Existing NLA tracks or drivers are preserved; prepare them manually before multi-clip export.')
+
+    previous_action = data.action
+    previous_slot = getattr(data, 'action_slot', None)
+    tracks = []
+    try:
+        data.action = None
+        for action in actions:
+            clip_name = action.get('asset_assistant_clip') or action.name
+            track = data.nla_tracks.new()
+            track.name = clip_name
+            track.strips.new(clip_name, int(round(action.frame_range[0])), action)
+            tracks.append(track)
+        yield True
+    finally:
+        for track in reversed(tracks):
+            data.nla_tracks.remove(track)
+        data.action = previous_action
+        if previous_action is not None and previous_slot is not None and hasattr(data, 'action_slot'):
+            data.action_slot = previous_slot
+
+
+def _export_gltf(options, root):
     import bpy
     options = dict(options)
     properties = bpy.ops.export_scene.gltf.get_rna_type().properties
     # Blender 2.92 scopes selected objects without this newer scene option.
     if 'use_active_scene' not in properties:
         options.pop('use_active_scene', None)
-    # Blender 4.4+ can otherwise export every compatible armature action.
-    # ACTIVE_ACTIONS makes the selected Asset Assistant clip the single export source.
-    if 'export_animation_mode' in properties:
-        options['export_animation_mode'] = 'ACTIVE_ACTIONS'
-    return bpy.ops.export_scene.gltf(**options)
+    with _stage_generated_animation_tracks(root):
+        # Current Blender exports active or stashed actions individually in ACTIONS
+        # mode. Blender 2.92 has no animation-mode option; its export_nla_strips
+        # flag handles the temporary one-strip-per-track organization instead.
+        if 'export_animation_mode' in properties:
+            options['export_animation_mode'] = 'ACTIONS'
+        return bpy.ops.export_scene.gltf(**options)
 
 
 def is_ready(issues):
@@ -201,7 +249,7 @@ class GodotAdapter(BlenderOutputAdapter):
                     export_nla_strips=True, export_texcoords=True, export_normals=True)
 
     def write(self, options, root, context):
-        return _export_gltf(options)
+        return _export_gltf(options, root)
 
 
 class FBXAdapter(BlenderOutputAdapter):
@@ -312,7 +360,11 @@ class FBXAdapter(BlenderOutputAdapter):
 
     def write(self, options, root, context):
         import bpy
-        return bpy.ops.export_scene.fbx(**options)
+        with _stage_generated_animation_tracks(root) as staged:
+            if staged:
+                options = dict(options)
+                options['bake_anim_use_nla_strips'] = True
+            return bpy.ops.export_scene.fbx(**options)
 
 
 class UnityAdapter(FBXAdapter):
