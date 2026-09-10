@@ -75,6 +75,8 @@ class ExportWorkflowTests(unittest.TestCase):
                                       ('UNREAL', '.fbx', b'Kaydara FBX Binary'),
                                       ('CURA', '.stl', b'Object Generator')):
             self.settings.output_target = key
+            if key == 'CURA':
+                bpy.ops.humanoid.validate_character()
             self.assertTrue(bpy.ops.humanoid.export_asset.poll(), key)
             path = Path(self.temp.name) / (key + extension)
             self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(path)), {'FINISHED'})
@@ -86,6 +88,7 @@ class ExportWorkflowTests(unittest.TestCase):
         self.settings.output_target = 'CURA'
         self.settings.asset_use = 'ANIMATED'
         self.settings.require_textures = True
+        bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         path = Path(self.temp.name) / 'box.stl'
         bpy.ops.humanoid.export_asset(filepath=str(path))
@@ -101,6 +104,7 @@ class ExportWorkflowTests(unittest.TestCase):
         self.scene.collection.objects.link(other)
         other.parent = root
         other.location.x = 2
+        bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.assertTrue(any(issue.code == 'cura_solid' for issue in get_adapter('CURA').prepare(root, bpy.context)))
 
@@ -110,6 +114,7 @@ class ExportWorkflowTests(unittest.TestCase):
         obj = root.children[0]
         self.scene.unit_settings.scale_length = 0.01
         self.settings.output_target = 'CURA'
+        bpy.ops.humanoid.validate_character()
         path = Path(self.temp.name) / 'scaled.stl'
         bpy.ops.humanoid.export_asset(filepath=str(path))
         data = path.read_bytes()
@@ -123,6 +128,7 @@ class ExportWorkflowTests(unittest.TestCase):
         bmesh.ops.delete(bm, geom=[bm.faces[0]], context='FACES')
         bm.to_mesh(obj.data)
         bm.free()
+        bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
 
     def test_material_preparation_preserves_existing_and_shared_data(self):
