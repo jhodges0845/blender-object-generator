@@ -6,7 +6,7 @@ Asset Assistant keeps animation intent host-independent. Providers return immuta
 
 The Blender Animation panel exposes a clip selector. Supported providers can generate Idle or Walk as separate editable Blender actions. A generated clip is created once; selecting it again activates the existing action instead of rebuilding or overwriting its keys. This lets an artist keep edits to one generated clip while switching to another.
 
-Only one action is active on the rig at a time for editing and preview. Inactive generated actions remain saved with the Blender file through fake users. Export is different: when more than one Asset Assistant-generated clip exists for the rig, the adapter temporarily stages each generated action as its own one-strip NLA track, exports the clip library, then removes those temporary tracks and restores the original active action. The `.blend` file is therefore not reorganized or permanently pushed into NLA just to satisfy an engine exporter.
+Only one action is active on the rig at a time for editing and preview. Inactive generated actions remain saved with the Blender file through fake users. Export is different: engine adapters can package the generated clip library without permanently changing the `.blend` file. Temporary export state is always restored after writing.
 
 Artist-authored actions are never replaced by generated clips. Existing NLA tracks, drivers, constraints, and manual non-rest poses remain preservation boundaries that require deliberate artist preparation.
 
@@ -22,9 +22,13 @@ The Blender adapter translates locomotion through the same shared clip-to-action
 
 ## Export behavior
 
-Animated engine export now treats Asset Assistant-generated actions as a clip library. If only one generated action exists, the normal active-action path is used. If multiple generated actions exist, each is staged temporarily as a separate NLA track for the duration of export so destinations can receive distinct clips such as Idle and Walk in one file.
+Animated engine export treats Asset Assistant-generated actions as a clip library, but packaging is destination-specific.
 
-For FBX targets such as Unity and Unreal, the temporary tracks are exported as separate FBX animation stacks while `bake_anim_use_all_actions` remains disabled; this avoids broadcasting unrelated compatible actions. For GLB/glTF, current Blender uses Actions mode and older Blender relies on the existing NLA-strip export behavior. In both cases the active Blender action is restored and the temporary NLA tracks are removed after export.
+Godot GLB/glTF exports all generated clips in one file. Current Blender uses Actions mode while older Blender relies on the temporary one-strip-per-action NLA organization. Unity FBX also keeps the generated clips together in one FBX as separate animation stacks; `bake_anim_use_all_actions` remains disabled so unrelated compatible actions are not broadcast into the export.
+
+Unreal uses a different packaging strategy because the standard Unreal skeletal-animation import workflow is most reliable with one animation per FBX. Choosing an Unreal output such as `Human_Unreal.fbx` creates the skeletal mesh/skeleton FBX plus adjacent clip files such as `Human_Unreal_Idle.fbx` and `Human_Unreal_Walk.fbx`. Each animation sidecar is exported with only that generated action active and is intended to be imported against the skeleton created by the model FBX. Unity's working multi-clip FBX behavior is intentionally unchanged.
+
+All temporary action, playback-range, and export state is restored after export. Existing artist NLA tracks and drivers remain preservation boundaries rather than being silently reorganized.
 
 ## Preservation and validation
 
