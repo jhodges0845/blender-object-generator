@@ -9,10 +9,10 @@ try:
 except ModuleNotFoundError:
     bpy = None
 
-from blender_adapter.adapter import create_character
+from blender_adapter.adapter import create_asset
 from blender_adapter.materials import prepare_materials
 from blender_adapter.targets import get_adapter
-from object_core import BodyType, HumanoidSpec, generate_mesh, generate_proportions
+from object_core.objects import get_provider
 
 
 @unittest.skipIf(bpy is None, 'requires Blender; use scripts/test_blender.py')
@@ -23,11 +23,12 @@ class FBXGeneratedTextureTests(unittest.TestCase):
                        ('objects', 'meshes', 'armatures', 'collections', 'materials', 'images', 'actions')}
         self.scene = bpy.data.scenes.new('FBXGeneratedTextureTest')
         bpy.context.window.scene = self.scene
-        self.root = create_character(
-            generate_mesh(generate_proportions(HumanoidSpec(180, 95, BodyType.AVERAGE))),
-            scene=self.scene,
-        )
-        self.root['height_cm'], self.root['weight_kg'], self.root['body_type'] = 180, 95, 'average'
+        provider = get_provider('human_experimental')
+        values = {field.key: field.default for field in provider.parameters}
+        self.root = create_asset(provider.mesh(values), name='FBXHuman', scene=self.scene)
+        self.root['object_type'] = provider.key
+        for key, value in values.items():
+            self.root[key] = value
         prepare_materials(self.root)
 
     def tearDown(self):
@@ -48,13 +49,17 @@ class FBXGeneratedTextureTests(unittest.TestCase):
                 material = slot.material
                 if material is None or not material.use_nodes:
                     continue
-                for node in material.node_tree.nodes:
-                    if node.type == 'TEX_IMAGE' and node.image and node.image.source == 'GENERATED':
-                        return node.image
+                shader = material.node_tree.nodes.get('Principled BSDF')
+                if shader is None or not shader.inputs['Base Color'].is_linked:
+                    continue
+                node = shader.inputs['Base Color'].links[0].from_node
+                if node.type == 'TEX_IMAGE' and node.image is not None:
+                    return node.image
         self.fail('generated Human texture not found')
 
     def test_unity_validation_allows_generated_texture_and_export_stages_it(self):
         image = self._generated_image()
+        self.assertEqual(image.source, 'GENERATED')
         self.assertTrue(image.packed_file or getattr(image, 'packed_files', ()))
         original_path = image.filepath_raw
         original_format = image.file_format
