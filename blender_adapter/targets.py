@@ -376,6 +376,100 @@ class UnrealAdapter(FBXAdapter):
     axis_forward = '-Y'
     axis_up = 'Z'
 
+    @staticmethod
+    def _clip_path(path, clip_name):
+        safe_name = ''.join(character if character.isalnum() or character in ('-', '_') else '_'
+                            for character in str(clip_name)).strip('_') or 'Animation'
+        return path.with_name(path.stem + '_' + safe_name + path.suffix)
+
+    def write(self, options, root, context):
+        import bpy
+        mode = getattr(self, '_unreal_export_mode', None)
+        if mode == 'model':
+            options = dict(options)
+            options['bake_anim'] = False
+            return bpy.ops.export_scene.fbx(**options)
+        if mode == 'clip':
+            return bpy.ops.export_scene.fbx(**options)
+        return super().write(options, root, context)
+
+    def export(self, root, context, filepath):
+        """Write an Unreal skeletal mesh FBX plus one FBX per generated clip.
+
+        Unity can consume multiple FBX takes from one file, but Unreal's standard
+        skeletal-animation import flow is most reliable with one animation per
+        FBX. The chosen path remains the model file; generated clip files are
+        written beside it and share the same exported skeleton hierarchy.
+        """
+        from .animation import generated_actions
+
+        actions = tuple(sorted(generated_actions(root),
+                               key=lambda action: str(action.get('asset_assistant_clip') or action.name)))
+        if self.profile.asset_use != 'ANIMATED' or len(actions) <= 1:
+            return super().export(root, context, filepath)
+
+        try:
+            model_path = self.output_path(filepath)
+        except (ValueError, TypeError, OSError) as exc:
+            return ExportResult(False, str(filepath), (ValidationIssue('export_path', 'ERROR', str(exc)),))
+        clip_paths = tuple((action, self._clip_path(model_path,
+                            action.get('asset_assistant_clip') or action.name)) for action in actions)
+        conflicts = [path for _, path in clip_paths if path.exists()]
+        if model_path.exists():
+            conflicts.insert(0, model_path)
+        if conflicts:
+            return ExportResult(False, str(model_path), (ValidationIssue(
+                'export_path', 'ERROR', 'Choose a new Unreal output name; model or animation bundle files already exist.'),))
+
+        rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
+        if len(rigs) != 1:
+            return super().export(root, context, filepath)
+        rig = rigs[0]
+        data = rig.animation_data_create()
+        previous_action = data.action
+        previous_slot = getattr(data, 'action_slot', None)
+        previous_start, previous_end = context.scene.frame_start, context.scene.frame_end
+        created = []
+        issues = ()
+        try:
+            self._unreal_export_mode = 'model'
+            result = super().export(root, context, model_path)
+            issues = result.issues
+            if not result.success:
+                return result
+            created.append(model_path)
+
+            for action, clip_path in clip_paths:
+                data.action = action
+                if hasattr(action, 'slots') and len(action.slots) and hasattr(data, 'action_slot'):
+                    data.action_slot = action.slots[0]
+                context.scene.frame_start = int(round(action.frame_range[0]))
+                context.scene.frame_end = int(round(action.frame_range[1]))
+                context.scene.frame_set(context.scene.frame_start)
+                self._unreal_export_mode = 'clip'
+                result = super().export(root, context, clip_path)
+                issues = result.issues
+                if not result.success:
+                    for created_path in created:
+                        if created_path.exists():
+                            created_path.unlink()
+                    return ExportResult(False, str(model_path), issues + (ValidationIssue(
+                        'unreal_animation_bundle', 'ERROR',
+                        'Unreal animation bundle was not completed; partial files were removed.'),))
+                created.append(clip_path)
+
+            names = ', '.join(path.name for _, path in clip_paths)
+            return ExportResult(True, str(model_path), issues + (ValidationIssue(
+                'unreal_animation_bundle', 'INFO',
+                'Created Unreal model plus separate animation FBX files: ' + names),))
+        finally:
+            self._unreal_export_mode = None
+            data.action = previous_action
+            if previous_action is not None and previous_slot is not None and hasattr(data, 'action_slot'):
+                data.action_slot = previous_slot
+            context.scene.frame_start = previous_start
+            context.scene.frame_end = previous_end
+
 
 class CuraAdapter(BlenderOutputAdapter):
     target_key = 'CURA'
