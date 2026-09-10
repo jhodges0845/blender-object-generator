@@ -175,25 +175,13 @@ def print_geometry(objects, context):
         bm.free()
 
 
-def _ui_print_scale_percent():
-    """Read optional Cura UI scale without making the low-level writer require UI registration."""
-    try:
-        import bpy
-        settings = getattr(bpy.context.scene, 'humanoid_settings', None)
-        return float(getattr(settings, 'cura_scale_percent', 100.0)) if settings else 100.0
-    except (AttributeError, TypeError, ValueError):
-        return 100.0
-
-
-def write_stl(filepath, triangles, unit_scale, scale_percent=None):
-    """Write binary STL in millimetres, optionally scaling only the print derivative."""
+def write_stl(filepath, triangles, unit_scale, scale_divisor=1.0):
+    """Write binary STL in millimetres at the requested physical print ratio."""
     from mathutils import Vector
 
-    if scale_percent is None:
-        scale_percent = _ui_print_scale_percent()
-    if not isfinite(scale_percent) or scale_percent <= 0:
-        raise ValueError('Cura print scale must be greater than zero.')
-    millimetre_scale = unit_scale * 1000 * (scale_percent / 100.0)
+    if not isfinite(scale_divisor) or scale_divisor <= 0:
+        raise ValueError('Cura print scale divisor must be greater than zero.')
+    millimetre_scale = unit_scale * 1000 / scale_divisor
 
     with open(filepath, 'xb') as stream:
         stream.write(b'Object Generator - Cura STL in millimetres'.ljust(80, b'\0'))
