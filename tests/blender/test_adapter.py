@@ -176,7 +176,8 @@ class BlenderAdapterTests(unittest.TestCase):
             self.assertEqual(root["shoulder_height_cm"], 61)
             self.assertEqual(tuple(root.location), (1, 2, 3))
             meshes = [obj for obj in root.children if obj.type == "MESH"]
-            self.assertEqual(len(meshes), 10)
+            self.assertEqual(len(meshes), 1)
+            self.assertEqual(meshes[0]["body_part"], "dog")
             self.assertEqual(settings.asset_use, "RIGGED")
 
             self.assertTrue(bpy.ops.humanoid.add_basic_rig.poll())
