@@ -6,8 +6,10 @@ registry can remain focused on shared contracts as new asset families are added.
 """
 
 from .providers import (
+    DOG_PARAMETERS,
     HUMAN_PARAMETERS,
     BoxProvider,
+    DogProvider,
     HumanExperimentalProvider,
     HumanoidProvider,
     Parameter,
@@ -66,7 +68,7 @@ def validate_provider(provider):
 
 OBJECT_TYPES = {
     provider.key: validate_provider(provider)
-    for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider())
+    for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider(), DogProvider())
 }
 
 
@@ -85,6 +87,8 @@ def get_provider(key):
 # from object_core.objects before provider implementations were split out.
 __all__ = [
     "Parameter",
+    "DOG_PARAMETERS",
+    "DogProvider",
     "HUMAN_PARAMETERS",
     "HumanoidProvider",
     "HumanExperimentalProvider",
