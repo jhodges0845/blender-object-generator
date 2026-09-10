@@ -26,9 +26,9 @@ Animated engine export treats Asset Assistant-generated actions as a clip librar
 
 Godot GLB/glTF exports all generated clips in one file. Current Blender uses Actions mode while older Blender relies on the temporary one-strip-per-action NLA organization. Unity FBX also keeps the generated clips together in one FBX as separate animation stacks; `bake_anim_use_all_actions` remains disabled so unrelated compatible actions are not broadcast into the export.
 
-Unreal uses a different packaging strategy because the standard Unreal skeletal-animation import workflow is most reliable with one animation per FBX. Choosing an Unreal output such as `Human_Unreal.fbx` creates the skeletal mesh/skeleton FBX plus adjacent clip files such as `Human_Unreal_Idle.fbx` and `Human_Unreal_Walk.fbx`. Each animation sidecar is exported with only that generated action active and is intended to be imported against the skeleton created by the model FBX. Unity's working multi-clip FBX behavior is intentionally unchanged.
+Unreal uses a different packaging strategy because the standard Unreal skeletal-animation import workflow is most reliable with one animation per FBX. Choosing an Unreal output such as `Human_Unreal.fbx` creates the skeletal mesh/skeleton FBX plus adjacent clip files such as `Human_Unreal_Idle.fbx` and `Human_Unreal_Walk.fbx`. The model FBX owns the mesh, materials, textures, skeleton, and physics-generating geometry. Each animation sidecar contains only the shared armature plus one active generated action: no mesh, material, or texture payload is written into the clip FBX. Import the model FBX first, then import each clip FBX as animation-only against the skeleton created by the model import. Unity's working multi-clip FBX behavior is intentionally unchanged.
 
-All temporary action, playback-range, and export state is restored after export. Existing artist NLA tracks and drivers remain preservation boundaries rather than being silently reorganized.
+All temporary selection, active-action, playback-range, and export state is restored after export. Existing artist NLA tracks and drivers remain preservation boundaries rather than being silently reorganized.
 
 ## Preservation and validation
 

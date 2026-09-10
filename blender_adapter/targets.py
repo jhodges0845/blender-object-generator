@@ -390,6 +390,18 @@ class UnrealAdapter(FBXAdapter):
             options['bake_anim'] = False
             return bpy.ops.export_scene.fbx(**options)
         if mode == 'clip':
+            rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
+            if len(rigs) != 1:
+                raise RuntimeError('Unreal animation export requires exactly one armature.')
+            rig = rigs[0]
+            for obj in tuple(context.selected_objects):
+                obj.select_set(False)
+            rig.select_set(True)
+            context.view_layer.objects.active = rig
+            options = dict(options)
+            options['object_types'] = {'ARMATURE'}
+            options['path_mode'] = 'AUTO'
+            options['embed_textures'] = False
             return bpy.ops.export_scene.fbx(**options)
         return super().write(options, root, context)
 
@@ -399,7 +411,8 @@ class UnrealAdapter(FBXAdapter):
         Unity can consume multiple FBX takes from one file, but Unreal's standard
         skeletal-animation import flow is most reliable with one animation per
         FBX. The chosen path remains the model file; generated clip files are
-        written beside it and share the same exported skeleton hierarchy.
+        written beside it and contain only the shared armature plus one active
+        generated animation.
         """
         from .animation import generated_actions
 
@@ -461,7 +474,7 @@ class UnrealAdapter(FBXAdapter):
             names = ', '.join(path.name for _, path in clip_paths)
             return ExportResult(True, str(model_path), issues + (ValidationIssue(
                 'unreal_animation_bundle', 'INFO',
-                'Created Unreal model plus separate animation FBX files: ' + names),))
+                'Created Unreal model plus armature-only animation FBX files: ' + names),))
         finally:
             self._unreal_export_mode = None
             data.action = previous_action
