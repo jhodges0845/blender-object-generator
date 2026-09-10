@@ -110,6 +110,8 @@ class ExportWorkflowTests(unittest.TestCase):
 
     def test_cura_rejects_open_mesh_and_uses_unit_scale(self):
         import bmesh
+        from humanoid_blender.ui import HUMANOID_OT_export
+        from types import SimpleNamespace
         root = self.generate()
         obj = root.children[0]
         self.scene.unit_settings.scale_length = 0.01
@@ -137,15 +139,15 @@ class ExportWorkflowTests(unittest.TestCase):
         bm.free()
 
         # Cura's explicit validation snapshot is only the UI gate, so direct
-        # low-level edits can leave it stale. The export operation must still
-        # revalidate and refuse to write the now-open mesh.
+        # low-level edits can leave it stale. Call execute() directly to verify
+        # its independent preflight without Blender's bpy.ops error propagation.
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         invalid_path = Path(self.temp.name) / 'invalid.stl'
-        self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(invalid_path)), {'CANCELLED'})
+        operator = SimpleNamespace(filepath=str(invalid_path), report=lambda *args: None)
+        self.assertEqual(HUMANOID_OT_export.execute(operator, bpy.context), {'CANCELLED'})
         self.assertFalse(invalid_path.exists())
 
-        # Re-running Validation updates the visible snapshot and relocks Export.
-        bpy.ops.humanoid.validate_character()
+        # execute() stores the failed validation result, so Export is now locked.
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
 
     def test_material_preparation_preserves_existing_and_shared_data(self):
