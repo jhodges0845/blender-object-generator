@@ -10,7 +10,7 @@ class DogProviderTests(unittest.TestCase):
         self.provider = get_provider("dog")
         self.defaults = {field.key: field.default for field in self.provider.parameters}
 
-    def test_dog_provider_declares_initial_deforming_rig_capabilities(self):
+    def test_dog_provider_declares_deforming_rig_capabilities(self):
         self.assertEqual(self.provider.label, "Dog")
         self.assertTrue(self.provider.supports_rig)
         self.assertFalse(self.provider.supports_idle)
@@ -18,21 +18,16 @@ class DogProviderTests(unittest.TestCase):
         self.assertTrue(self.provider.uses_skin_weights)
         self.assertFalse(self.provider.supports_materials)
 
-    def test_default_dog_generates_deterministic_quadruped_blockout(self):
+    def test_default_dog_generates_one_connected_deformable_surface(self):
         mesh = self.provider.mesh(self.defaults)
         self.assertIsInstance(mesh, ObjectMesh)
         self.assertEqual(mesh, self.provider.mesh(self.defaults))
-        self.assertEqual(
-            tuple(part.name for part in mesh.parts),
-            (
-                "dog_torso", "dog_head", "dog_muzzle",
-                "dog_foreleg_left", "dog_hindleg_left",
-                "dog_foreleg_right", "dog_hindleg_right",
-                "dog_tail_1", "dog_tail_2", "dog_tail_3",
-            ),
-        )
-        self.assertEqual(mesh.vertex_count, 80)
-        self.assertEqual(mesh.face_count, 60)
+        self.assertEqual(tuple(part.name for part in mesh.parts), ("dog",))
+        self.assertEqual(mesh.vertex_count, 280)
+        self.assertEqual(mesh.face_count, 274)
+        part = mesh.parts[0]
+        referenced = {index for face in part.faces for index in face}
+        self.assertEqual(referenced, set(range(len(part.vertices))))
 
     def test_dimensions_drive_independent_dog_axes(self):
         short = self.provider.mesh(dict(self.defaults, body_length_cm=40))
@@ -68,22 +63,23 @@ class DogProviderTests(unittest.TestCase):
         self.assertEqual(by_name["hind_lower.right"].parent, "hind_upper.right")
         self.assertEqual(by_name["tail.3"].parent, "tail.2")
 
-    def test_skin_weights_cover_every_vertex_and_stay_local(self):
+    def test_skin_weights_cover_connected_surface_and_stay_local(self):
         mesh = self.provider.mesh(self.defaults)
         skeleton = self.provider.skeleton(self.defaults)
         weights = self.provider.skin_weights(mesh, self.defaults)
-        self.assertEqual({item.part_name for item in weights}, {part.name for part in mesh.parts})
+        self.assertEqual(tuple(item.part_name for item in weights), ("dog",))
+        rows = weights[0].vertices
+        self.assertEqual(len(rows), len(mesh.parts[0].vertices))
         bone_names = {bone.name for bone in skeleton.bones}
-        by_part = {item.part_name: item for item in weights}
-        for part in mesh.parts:
-            rows = by_part[part.name].vertices
-            self.assertEqual(len(rows), len(part.vertices))
-            for influences in rows:
-                self.assertAlmostEqual(sum(item.weight for item in influences), 1.0)
-                self.assertTrue(all(item.bone_name in bone_names for item in influences))
-        fore = by_part["dog_foreleg_left"].vertices
-        self.assertEqual({i.bone_name for row in fore for i in row}, {"fore_upper.left", "fore_lower.left"})
-        self.assertEqual({i.bone_name for row in by_part["dog_tail_2"].vertices for i in row}, {"tail.2"})
+        for vertex, influences in zip(mesh.parts[0].vertices, rows):
+            self.assertAlmostEqual(sum(item.weight for item in influences), 1.0)
+            self.assertTrue(all(item.bone_name in bone_names for item in influences))
+            self.assertLessEqual(len(influences), 4)
+            opposite = ".right" if vertex[0] <= 0 else ".left"
+            self.assertFalse(any(item.bone_name.endswith(opposite) for item in influences))
+        used = {item.bone_name for row in rows for item in row}
+        self.assertTrue({"spine", "neck", "head", "tail.1", "tail.2", "tail.3"} <= used)
+        self.assertTrue({"fore_upper.left", "fore_lower.right", "hind_upper.left", "hind_lower.right"} <= used)
 
     def test_invalid_parameters_are_rejected(self):
         for field in self.provider.parameters:
