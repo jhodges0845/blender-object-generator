@@ -26,11 +26,12 @@ def _principled_material(name, base_color, metallic, roughness, base_color_textu
         image.pixels = base_color_texture.pixels
         # Asset Assistant owns generated image data, so keep it self-contained in
         # the .blend immediately. Artist-supplied external textures are never
-        # packed here and remain under artist control. Blender reports images
-        # created this way as FILE source after packing, so ownership is recorded
-        # explicitly instead of inferred from Image.source.
+        # packed here and remain under artist control. Packing can make Blender
+        # report the datablock as FILE-backed, so record ownership explicitly and
+        # restore GENERATED source for exporter staging semantics.
         image.pack()
         image[_GENERATED_TEXTURE_MARKER] = True
+        image.source = 'GENERATED'
         texture = material.node_tree.nodes.new('ShaderNodeTexImage')
         texture.name = base_color_texture.name
         texture.label = base_color_texture.name
