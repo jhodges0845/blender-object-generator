@@ -6,9 +6,9 @@ Asset Assistant keeps animation intent host-independent. Providers return immuta
 
 The Blender Animation panel exposes a clip selector. Supported providers can generate Idle or Walk as separate editable Blender actions. A generated clip is created once; selecting it again activates the existing action instead of rebuilding or overwriting its keys. This lets an artist keep edits to one generated clip while switching to another.
 
-Only one action is active on the rig at a time. Asset Assistant treats that active action as the clip intended for preview, validation, and export. Inactive generated actions remain saved with the Blender file through fake users. This avoids silently blending clips through NLA and keeps export behavior explicit.
+Only one action is active on the rig at a time for editing and preview. Inactive generated actions remain saved with the Blender file through fake users. Export is different: when more than one Asset Assistant-generated clip exists for the rig, the adapter temporarily stages each generated action as its own one-strip NLA track, exports the clip library, then removes those temporary tracks and restores the original active action. The `.blend` file is therefore not reorganized or permanently pushed into NLA just to satisfy an engine exporter.
 
-Artist-authored actions are never replaced by generated clips. NLA tracks, drivers, constraints, and manual non-rest poses remain preservation boundaries that require deliberate artist preparation.
+Artist-authored actions are never replaced by generated clips. Existing NLA tracks, drivers, constraints, and manual non-rest poses remain preservation boundaries that require deliberate artist preparation.
 
 ## Idle
 
@@ -22,7 +22,9 @@ The Blender adapter translates locomotion through the same shared clip-to-action
 
 ## Export behavior
 
-FBX export already bakes the active action only and does not bake all actions or NLA strips. GLB/glTF export is validated against the active rig animation; inactive generated actions are retained in the `.blend` file but are not selected as the current export clip. The Human 1.0 milestone pass should verify the intended active clip after import into each destination rather than treating file creation alone as certification.
+Animated engine export now treats Asset Assistant-generated actions as a clip library. If only one generated action exists, the normal active-action path is used. If multiple generated actions exist, each is staged temporarily as a separate NLA track for the duration of export so destinations can receive distinct clips such as Idle and Walk in one file.
+
+For FBX targets such as Unity and Unreal, the temporary tracks are exported as separate FBX animation stacks while `bake_anim_use_all_actions` remains disabled; this avoids broadcasting unrelated compatible actions. For GLB/glTF, current Blender uses Actions mode and older Blender relies on the existing NLA-strip export behavior. In both cases the active Blender action is restored and the temporary NLA tracks are removed after export.
 
 ## Preservation and validation
 
