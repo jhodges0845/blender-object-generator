@@ -450,7 +450,7 @@ class _WorkflowPanel:
                 layout.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
                 layout.label(text=('Existing generated keys are preserved.' if existing
                                    else 'Creates a separate editable action.'))
-                layout.label(text='Only the active clip is exported.')
+                layout.label(text='All generated clips are exported together.')
                 layout.label(text="Artist actions, NLA and drivers are never overwritten.")
         else:
             layout.prop(settings, "output_target")
