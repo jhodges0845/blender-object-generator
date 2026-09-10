@@ -74,6 +74,9 @@ with tempfile.TemporaryDirectory() as directory:
         for target_key, extension in (("GODOT", ".glb"), ("UNITY", ".fbx"),
                                       ("UNREAL", ".fbx"), ("CURA", ".stl")):
             scene.humanoid_settings.output_target = target_key
+            if target_key == "CURA":
+                assert bpy.ops.humanoid.validate_character() == {"FINISHED"}
+                assert not any(row.status == "ERROR" for row in scene.humanoid_settings.validation_results)
             assert bpy.ops.humanoid.export_asset.poll(), target_key
             export_path = Path(directory) / (target_key + extension)
             assert bpy.ops.humanoid.export_asset(filepath=str(export_path)) == {"FINISHED"}
