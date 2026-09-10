@@ -334,7 +334,14 @@ class HUMANOID_OT_export(bpy.types.Operator, ExportHelper):
     def poll(cls, context):
         if context.scene is None or context.mode != 'OBJECT' or _character(context) is None:
             return False
-        # Never trust a stored report after the artist edits the scene.
+        settings = context.scene.humanoid_settings
+        if settings.output_target == 'CURA':
+            # Cura preparation may need Blender's voxel-remesh operator. Operators
+            # must not run from another operator's poll callback, so use the most
+            # recent explicit Validation result to enable the button. execute()
+            # still performs full validation again before writing any file.
+            return is_ready(settings.validation_results)
+        # Other targets are read-only during validation and can be checked live.
         return is_ready(_export_issues(context))
 
     def invoke(self, context, event):
@@ -463,7 +470,13 @@ class _WorkflowPanel:
                     layout.operator("humanoid.prepare_materials", icon="MATERIAL")
             if stage == 'VALIDATION':
                 layout.operator("humanoid.validate_character", icon="CHECKMARK")
-            rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
+            if stage == 'EXPORT' and settings.output_target == 'CURA':
+                # Match the operator poll: Cura's explicit validation is the UI
+                # gate, and the export operation performs the expensive repair
+                # validation again before any STL is written.
+                rows = settings.validation_results
+            else:
+                rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
             if stage == 'EXPORT':
                 ready = is_ready(rows)
                 layout.label(text='Ready to export.' if ready else 'Needs attention: see Validation.',
