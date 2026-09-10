@@ -156,6 +156,50 @@ class BlenderAdapterTests(unittest.TestCase):
         humanoid_blender.register()
         humanoid_blender.unregister()
 
+    def test_dog_generates_through_generic_blender_workflow_and_gates_capabilities(self):
+        import humanoid_blender
+        previous_scene = bpy.context.window.scene
+        bpy.context.window.scene = self.scene
+        humanoid_blender.register()
+        try:
+            settings = self.scene.humanoid_settings
+            settings.object_type = "dog"
+            settings.dog_body_length_cm = 82
+            settings.dog_shoulder_height_cm = 61
+            self.scene.cursor.location = (1, 2, 3)
+
+            self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
+            root = settings.target
+            self.assertEqual(root.type, "EMPTY")
+            self.assertEqual(root["object_type"], "dog")
+            self.assertEqual(root["body_length_cm"], 82)
+            self.assertEqual(root["shoulder_height_cm"], 61)
+            self.assertEqual(tuple(root.location), (1, 2, 3))
+            self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 10)
+            self.assertEqual(
+                {obj["body_part"] for obj in root.children},
+                {"dog_torso", "dog_head", "dog_muzzle", "dog_foreleg_left", "dog_hindleg_left",
+                 "dog_foreleg_right", "dog_hindleg_right", "dog_tail_1", "dog_tail_2", "dog_tail_3"},
+            )
+            self.assertEqual(settings.asset_use, "STATIC")
+
+            # Dog is intentionally static in this phase. Generic provider capability
+            # gating must keep Human-only rigging and animation operators disabled.
+            self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+            settings.animation_clip = "IDLE"
+            self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
+            settings.animation_clip = "WALK"
+            self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
+
+            # Static validation should use the same target pipeline as other providers.
+            settings.workflow_tab = "VALIDATION"
+            self.assertEqual(bpy.ops.humanoid.validate_character(), {"FINISHED"})
+            self.assertFalse(any(row.code == "rig" and row.status == "ERROR"
+                                 for row in settings.validation_results))
+        finally:
+            humanoid_blender.unregister()
+            bpy.context.window.scene = previous_scene
+
     def test_rig_rest_pose_and_limb_movement(self):
         previous_scene = bpy.context.window.scene
         bpy.context.window.scene = self.scene
