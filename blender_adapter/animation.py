@@ -47,6 +47,8 @@ def generated_action(root, clip_name):
 
 def activate_generated_action(root, clip_name):
     """Activate an existing generated clip without changing or rebuilding it."""
+    import bpy
+
     rig = _rig(root)
     action = generated_action(root, clip_name)
     if action is None:
@@ -56,10 +58,22 @@ def activate_generated_action(root, clip_name):
         raise ValueError('Existing NLA tracks or drivers are preserved; prepare them manually before switching clips.')
     if data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
         raise ValueError('Existing artist animation preserved; generated clips cannot replace it.')
+
+    # Generated clips are complete poses, but Blender can retain evaluated values
+    # from the previously active action until the dependency graph is refreshed.
+    # Detach and clear first so preview/export never inherits the prior clip pose.
+    data.action = None
+    for bone in rig.pose.bones:
+        bone.matrix_basis.identity()
+    bpy.context.view_layer.update()
+
     data.action = action
     if hasattr(action, 'slots') and len(action.slots):
         data.action_slot = action.slots[0]
     rig.data.pose_position = 'POSE'
+    bpy.context.scene.frame_set(bpy.context.scene.frame_current,
+                                subframe=bpy.context.scene.frame_subframe)
+    bpy.context.view_layer.update()
     return action
 
 
@@ -112,10 +126,20 @@ def _add_clip(root, scene, clip, suffix):
             else:
                 slot = None
                 curves = action.fcurves
-            for track in clip.tracks:
-                bone = rig.pose.bones[track.bone]
-                axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
-                samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
+
+            tracks_by_bone = {track.bone: track for track in clip.tracks}
+            for bone in rig.pose.bones:
+                track = tracks_by_bone.get(bone.name)
+                if track is None:
+                    # Every generated action explicitly owns every bone rotation.
+                    # Matching identity keys at both clip boundaries prevent
+                    # cross-clip pose leakage while preserving the action's loop
+                    # duration contract for otherwise-unanimated bones.
+                    identity = Quaternion((1.0, 0.0, 0.0, 0.0))
+                    samples = [(start, identity), (start + clip.duration * fps, identity)]
+                else:
+                    axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
+                    samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
                 group = {'group_name' if slot is not None else 'action_group': bone.name}
                 for component in range(4):
                     curve = curves.new(bone.path_from_id('rotation_quaternion'), index=component,
@@ -126,8 +150,9 @@ def _add_clip(root, scene, clip, suffix):
                         key.interpolation = 'LINEAR'
                     curve.modifiers.new('CYCLES')
                     curve.update()
-            for track in clip.tracks:
-                rig.pose.bones[track.bone].rotation_mode = 'QUATERNION'
+
+            for bone in rig.pose.bones:
+                bone.rotation_mode = 'QUATERNION'
             rig.animation_data_create().action = action
             if slot is not None:
                 rig.animation_data.action_slot = slot

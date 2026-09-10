@@ -13,7 +13,13 @@ except ModuleNotFoundError:
     bpy = None
 
 from blender_adapter.adapter import create_character
-from blender_adapter.animation import add_idle, add_locomotion, activate_generated_action
+from blender_adapter.animation import (
+    action_curves,
+    add_idle,
+    add_locomotion,
+    activate_generated_action,
+    generated_action,
+)
 from blender_adapter.materials import prepare_materials
 from blender_adapter.targets import asset_objects, get_adapter
 from blender_adapter.workflow import add_basic_rig
@@ -80,6 +86,19 @@ class AnimationExportTests(unittest.TestCase):
         add_idle(self.root, self.scene)
         add_locomotion(self.root, self.scene)
         return activate_generated_action(self.root, 'Idle')
+
+    def test_generated_clips_define_every_bone_rotation(self):
+        self._generate_library()
+        expected = {bone.path_from_id('rotation_quaternion') for bone in self.rig.pose.bones}
+        self.assertTrue(expected)
+
+        for clip_name in ('Idle', 'Walk'):
+            action = generated_action(self.root, clip_name)
+            self.assertIsNotNone(action)
+            slot = action.slots[0] if hasattr(action, 'slots') and len(action.slots) else None
+            paths = {curve.data_path for curve in action_curves(action, slot)}
+            self.assertTrue(expected.issubset(paths),
+                            clip_name + ' must explicitly define every bone rotation to prevent cross-clip pose leakage.')
 
     def test_all_generated_clips_are_exported_to_glb(self):
         active = self._generate_library()
