@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import unittest
 
-from object_core.models import ObjectMesh, Skeleton
+from object_core.models import MaterialSpec, ObjectMesh, Skeleton
 from object_core.objects import get_provider
 
 
@@ -16,7 +16,7 @@ class DogProviderTests(unittest.TestCase):
         self.assertTrue(self.provider.supports_idle)
         self.assertTrue(self.provider.supports_locomotion)
         self.assertTrue(self.provider.uses_skin_weights)
-        self.assertFalse(self.provider.supports_materials)
+        self.assertTrue(self.provider.supports_materials)
 
     def test_default_dog_generates_one_connected_deformable_surface(self):
         mesh = self.provider.mesh(self.defaults)
@@ -97,6 +97,20 @@ class DogProviderTests(unittest.TestCase):
         for pair in expected_blends:
             with self.subTest(pair=pair):
                 self.assertTrue(any(pair <= names for names in influence_sets))
+
+    def test_material_is_portable_textured_pbr_starting_point(self):
+        materials = self.provider.materials(self.defaults)
+        self.assertEqual(len(materials), 1)
+        material = materials[0]
+        self.assertIsInstance(material, MaterialSpec)
+        self.assertEqual(material.name, "Dog Base Coat")
+        self.assertEqual(material.part_names, ("dog",))
+        self.assertEqual(material.metallic, 0.0)
+        self.assertGreater(material.roughness, 0.7)
+        self.assertIsNotNone(material.base_color_texture)
+        self.assertEqual(material.base_color_texture.name, "Dog Coat Texture")
+        self.assertEqual((material.base_color_texture.width, material.base_color_texture.height), (2, 2))
+        self.assertEqual(len(material.base_color_texture.pixels), 16)
 
     def test_invalid_parameters_are_rejected(self):
         for field in self.provider.parameters:
