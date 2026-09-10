@@ -122,18 +122,28 @@ class ExportWorkflowTests(unittest.TestCase):
         heights = [struct.unpack_from('<12fH', data, 84 + index * 50)[i]
                    for index in range(count) for i in (5, 8, 11)]
         self.assertAlmostEqual(max(heights), 3, places=4)
+
+        # Export clears the snapshot after success. Revalidate while the mesh is
+        # still good so the next low-level scene edit creates a genuine stale-
+        # green Cura UI state.
+        bpy.ops.humanoid.validate_character()
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.faces.ensure_lookup_table()
         bmesh.ops.delete(bm, geom=[bm.faces[0]], context='FACES')
         bm.to_mesh(obj.data)
         bm.free()
-        # The explicit validation snapshot is intentionally only a UI gate for
-        # Cura, so it can remain green after direct low-level scene edits.
+
+        # Cura's explicit validation snapshot is only the UI gate, so direct
+        # low-level edits can leave it stale. The export operation must still
+        # revalidate and refuse to write the now-open mesh.
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         invalid_path = Path(self.temp.name) / 'invalid.stl'
         self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(invalid_path)), {'CANCELLED'})
         self.assertFalse(invalid_path.exists())
+
         # Re-running Validation updates the visible snapshot and relocks Export.
         bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
