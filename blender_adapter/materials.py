@@ -4,6 +4,9 @@
 from .targets import asset_objects
 
 
+_GENERATED_TEXTURE_MARKER = 'asset_assistant_generated_texture'
+
+
 def _principled_material(name, base_color, metallic, roughness, base_color_texture=None):
     import bpy
 
@@ -23,8 +26,11 @@ def _principled_material(name, base_color, metallic, roughness, base_color_textu
         image.pixels = base_color_texture.pixels
         # Asset Assistant owns generated image data, so keep it self-contained in
         # the .blend immediately. Artist-supplied external textures are never
-        # packed here and remain under artist control.
+        # packed here and remain under artist control. Blender reports images
+        # created this way as FILE source after packing, so ownership is recorded
+        # explicitly instead of inferred from Image.source.
         image.pack()
+        image[_GENERATED_TEXTURE_MARKER] = True
         texture = material.node_tree.nodes.new('ShaderNodeTexImage')
         texture.name = base_color_texture.name
         texture.label = base_color_texture.name
