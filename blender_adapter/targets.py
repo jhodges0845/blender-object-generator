@@ -10,6 +10,9 @@ from .core import ValidationIssue, get_target, validate_for_target
 from .validation import inspect_objects
 
 
+_GENERATED_TEXTURE_MARKER = 'asset_assistant_generated_texture'
+
+
 @dataclass(frozen=True)
 class ExportResult:
     success: bool
@@ -25,6 +28,11 @@ def asset_objects(root):
     for obj in result:
         result.extend(obj.children)
     return tuple(result)
+
+
+def _is_generated_texture(image):
+    """Recognize owned generated images without depending on Blender source state."""
+    return image.source == 'GENERATED' or bool(image.get(_GENERATED_TEXTURE_MARKER, False))
 
 
 def _export_gltf(options):
@@ -229,10 +237,10 @@ class FBXAdapter(BlenderOutputAdapter):
                     yield image
 
     def _stage_generated_textures(self, root, directory):
-        """Give in-memory generated images temporary PNG paths for Blender's FBX writer."""
+        """Give owned in-memory images temporary PNG paths for Blender's FBX writer."""
         staged = []
         for index, image in enumerate(self._texture_images(root)):
-            if image.source != 'GENERATED':
+            if not _is_generated_texture(image):
                 continue
             original_path = image.filepath_raw
             original_format = image.file_format
@@ -255,9 +263,9 @@ class FBXAdapter(BlenderOutputAdapter):
 
     def validate(self, root, context):
         issues = list(super().validate(root, context))
-        # Blender FBX needs an image path while writing. Generated images are safe
-        # to stage automatically because the original Blender datablock remains packed
-        # and its path/format are restored after export.
+        # Blender FBX needs an image path while writing. Asset Assistant-owned
+        # generated images are safe to stage automatically because the original
+        # datablock remains packed and its path/format are restored after export.
         import bpy
         for obj in asset_objects(root):
             animation = obj.animation_data
@@ -271,7 +279,7 @@ class FBXAdapter(BlenderOutputAdapter):
                     if image.filepath else None)
             if path is not None and path.is_file():
                 continue
-            if image.source == 'GENERATED':
+            if _is_generated_texture(image):
                 issues.append(ValidationIssue('fbx_texture', 'INFO', image.name +
                     ': generated texture will be staged automatically as PNG during FBX export.'))
             else:
