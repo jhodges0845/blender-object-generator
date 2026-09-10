@@ -175,10 +175,23 @@ def print_geometry(objects, context):
         bm.free()
 
 
-def write_stl(filepath, triangles, unit_scale, scale_divisor=1.0):
+def _scene_scale_divisor():
+    """Read the optional Cura UI scale preset while keeping 1:1 as the API default."""
+    try:
+        import bpy
+        settings = getattr(bpy.context.scene, 'humanoid_settings', None)
+        value = getattr(settings, 'cura_print_scale', '1') if settings else '1'
+        return float(value)
+    except (AttributeError, TypeError, ValueError):
+        return 1.0
+
+
+def write_stl(filepath, triangles, unit_scale, scale_divisor=None):
     """Write binary STL in millimetres at the requested physical print ratio."""
     from mathutils import Vector
 
+    if scale_divisor is None:
+        scale_divisor = _scene_scale_divisor()
     if not isfinite(scale_divisor) or scale_divisor <= 0:
         raise ValueError('Cura print scale divisor must be greater than zero.')
     millimetre_scale = unit_scale * 1000 / scale_divisor
