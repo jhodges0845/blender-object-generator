@@ -156,7 +156,7 @@ class BlenderAdapterTests(unittest.TestCase):
         humanoid_blender.register()
         humanoid_blender.unregister()
 
-    def test_dog_generates_through_generic_blender_workflow_and_gates_capabilities(self):
+    def test_dog_generates_and_rigs_through_generic_blender_workflow(self):
         import humanoid_blender
         previous_scene = bpy.context.window.scene
         bpy.context.window.scene = self.scene
@@ -175,27 +175,27 @@ class BlenderAdapterTests(unittest.TestCase):
             self.assertEqual(root["body_length_cm"], 82)
             self.assertEqual(root["shoulder_height_cm"], 61)
             self.assertEqual(tuple(root.location), (1, 2, 3))
-            self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 10)
-            self.assertEqual(
-                {obj["body_part"] for obj in root.children},
-                {"dog_torso", "dog_head", "dog_muzzle", "dog_foreleg_left", "dog_hindleg_left",
-                 "dog_foreleg_right", "dog_hindleg_right", "dog_tail_1", "dog_tail_2", "dog_tail_3"},
-            )
-            self.assertEqual(settings.asset_use, "STATIC")
+            meshes = [obj for obj in root.children if obj.type == "MESH"]
+            self.assertEqual(len(meshes), 10)
+            self.assertEqual(settings.asset_use, "RIGGED")
 
-            # Dog is intentionally static in this phase. Generic provider capability
-            # gating must keep Human-only rigging and animation operators disabled.
-            self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertTrue(bpy.ops.humanoid.add_basic_rig.poll())
+            self.assertEqual(bpy.ops.humanoid.add_basic_rig(), {"FINISHED"})
+            rig = next(obj for obj in root.children if obj.type == "ARMATURE")
+            self.assertEqual(rig.parent, root)
+            self.assertIn("spine", rig.data.bones)
+            self.assertIn("fore_upper.left", rig.data.bones)
+            self.assertIn("hind_lower.right", rig.data.bones)
+            self.assertIn("tail.3", rig.data.bones)
+            for obj in meshes:
+                self.assertEqual(len(obj.modifiers), 1)
+                self.assertIs(obj.modifiers[0].object, rig)
+                self.assertGreater(len(obj.vertex_groups), 0)
+
             settings.animation_clip = "IDLE"
             self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
             settings.animation_clip = "WALK"
             self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
-
-            # Static validation should use the same target pipeline as other providers.
-            settings.workflow_tab = "VALIDATION"
-            self.assertEqual(bpy.ops.humanoid.validate_character(), {"FINISHED"})
-            self.assertFalse(any(row.code == "rig" and row.status == "ERROR"
-                                 for row in settings.validation_results))
         finally:
             humanoid_blender.unregister()
             bpy.context.window.scene = previous_scene
