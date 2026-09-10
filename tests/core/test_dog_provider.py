@@ -28,6 +28,11 @@ class DogProviderTests(unittest.TestCase):
         part = mesh.parts[0]
         referenced = {index for face in part.faces for index in face}
         self.assertEqual(referenced, set(range(len(part.vertices))))
+        self.assertEqual(len(part.uvs), len(part.faces))
+        for face, face_uvs in zip(part.faces, part.uvs):
+            self.assertEqual(len(face_uvs), len(face))
+            self.assertTrue(all(0.0 <= coordinate <= 1.0
+                                for uv in face_uvs for coordinate in uv))
 
     def test_dimensions_drive_independent_dog_axes(self):
         short = self.provider.mesh(dict(self.defaults, body_length_cm=40))
