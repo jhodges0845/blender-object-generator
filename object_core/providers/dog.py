@@ -5,6 +5,7 @@ from math import isfinite
 
 from ..models import MeshPart, ObjectMesh
 from .base import Parameter
+from .dog_rigging import generate_dog_skeleton, generate_dog_skin_weights
 
 
 DOG_PARAMETERS = (
@@ -33,24 +34,33 @@ def _box(name, center, size):
     return MeshPart(name, vertices, faces)
 
 
+def _dimensions(parameters, values):
+    dimensions = {}
+    for field in parameters:
+        value = values[field.key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(field.label + " must be a number")
+        if not isfinite(value) or not field.minimum <= value <= field.maximum:
+            raise ValueError(field.label + " is outside its supported range")
+        dimensions[field.key] = float(value)
+    return dimensions
+
+
 class DogProvider:
-    """Editable quadruped blockout used to prove non-Human provider boundaries."""
+    """Quadruped provider with an initial deforming rig contract."""
 
     key, label = "dog", "Dog"
-    supports_rig = supports_idle = supports_locomotion = False
-    uses_skin_weights = supports_materials = False
+    supports_rig = True
+    supports_idle = supports_locomotion = False
+    uses_skin_weights = True
+    supports_materials = False
     parameters = DOG_PARAMETERS
 
-    def mesh(self, values):
-        dimensions = {}
-        for field in self.parameters:
-            value = values[field.key]
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise TypeError(field.label + " must be a number")
-            if not isfinite(value) or not field.minimum <= value <= field.maximum:
-                raise ValueError(field.label + " is outside its supported range")
-            dimensions[field.key] = float(value)
+    def dimensions(self, values):
+        return _dimensions(self.parameters, values)
 
+    def mesh(self, values):
+        dimensions = self.dimensions(values)
         length = dimensions["body_length_cm"]
         shoulder = dimensions["shoulder_height_cm"]
         width = dimensions["body_width_cm"]
@@ -93,3 +103,10 @@ class DogProvider:
             ))
 
         return ObjectMesh(tuple(parts))
+
+    def skeleton(self, values):
+        return generate_dog_skeleton(self.dimensions(values))
+
+    def skin_weights(self, mesh, values):
+        self.dimensions(values)
+        return generate_dog_skin_weights(mesh)
