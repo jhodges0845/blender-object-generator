@@ -65,18 +65,19 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Portable provider material contract plus an editable Human 1.0 Principled base surface.
 - [x] Portable generated-image texture contract with Human UV-driven base texture and editable Blender Image Texture translation.
 - [x] Portable Human in-place walk cycle with shared Blender clip-to-action translation and automated core/Blender coverage.
-- [x] Explicit Idle/Walk selection with separate editable generated actions, safe clip switching, and active-clip GLB export coverage.
+- [x] Explicit Idle/Walk selection with separate editable generated actions and safe clip switching.
 - [x] Generated Human textures are packed automatically for self-contained export while artist-supplied external textures remain untouched.
 - [x] Generated Idle/Walk clips can be created and switched from an evaluated generated pose without being mistaken for artist pose edits.
 - [x] Milestone visual/deformation review in Blender 5.2.1 covering neck, shoulder, elbow, wrist, hip, knee, ankle, silhouette, and connected deformation. No blocking separation or catastrophic collapse observed; angular low-poly joint transitions remain acceptable for the editable 1.0 foundation.
-- [x] Completed Human 1.0 validates and exports successfully through the Godot GLB path with generated rig, skinning, material/texture and selected animation clip.
-- [x] Godot destination verification confirmed connected hierarchy, Skeleton3D, generated texture, AnimationPlayer, upright orientation and active-clip animation for both Idle (~4 s) and Walk (~1.2 s) as separate exports.
+- [x] Completed Human 1.0 validates and exports successfully through the Godot GLB path with generated rig, skinning, material/texture and generated animation library.
+- [x] Godot destination verification confirmed connected hierarchy, Skeleton3D, generated texture, AnimationPlayer, upright orientation and working Idle/Walk motion.
+- [x] Unity generated-animation FBX export now carries Idle and Walk together, with automated regression coverage and manual destination confirmation that both generated clips are exposed.
+- [x] Unreal animated export now writes one model/skeleton/material FBX plus one armature-only FBX per generated clip, with regression coverage proving animation data is present and render assets are not duplicated into the sidecars.
 
 ### Remaining Human 1.0 work
 
-- [ ] Complete detailed Unity verification for the finished Human 1.0.
-- [ ] Complete detailed Unreal verification for the finished Human 1.0.
-- [ ] Run the Human Provider 1.0 closeout checkpoint: test coverage, documentation, architecture, target-verification evidence, and remaining-risk review.
+- [ ] Perform one final Unreal destination verification using the corrected bundle: import the model FBX first, then import Idle and Walk sidecars against its skeleton and confirm both sequences play correctly.
+- [ ] Run the Human Provider 1.0 closeout checkpoint: final test coverage, documentation, architecture, compatibility, target-verification evidence, and remaining-risk review.
 
 Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
@@ -92,16 +93,16 @@ Future architecture cleanup should remain evidence-driven: remove concrete dupli
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human 1.0 Godot verification now has direct destination evidence; Unity and Unreal remain to close the game-character milestone.
+Initial smoke checks exist for all four destinations. Human 1.0 now has direct Godot evidence, completed Unity multi-clip validation, and corrected Unreal animation-bundle behavior awaiting one final destination playback check.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
 - [x] Unity FBX model/animation smoke check.
 - [x] Unreal FBX model/animation smoke check.
 - [x] Cura Box STL import/slicing smoke check.
-- [x] Human 1.0 Godot pass covering hierarchy, skinning integrity, generated texture transfer, orientation and explicit Idle/Walk active-clip import/playback evidence. Measured scale and destination edit/reimport workflow remain broader certification work, not blockers for the Human 1.0 game-character milestone.
-- [ ] Detailed Unity pass covering importer/version, rig/avatar, skinning, materials/textures, axes, and scale.
-- [ ] Detailed Unreal pass covering skeleton/deformation, materials/textures, axes, scale, and FBX compatibility.
+- [x] Human 1.0 Godot pass covering hierarchy, skinning integrity, generated texture transfer, orientation and Idle/Walk playback evidence. Measured scale and destination edit/reimport workflow remain broader certification work, not blockers for the Human 1.0 game-character milestone.
+- [x] Human 1.0 Unity pass confirming model/rig import and generated Idle/Walk clip availability after the multi-clip export fix. Broader Humanoid-avatar retargeting, exact scale measurement, and edit/reimport remain certification follow-ups rather than 1.0 blockers.
+- [ ] Human 1.0 Unreal final pass using the corrected model + animation-sidecar workflow; confirm both Idle and Walk sequences play against the imported skeleton without duplicated render assets.
 - [ ] Detailed Cura pass covering dimensions, orientation, slicing warnings, and representative printable output.
 
 ## After Human 1.0
@@ -121,10 +122,9 @@ Initial smoke checks exist for all four destinations. Human 1.0 Godot verificati
 
 ## Suggested implementation order
 
-1. Repeat the completed Human 1.0 destination verification in Unity.
-2. Repeat it in Unreal, keeping the session focused because the editor is heavy on the available test machine.
-3. Close the Human Provider 1.0 checkpoint across tests, docs, architecture, compatibility, verification evidence, and remaining risks.
-4. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
+1. Perform the final corrected Unreal Human 1.0 import/playback check.
+2. Close the Human Provider 1.0 checkpoint across tests, docs, architecture, compatibility, verification evidence, and remaining risks.
+3. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
 
 ## Near-term release milestone
 
