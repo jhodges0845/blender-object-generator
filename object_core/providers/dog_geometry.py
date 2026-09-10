@@ -91,6 +91,38 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
         faces.append((root_start, ring_end, ring_mid, ring_start))
 
 
+def _project_uvs(vertices, faces):
+    """Create deterministic box-projected UVs inside the unit square.
+
+    Projection is selected per face from its dominant normal axis. This keeps
+    tube sides and limb surfaces useful without forcing topology seams into the
+    geometry contract; per-corner UVs can still differ across adjacent faces.
+    """
+    minimum = tuple(min(vertex[axis] for vertex in vertices) for axis in range(3))
+    maximum = tuple(max(vertex[axis] for vertex in vertices) for axis in range(3))
+    spans = tuple(max(maximum[axis] - minimum[axis], 1e-9) for axis in range(3))
+
+    def normalized(vertex, axis):
+        return (vertex[axis] - minimum[axis]) / spans[axis]
+
+    face_uvs = []
+    for face in faces:
+        a, b, c = (vertices[index] for index in face[:3])
+        normal = _cross(_subtract(b, a), _subtract(c, a))
+        dominant = max(range(3), key=lambda axis: abs(normal[axis]))
+        if dominant == 0:
+            axes = (1, 2)
+        elif dominant == 1:
+            axes = (0, 2)
+        else:
+            axes = (0, 1)
+        face_uvs.append(tuple(
+            (normalized(vertices[index], axes[0]), normalized(vertices[index], axes[1]))
+            for index in face
+        ))
+    return tuple(face_uvs)
+
+
 def generate_dog_deformable_mesh(dimensions):
     """Return one connected quadruped mesh shaped by validated Dog dimensions."""
     length = dimensions["body_length_cm"]
@@ -134,7 +166,7 @@ def generate_dog_deformable_mesh(dimensions):
     )
 
     vertices, faces = [], []
-    rings = _append_tube(vertices, faces, centers, widths, depths)
+    _append_tube(vertices, faces, centers, widths, depths)
 
     # One lateral torso quad per limb becomes the shared seam into that limb.
     openings = {}
@@ -170,4 +202,5 @@ def generate_dog_deformable_mesh(dimensions):
             depths_leg = (base * 1.12, base, base * 0.88, base * 0.78, base * 0.70, base * 0.58)
             _append_branch(vertices, faces, openings[(region, side)], centers_leg, widths_leg, depths_leg)
 
-    return ObjectMesh((MeshPart("dog", tuple(vertices), tuple(faces)),))
+    vertices, faces = tuple(vertices), tuple(faces)
+    return ObjectMesh((MeshPart("dog", vertices, faces, _project_uvs(vertices, faces)),))

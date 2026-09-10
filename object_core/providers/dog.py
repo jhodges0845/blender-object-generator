@@ -3,6 +3,7 @@
 
 from math import isfinite
 
+from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
 from .dog_animation import generate_dog_idle, generate_dog_walk
 from .dog_geometry import generate_dog_deformable_mesh
@@ -34,9 +35,8 @@ class DogProvider:
     """Connected deformable quadruped provider."""
 
     key, label = "dog", "Dog"
-    supports_rig = supports_idle = supports_locomotion = True
+    supports_rig = supports_idle = supports_locomotion = supports_materials = True
     uses_skin_weights = True
-    supports_materials = False
     parameters = DOG_PARAMETERS
 
     def dimensions(self, values):
@@ -57,3 +57,29 @@ class DogProvider:
 
     def locomotion(self, duration, strength):
         return generate_dog_walk(duration, strength)
+
+    def materials(self, values):
+        # Neutral brown coat is an exportable PBR starting point rather than an
+        # attempt to synthesize a breed-specific finished texture. Small tonal
+        # variation keeps the generated texture useful for UV/export validation.
+        texture = ImageTextureSpec(
+            "Dog Coat Texture",
+            2,
+            2,
+            (
+                0.27, 0.14, 0.07, 1.0,
+                0.34, 0.19, 0.10, 1.0,
+                0.30, 0.16, 0.08, 1.0,
+                0.38, 0.22, 0.12, 1.0,
+            ),
+        )
+        return (
+            MaterialSpec(
+                "Dog Base Coat",
+                ("dog",),
+                (0.32, 0.18, 0.09, 1.0),
+                metallic=0.0,
+                roughness=0.82,
+                base_color_texture=texture,
+            ),
+        )
