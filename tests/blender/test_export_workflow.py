@@ -75,6 +75,8 @@ class ExportWorkflowTests(unittest.TestCase):
                                       ('UNREAL', '.fbx', b'Kaydara FBX Binary'),
                                       ('CURA', '.stl', b'Object Generator')):
             self.settings.output_target = key
+            if key == 'CURA':
+                bpy.ops.humanoid.validate_character()
             self.assertTrue(bpy.ops.humanoid.export_asset.poll(), key)
             path = Path(self.temp.name) / (key + extension)
             self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(path)), {'FINISHED'})
@@ -86,6 +88,7 @@ class ExportWorkflowTests(unittest.TestCase):
         self.settings.output_target = 'CURA'
         self.settings.asset_use = 'ANIMATED'
         self.settings.require_textures = True
+        bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         path = Path(self.temp.name) / 'box.stl'
         bpy.ops.humanoid.export_asset(filepath=str(path))
@@ -101,15 +104,19 @@ class ExportWorkflowTests(unittest.TestCase):
         self.scene.collection.objects.link(other)
         other.parent = root
         other.location.x = 2
+        bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.assertTrue(any(issue.code == 'cura_solid' for issue in get_adapter('CURA').prepare(root, bpy.context)))
 
     def test_cura_rejects_open_mesh_and_uses_unit_scale(self):
         import bmesh
+        from humanoid_blender.ui import HUMANOID_OT_export
+        from types import SimpleNamespace
         root = self.generate()
         obj = root.children[0]
         self.scene.unit_settings.scale_length = 0.01
         self.settings.output_target = 'CURA'
+        bpy.ops.humanoid.validate_character()
         path = Path(self.temp.name) / 'scaled.stl'
         bpy.ops.humanoid.export_asset(filepath=str(path))
         data = path.read_bytes()
@@ -117,12 +124,30 @@ class ExportWorkflowTests(unittest.TestCase):
         heights = [struct.unpack_from('<12fH', data, 84 + index * 50)[i]
                    for index in range(count) for i in (5, 8, 11)]
         self.assertAlmostEqual(max(heights), 3, places=4)
+
+        # Export clears the snapshot after success. Revalidate while the mesh is
+        # still good so the next low-level scene edit creates a genuine stale-
+        # green Cura UI state.
+        bpy.ops.humanoid.validate_character()
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.faces.ensure_lookup_table()
         bmesh.ops.delete(bm, geom=[bm.faces[0]], context='FACES')
         bm.to_mesh(obj.data)
         bm.free()
+
+        # Cura's explicit validation snapshot is only the UI gate, so direct
+        # low-level edits can leave it stale. Call execute() directly to verify
+        # its independent preflight without Blender's bpy.ops error propagation.
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+        invalid_path = Path(self.temp.name) / 'invalid.stl'
+        operator = SimpleNamespace(filepath=str(invalid_path), report=lambda *args: None)
+        self.assertEqual(HUMANOID_OT_export.execute(operator, bpy.context), {'CANCELLED'})
+        self.assertFalse(invalid_path.exists())
+
+        # execute() stores the failed validation result, so Export is now locked.
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
 
     def test_material_preparation_preserves_existing_and_shared_data(self):
