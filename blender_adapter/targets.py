@@ -213,11 +213,52 @@ class FBXAdapter(BlenderOutputAdapter):
                     bake_anim_use_nla_strips=False, bake_anim_use_all_bones=True,
                     bake_anim_simplify_factor=0.0, path_mode='COPY', embed_textures=True)
 
+    def _texture_images(self, root):
+        from .validation import _image_nodes
+        seen = set()
+        for obj in asset_objects(root):
+            for slot in obj.material_slots:
+                material = slot.material
+                if material is None:
+                    continue
+                for node in _image_nodes(material.node_tree if material.use_nodes else None):
+                    image = node.image
+                    if image is None or image.as_pointer() in seen:
+                        continue
+                    seen.add(image.as_pointer())
+                    yield image
+
+    def _stage_generated_textures(self, root, directory):
+        """Give in-memory generated images temporary PNG paths for Blender's FBX writer."""
+        staged = []
+        for index, image in enumerate(self._texture_images(root)):
+            if image.source != 'GENERATED':
+                continue
+            original_path = image.filepath_raw
+            original_format = image.file_format
+            path = Path(directory) / ('asset_assistant_texture_%03d.png' % index)
+            try:
+                image.filepath_raw = str(path)
+                image.file_format = 'PNG'
+                image.save()
+                if not path.is_file() or path.stat().st_size <= 0:
+                    raise RuntimeError('temporary PNG was not written')
+            except Exception:
+                image.filepath_raw = original_path
+                image.file_format = original_format
+                for previous, previous_path, previous_format in staged:
+                    previous.filepath_raw = previous_path
+                    previous.file_format = previous_format
+                raise
+            staged.append((image, original_path, original_format))
+        return staged
+
     def validate(self, root, context):
         issues = list(super().validate(root, context))
-        # Blender FBX cannot embed unsaved generated/packed-only images reliably.
+        # Blender FBX needs an image path while writing. Generated images are safe
+        # to stage automatically because the original Blender datablock remains packed
+        # and its path/format are restored after export.
         import bpy
-        from .validation import _image_nodes
         for obj in asset_objects(root):
             animation = obj.animation_data
             if animation and animation.action:
@@ -225,17 +266,38 @@ class FBXAdapter(BlenderOutputAdapter):
                 if end < context.scene.frame_start or start > context.scene.frame_end:
                     issues.append(ValidationIssue('fbx_animation_range', 'ERROR', obj.name +
                         ': active action is outside the playback range. Set the range to the clip before export.'))
-            for slot in obj.material_slots:
-                material = slot.material
-                if material is None:
-                    continue
-                for node in _image_nodes(material.node_tree if material.use_nodes else None):
-                    image = node.image
-                    if image and (image.source != 'FILE' or not image.filepath or
-                                  not Path(bpy.path.abspath(image.filepath, library=image.library)).is_file()):
-                        issues.append(ValidationIssue('fbx_texture', 'ERROR', image.name +
-                            ': save this texture as a PNG/JPEG file before FBX export.'))
+        for image in self._texture_images(root):
+            path = (Path(bpy.path.abspath(image.filepath, library=image.library))
+                    if image.filepath else None)
+            if path is not None and path.is_file():
+                continue
+            if image.source == 'GENERATED':
+                issues.append(ValidationIssue('fbx_texture', 'INFO', image.name +
+                    ': generated texture will be staged automatically as PNG during FBX export.'))
+            else:
+                issues.append(ValidationIssue('fbx_texture', 'ERROR', image.name +
+                    ': save this texture as a PNG/JPEG file before FBX export.'))
         return tuple(issues)
+
+    def export(self, root, context, filepath):
+        from tempfile import TemporaryDirectory
+        staged = []
+        try:
+            with TemporaryDirectory(prefix='asset-assistant-fbx-') as directory:
+                staged = self._stage_generated_textures(root, directory)
+                try:
+                    return super().export(root, context, filepath)
+                finally:
+                    for image, original_path, original_format in staged:
+                        image.filepath_raw = original_path
+                        image.file_format = original_format
+        except Exception as exc:
+            try:
+                path = str(self.output_path(filepath))
+            except (ValueError, TypeError, OSError):
+                path = str(filepath)
+            return ExportResult(False, path, (ValidationIssue('fbx_texture', 'ERROR',
+                'Could not stage generated texture for FBX export: ' + str(exc)),))
 
     def write(self, options, root, context):
         import bpy
