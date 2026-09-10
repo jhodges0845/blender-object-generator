@@ -194,9 +194,9 @@ class BlenderAdapterTests(unittest.TestCase):
                 self.assertGreater(len(obj.vertex_groups), 0)
 
             settings.animation_clip = "IDLE"
-            self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
+            self.assertTrue(bpy.ops.humanoid.select_animation_clip.poll())
             settings.animation_clip = "WALK"
-            self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
+            self.assertTrue(bpy.ops.humanoid.select_animation_clip.poll())
         finally:
             humanoid_blender.unregister()
             bpy.context.window.scene = previous_scene
