@@ -93,7 +93,8 @@ class BlenderAdapterTests(unittest.TestCase):
                 [(item.identifier, item.name) for item in options],
                 [("humanoid", "Humanoid"),
                  ("human_experimental", "Human 1.0 (Experimental)"),
-                 ("box", "Box")],
+                 ("box", "Box"),
+                 ("dog", "Dog")],
             )
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
