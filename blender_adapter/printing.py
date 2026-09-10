@@ -175,14 +175,32 @@ def print_geometry(objects, context):
         bm.free()
 
 
-def write_stl(filepath, triangles, unit_scale):
+def _scene_scale_divisor():
+    """Read the optional Cura UI scale preset while keeping 1:1 as the API default."""
+    try:
+        import bpy
+        settings = getattr(bpy.context.scene, 'humanoid_settings', None)
+        value = getattr(settings, 'cura_print_scale', '1') if settings else '1'
+        return float(value)
+    except (AttributeError, TypeError, ValueError):
+        return 1.0
+
+
+def write_stl(filepath, triangles, unit_scale, scale_divisor=None):
+    """Write binary STL in millimetres at the requested physical print ratio."""
     from mathutils import Vector
+
+    if scale_divisor is None:
+        scale_divisor = _scene_scale_divisor()
+    if not isfinite(scale_divisor) or scale_divisor <= 0:
+        raise ValueError('Cura print scale divisor must be greater than zero.')
+    millimetre_scale = unit_scale * 1000 / scale_divisor
 
     with open(filepath, 'xb') as stream:
         stream.write(b'Object Generator - Cura STL in millimetres'.ljust(80, b'\0'))
         stream.write(struct.pack('<I', len(triangles)))
         for triangle in triangles:
-            vertices = [Vector(vertex) * unit_scale * 1000 for vertex in triangle]
+            vertices = [Vector(vertex) * millimetre_scale for vertex in triangle]
             normal = (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]).normalized()
             values = tuple(normal) + tuple(value for vertex in vertices for value in vertex)
             stream.write(struct.pack('<12fH', *values, 0))
