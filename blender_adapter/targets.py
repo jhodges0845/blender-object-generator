@@ -376,6 +376,7 @@ class UnrealAdapter(FBXAdapter):
         options['object_types'] = {'MESH', 'ARMATURE'}
         options['use_mesh_modifiers'] = True
         options['use_armature_deform_only'] = True
+        options['mesh_smooth_type'] = 'FACE'
         return options
 
     @staticmethod
@@ -392,16 +393,22 @@ class UnrealAdapter(FBXAdapter):
             options['bake_anim'] = False
             return bpy.ops.export_scene.fbx(**options)
         if mode == 'clip':
-            rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
+            objects = [obj for obj in asset_objects(root) if obj.type in ('MESH', 'ARMATURE')]
+            rigs = [obj for obj in objects if obj.type == 'ARMATURE']
             if len(rigs) != 1:
                 raise RuntimeError('Unreal animation export requires exactly one armature.')
             rig = rigs[0]
             for obj in tuple(context.selected_objects):
                 obj.select_set(False)
-            rig.select_set(True)
+            for obj in objects:
+                obj.select_set(True)
             context.view_layer.objects.active = rig
             options = dict(options)
-            options['object_types'] = {'ARMATURE'}
+            # Unreal 5.8 Interchange currently treats Blender armature-only FBXs
+            # as empty in animation-only mode. Keep the same skinned mesh/skeleton
+            # hierarchy as the successful model FBX so the importer can classify
+            # the source, while the user still imports only the AnimationSequence.
+            options['object_types'] = {'MESH', 'ARMATURE'}
             options['path_mode'] = 'AUTO'
             options['embed_textures'] = False
             return bpy.ops.export_scene.fbx(**options)
@@ -411,10 +418,10 @@ class UnrealAdapter(FBXAdapter):
         """Write an Unreal skeletal mesh FBX plus one FBX per generated clip.
 
         Unity can consume multiple FBX takes from one file, but Unreal's standard
-        skeletal-animation import flow is most reliable with one animation per
-        FBX. The chosen path remains the model file; generated clip files are
-        written beside it and contain only the shared armature plus one active
-        generated animation.
+        skeletal-animation workflow expects one animation per FBX. Each generated
+        clip sidecar carries the same skinned mesh/skeleton hierarchy as the model
+        plus one active action; Unreal imports it with Import Only Animations
+        against the skeleton created from the model FBX.
         """
         from .animation import generated_actions
 
@@ -476,7 +483,7 @@ class UnrealAdapter(FBXAdapter):
             names = ', '.join(path.name for _, path in clip_paths)
             return ExportResult(True, str(model_path), issues + (ValidationIssue(
                 'unreal_animation_bundle', 'INFO',
-                'Created Unreal model plus armature-only animation FBX files: ' + names),))
+                'Created Unreal model plus Interchange-compatible animation FBX files: ' + names),))
         finally:
             self._unreal_export_mode = None
             data.action = previous_action

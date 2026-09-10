@@ -117,8 +117,6 @@ class AnimationExportTests(unittest.TestCase):
         adapter = get_adapter('UNREAL', asset_use='ANIMATED')
         path = Path(self.temp.name) / 'Human_Unreal.fbx'
         mesh_names = tuple(obj.name.encode('utf8') for obj in asset_objects(self.root) if obj.type == 'MESH')
-        material_names = tuple(material.name.encode('utf8') for material in bpy.data.materials
-                               if material not in self.before['materials'])
 
         result = adapter.export(self.root, bpy.context, path)
 
@@ -144,18 +142,19 @@ class AnimationExportTests(unittest.TestCase):
 
         idle_payload = idle.read_bytes()
         walk_payload = walk.read_bytes()
-        # A single active-action FBX does not reliably retain Blender's action
-        # name in its binary payload. The sidecar filename owns the clip name;
-        # verify instead that each armature-only file contains animation data.
+        # Unreal 5.8 Interchange rejected Blender armature-only FBXs as empty.
+        # Each clip therefore carries the same recognizable skinned hierarchy
+        # as the model plus one baked animation, while Unreal's Import Only
+        # Animations option prevents duplicate mesh assets at destination.
         for payload in (idle_payload, walk_payload):
+            self.assertIn(self.rig.name.encode('utf8'), payload)
+            self.assertIn(b'Geometry', payload)
+            self.assertIn(b'Deformer', payload)
+            self.assertIn(b'Cluster', payload)
             self.assertIn(b'AnimationStack', payload)
             self.assertIn(b'AnimationCurve', payload)
-        for payload in (idle_payload, walk_payload):
             for name in mesh_names:
-                self.assertNotIn(name, payload)
-            for name in material_names:
-                self.assertNotIn(name, payload)
-            self.assertNotIn(b'asset_assistant_texture_', payload)
+                self.assertIn(name, payload)
         self.assertFalse(idle.with_suffix('.fbm').exists())
         self.assertFalse(walk.with_suffix('.fbm').exists())
         self.assertIs(self.rig.animation_data.action, active)
