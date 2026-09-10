@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Verify explicit generated-clip selection controls animated GLB export."""
+"""Verify generated animation libraries survive engine export."""
 
 import json
 from pathlib import Path
@@ -29,9 +29,8 @@ def read_glb(path):
     return json.loads(data[20:20 + size].decode('utf8'))
 
 
-def animation_duration(document):
+def animation_duration(document, animation):
     """Return the longest exported animation input time in seconds."""
-    animation = document['animations'][0]
     accessors = document['accessors']
     maxima = []
     for sampler in animation.get('samplers', []):
@@ -77,28 +76,41 @@ class AnimationExportTests(unittest.TestCase):
                 data.remove(item, do_unlink=True)
         self.temp.cleanup()
 
-    def test_only_active_generated_clip_is_exported_to_glb(self):
+    def _generate_library(self):
         add_idle(self.root, self.scene)
         add_locomotion(self.root, self.scene)
+        return activate_generated_action(self.root, 'Idle')
+
+    def test_all_generated_clips_are_exported_to_glb(self):
+        active = self._generate_library()
         adapter = get_adapter('GODOT', asset_use='ANIMATED')
+        path = Path(self.temp.name) / 'library.glb'
 
-        activate_generated_action(self.root, 'Idle')
-        idle_path = Path(self.temp.name) / 'idle.glb'
-        idle_result = adapter.export(self.root, bpy.context, idle_path)
-        self.assertTrue(idle_result.success, idle_result.issues)
-        idle_document = read_glb(idle_result.filepath)
-        self.assertEqual(len(idle_document.get('animations', [])), 1)
-        self.assertAlmostEqual(animation_duration(idle_document), 4.0, delta=0.05)
+        result = adapter.export(self.root, bpy.context, path)
 
-        activate_generated_action(self.root, 'Walk')
-        walk_path = Path(self.temp.name) / 'walk.glb'
-        walk_result = adapter.export(self.root, bpy.context, walk_path)
-        self.assertTrue(walk_result.success, walk_result.issues)
-        walk_document = read_glb(walk_result.filepath)
-        self.assertEqual(len(walk_document.get('animations', [])), 1)
-        self.assertAlmostEqual(animation_duration(walk_document), 1.2, delta=0.05)
+        self.assertTrue(result.success, result.issues)
+        document = read_glb(result.filepath)
+        animations = document.get('animations', [])
+        self.assertEqual(len(animations), 2)
+        durations = sorted(animation_duration(document, animation) for animation in animations)
+        self.assertAlmostEqual(durations[0], 1.2, delta=0.05)
+        self.assertAlmostEqual(durations[1], 4.0, delta=0.05)
+        self.assertIs(self.rig.animation_data.action, active)
+        self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
 
-        self.assertNotAlmostEqual(animation_duration(idle_document), animation_duration(walk_document), delta=0.5)
+    def test_all_generated_clips_are_named_in_unity_fbx(self):
+        active = self._generate_library()
+        adapter = get_adapter('UNITY', asset_use='ANIMATED')
+        path = Path(self.temp.name) / 'library.fbx'
+
+        result = adapter.export(self.root, bpy.context, path)
+
+        self.assertTrue(result.success, result.issues)
+        payload = Path(result.filepath).read_bytes()
+        self.assertIn(b'Idle', payload)
+        self.assertIn(b'Walk', payload)
+        self.assertIs(self.rig.animation_data.action, active)
+        self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
 
 
 if __name__ == '__main__':
