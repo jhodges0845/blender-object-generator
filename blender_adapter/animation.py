@@ -132,10 +132,11 @@ def _add_clip(root, scene, clip, suffix):
                 track = tracks_by_bone.get(bone.name)
                 if track is None:
                     # Every generated action explicitly owns every bone rotation.
-                    # A single identity key prevents unanimated bones from retaining
-                    # transforms from the previously active clip (for example Walk
-                    # leg rotations leaking into Idle during Unreal FBX baking).
-                    samples = [(start, Quaternion((1.0, 0.0, 0.0, 0.0)))]
+                    # Matching identity keys at both clip boundaries prevent
+                    # cross-clip pose leakage while preserving the action's loop
+                    # duration contract for otherwise-unanimated bones.
+                    identity = Quaternion((1.0, 0.0, 0.0, 0.0))
+                    samples = [(start, identity), (start + clip.duration * fps, identity)]
                 else:
                     axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
                     samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
