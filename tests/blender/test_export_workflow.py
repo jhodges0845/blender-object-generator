@@ -48,24 +48,38 @@ class ExportWorkflowTests(unittest.TestCase):
         bpy.ops.humanoid.generate_blockout()
         return self.settings.target
 
-    def test_material_preparation_unlocks_export_and_scene_edits_relock_it(self):
+    def test_validation_snapshot_gates_export_and_requires_explicit_refresh(self):
         root = self.generate()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.assertEqual(bpy.ops.humanoid.prepare_materials(), {'FINISHED'})
-        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+        # Preparation invalidates the prior snapshot; redraw-time polling stays
+        # cheap and locked until the artist explicitly validates again.
+        self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         bpy.ops.humanoid.validate_character()
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         self.assertFalse(any(row.status in ('WARN', 'ERROR') for row in self.settings.validation_results))
         self.assertFalse(any(row.code == 'blockout' for row in self.settings.validation_results))
+
+        # Low-level Blender edits can make a green snapshot stale. Polling must
+        # not rescan the scene; explicit validation refreshes and relocks it.
         mesh = root.children[0]
         mesh.data.materials.clear()
-        self.assertFalse(bpy.ops.humanoid.export_asset.poll())
-        bpy.ops.humanoid.prepare_materials()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+        bpy.ops.humanoid.validate_character()
+        self.assertFalse(bpy.ops.humanoid.export_asset.poll())
+
+        bpy.ops.humanoid.prepare_materials()
+        self.assertFalse(bpy.ops.humanoid.export_asset.poll())
+        bpy.ops.humanoid.validate_character()
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+
+        # Settings changes already invalidate the explicit snapshot.
         self.settings.asset_use = 'ANIMATED'
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.settings.asset_use = 'STATIC'
-        root.hide_select = True
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
+        bpy.ops.humanoid.validate_character()
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
 
     def test_each_ui_target_exports_its_file_format(self):
         self.generate()
@@ -75,8 +89,7 @@ class ExportWorkflowTests(unittest.TestCase):
                                       ('UNREAL', '.fbx', b'Kaydara FBX Binary'),
                                       ('CURA', '.stl', b'Object Generator')):
             self.settings.output_target = key
-            if key == 'CURA':
-                bpy.ops.humanoid.validate_character()
+            bpy.ops.humanoid.validate_character()
             self.assertTrue(bpy.ops.humanoid.export_asset.poll(), key)
             path = Path(self.temp.name) / (key + extension)
             self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(path)), {'FINISHED'})
@@ -174,6 +187,7 @@ class ExportWorkflowTests(unittest.TestCase):
         noise = material.node_tree.nodes.new('ShaderNodeTexNoise')
         shader = material.node_tree.nodes.get('Principled BSDF')
         material.node_tree.links.new(noise.outputs['Color'], shader.inputs['Base Color'])
+        bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.assertTrue(any(issue.code == 'material_shader' for issue in get_adapter('GODOT', asset_use='STATIC').prepare(root, bpy.context)))
 
@@ -212,10 +226,13 @@ class ExportWorkflowTests(unittest.TestCase):
         from types import SimpleNamespace
         root = self.generate()
         prepare_materials(root)
+        bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         root.children[0].data.materials.clear()
+        # The cached UI snapshot remains green, but execute() must independently
+        # revalidate the actual scene before writing the file.
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         path = Path(self.temp.name) / 'invalid.glb'
-        # execute() is independently guarded, even when a file dialog was already open.
         operator = SimpleNamespace(filepath=str(path), report=lambda *args: None)
         self.assertEqual(HUMANOID_OT_export.execute(operator, bpy.context), {'CANCELLED'})
         self.assertFalse(path.exists())
