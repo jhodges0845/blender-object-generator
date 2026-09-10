@@ -112,6 +112,27 @@ class AnimationExportTests(unittest.TestCase):
         self.assertIs(self.rig.animation_data.action, active)
         self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
 
+    def test_unreal_writes_model_and_one_fbx_per_generated_clip(self):
+        active = self._generate_library()
+        adapter = get_adapter('UNREAL', asset_use='ANIMATED')
+        path = Path(self.temp.name) / 'Human_Unreal.fbx'
+
+        result = adapter.export(self.root, bpy.context, path)
+
+        self.assertTrue(result.success, result.issues)
+        model = Path(result.filepath)
+        idle = model.with_name(model.stem + '_Idle.fbx')
+        walk = model.with_name(model.stem + '_Walk.fbx')
+        for exported in (model, idle, walk):
+            self.assertTrue(exported.is_file())
+            self.assertGreater(exported.stat().st_size, 0)
+        self.assertIn(b'Idle', idle.read_bytes())
+        self.assertIn(b'Walk', walk.read_bytes())
+        self.assertNotIn(b'Walk', idle.read_bytes())
+        self.assertNotIn(b'Idle', walk.read_bytes())
+        self.assertIs(self.rig.animation_data.action, active)
+        self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
