@@ -59,7 +59,7 @@ class FBXGeneratedTextureTests(unittest.TestCase):
 
     def test_unity_validation_allows_generated_texture_and_export_stages_it(self):
         image = self._generated_image()
-        self.assertEqual(image.source, 'GENERATED')
+        self.assertTrue(image.get('asset_assistant_generated_texture', False))
         self.assertTrue(image.packed_file or getattr(image, 'packed_files', ()))
         original_path = image.filepath_raw
         original_format = image.file_format
