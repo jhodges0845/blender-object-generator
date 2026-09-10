@@ -20,13 +20,17 @@ Human 1.0 exposes a portable in-place walk cycle in addition to idle. The cycle 
 
 The Blender adapter translates locomotion through the same shared clip-to-action path as idle and creates an editable `.Walk` action. Direct Blender integration coverage verifies cyclic action curves, opposing leg motion, coexistence of Idle and Walk actions, clip switching without overwriting generated keys, and preservation of artist animation.
 
+Generated actions are self-contained poses: each clip owns rotation data for every generated rig bone rather than relying on transforms left by a previously evaluated clip. This prevents cross-clip pose contamination during switching and per-clip export.
+
 ## Export behavior
 
 Animated engine export treats Asset Assistant-generated actions as a clip library, but packaging is destination-specific.
 
 Godot GLB/glTF exports all generated clips in one file. Current Blender uses Actions mode while older Blender relies on the temporary one-strip-per-action NLA organization. Unity FBX also keeps the generated clips together in one FBX as separate animation stacks; `bake_anim_use_all_actions` remains disabled so unrelated compatible actions are not broadcast into the export.
 
-Unreal uses a different packaging strategy because the standard Unreal skeletal-animation import workflow is most reliable with one animation per FBX. Choosing an Unreal output such as `Human_Unreal.fbx` creates the skeletal mesh/skeleton FBX plus adjacent clip files such as `Human_Unreal_Idle.fbx` and `Human_Unreal_Walk.fbx`. The model FBX owns the mesh, materials, textures, skeleton, and physics-generating geometry. Each animation sidecar contains only the shared armature plus one active generated action: no mesh, material, or texture payload is written into the clip FBX. Import the model FBX first, then import each clip FBX as animation-only against the skeleton created by the model import. Unity's working multi-clip FBX behavior is intentionally unchanged.
+Unreal uses a different packaging strategy because its skeletal-animation import workflow is more reliable with one animation per FBX. Choosing an Unreal output such as `Human_Unreal.fbx` creates the main skeletal mesh/skeleton/material FBX plus adjacent clip files such as `Human_Unreal_Idle.fbx` and `Human_Unreal_Walk.fbx`.
+
+For Unreal 5.8 Interchange compatibility, each animation sidecar retains the recognizable skinned mesh + armature hierarchy while activating exactly one generated action. Texture embedding is disabled for the sidecars. In Unreal, import the main FBX first, then import each sidecar with **Import Only Animations** against the skeleton created by the model import. That destination workflow creates the animation sequences without duplicating the render asset, while giving Interchange enough hierarchy to classify the FBX correctly. Unity's working multi-clip FBX behavior is intentionally unchanged.
 
 All temporary selection, active-action, playback-range, and export state is restored after export. Existing artist NLA tracks and drivers remain preservation boundaries rather than being silently reorganized.
 
@@ -34,4 +38,4 @@ All temporary selection, active-action, playback-range, and export state is rest
 
 Generated animation refuses to overwrite artist actions, NLA tracks, drivers, constraints, or non-rest poses. Generated Asset Assistant clips can coexist on the same rig and can be switched explicitly. Removing the add-on preserves the actions and keyframes.
 
-Validation checks changing unmuted curves, missing targets, non-finite values, Rest Position, zero action influence, and exporter-specific animation restrictions. A successful Blender action or file write is not destination certification; destination import and playback remain part of the Human 1.0 checkpoint.
+Validation checks changing unmuted curves, missing targets, non-finite values, Rest Position, zero action influence, and exporter-specific animation restrictions. A successful Blender action or file write is not destination certification; destination import and playback remain separate evidence.

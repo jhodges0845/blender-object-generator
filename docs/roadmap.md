@@ -38,10 +38,12 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Cached Blender runtimes in CI.
 - [x] Branch protection requiring all six CI checks before merge.
 - [x] Initial Godot, Unity, Unreal, and Cura smoke verification.
+- [x] Redraw-time validation caching so Blender UI polling uses the latest explicit validation snapshot while export execution still performs a fresh safety preflight.
+- [x] Cura Human print preparation plus selectable print-scale presets without changing the source/game asset.
 
-## Human Provider 1.0
+## Human Provider 1.0 — complete
 
-Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV'd, basically surfaced and animated character foundation that exports successfully and is ready for artist refinement.
+Human 1.0 completed the P0 milestone: an editable, deformable, UV'd, basically surfaced and animated character foundation that exports successfully and remains ready for artist refinement.
 
 ### Implemented Human foundation
 
@@ -71,13 +73,10 @@ Human 1.0 is the current P0 milestone. The target is an editable, deformable, UV
 - [x] Milestone visual/deformation review in Blender 5.2.1 covering neck, shoulder, elbow, wrist, hip, knee, ankle, silhouette, and connected deformation. No blocking separation or catastrophic collapse observed; angular low-poly joint transitions remain acceptable for the editable 1.0 foundation.
 - [x] Completed Human 1.0 validates and exports successfully through the Godot GLB path with generated rig, skinning, material/texture and generated animation library.
 - [x] Godot destination verification confirmed connected hierarchy, Skeleton3D, generated texture, AnimationPlayer, upright orientation and working Idle/Walk motion.
-- [x] Unity generated-animation FBX export now carries Idle and Walk together, with automated regression coverage and manual destination confirmation that both generated clips are exposed.
-- [x] Unreal animated export now writes one model/skeleton/material FBX plus one armature-only FBX per generated clip, with regression coverage proving animation data is present and render assets are not duplicated into the sidecars.
-
-### Remaining Human 1.0 work
-
-- [ ] Perform one final Unreal destination verification using the corrected bundle: import the model FBX first, then import Idle and Walk sidecars against its skeleton and confirm both sequences play correctly.
-- [ ] Run the Human Provider 1.0 closeout checkpoint: final test coverage, documentation, architecture, compatibility, target-verification evidence, and remaining-risk review.
+- [x] Unity generated-animation FBX export carries Idle and Walk together, with automated regression coverage and manual destination confirmation that both generated clips are exposed.
+- [x] Unreal animated export writes one model/skeleton/material FBX plus one Interchange-recognizable sidecar FBX per generated clip. Sidecars retain the skinned hierarchy needed by Unreal 5.8 while animation-only import avoids creating duplicate destination render assets.
+- [x] Unreal destination verification confirmed the corrected model plus Idle/Walk sidecar workflow and playback after generated clip-pose isolation removed cross-clip contamination.
+- [x] Human Provider 1.0 closeout checkpoint completed across test coverage, documentation, architecture, compatibility, destination evidence, performance/UI readiness, and remaining-risk review.
 
 Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
@@ -93,7 +92,7 @@ Future architecture cleanup should remain evidence-driven: remove concrete dupli
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human 1.0 now has direct Godot evidence, completed Unity multi-clip validation, and corrected Unreal animation-bundle behavior awaiting one final destination playback check.
+Initial smoke checks exist for all four destinations. Human 1.0 now has direct Godot, Unity, and Unreal destination evidence. Cura has automated Human print-preparation coverage and earlier Box slicing evidence; broader print certification remains separate from the Human game-character milestone.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
@@ -102,17 +101,32 @@ Initial smoke checks exist for all four destinations. Human 1.0 now has direct G
 - [x] Cura Box STL import/slicing smoke check.
 - [x] Human 1.0 Godot pass covering hierarchy, skinning integrity, generated texture transfer, orientation and Idle/Walk playback evidence. Measured scale and destination edit/reimport workflow remain broader certification work, not blockers for the Human 1.0 game-character milestone.
 - [x] Human 1.0 Unity pass confirming model/rig import and generated Idle/Walk clip availability after the multi-clip export fix. Broader Humanoid-avatar retargeting, exact scale measurement, and edit/reimport remain certification follow-ups rather than 1.0 blockers.
-- [ ] Human 1.0 Unreal final pass using the corrected model + animation-sidecar workflow; confirm both Idle and Walk sequences play against the imported skeleton without duplicated render assets.
-- [ ] Detailed Cura pass covering dimensions, orientation, slicing warnings, and representative printable output.
+- [x] Human 1.0 Unreal pass using the corrected model + animation-sidecar workflow, including destination playback of both generated clips after clip-pose isolation.
+- [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations. This is not a blocker for starting additional providers.
 
-## After Human 1.0
+## Next provider milestones
 
-### P1
+### P1 — Dog/quadruped
 
-- Dog/quadruped provider as the next major architecture proof.
+Dog is the next major architecture proof. It should exercise the existing provider/capability model with genuinely different anatomy rather than introducing speculative abstractions first.
+
+Near-term goals:
+
+- define a Dog/quadruped provider contract and parameters;
+- generate an editable quadruped blockout through the host-independent core;
+- add quadruped-specific skeleton, skinning, UV/surface, validation, Idle and locomotion behavior as the provider requires;
+- reuse shared Blender workflow and target adapters wherever the existing contracts genuinely fit;
+- add new shared abstractions only when Dog exposes a concrete cross-provider requirement; and
+- validate representative export behavior before declaring the provider complete.
+
+### P1 — Bird
+
+Bird follows Dog as an additional anatomy and animation proof. Its purpose is to test another non-Human body plan and motion model after the quadruped path has exercised the first real provider expansion.
+
+### Shared follow-ups
+
 - Reusable UV/material/validation infrastructure driven by real provider needs.
-- Watertight print-preparation work for providers that support 3D printing.
-- Bird provider as an additional anatomy/animation proof.
+- Watertight print-preparation work for providers that explicitly support 3D printing.
 
 ### P2
 
@@ -122,10 +136,12 @@ Initial smoke checks exist for all four destinations. Human 1.0 now has direct G
 
 ## Suggested implementation order
 
-1. Perform the final corrected Unreal Human 1.0 import/playback check.
-2. Close the Human Provider 1.0 checkpoint across tests, docs, architecture, compatibility, verification evidence, and remaining risks.
-3. Move to Dog/quadruped and revisit architecture only where it exposes concrete limitations.
+1. Start Dog/quadruped with the smallest provider/core slice that proves generation through the existing capability architecture.
+2. Grow Dog through rigging, deformation, surfacing, animation, validation and representative target export without pre-building unused framework layers.
+3. Run a Dog closeout checkpoint across tests, docs and architecture.
+4. Build Bird as the second non-Human anatomy proof.
+5. Run release-hardening/publish readiness after the Human, Dog and Bird provider milestones are complete.
 
 ## Near-term release milestone
 
-> Give Asset Assistant supported Human parameters and receive an editable, deformable, basically surfaced, animated character foundation that validates, exports, works in a supported game engine with minimal technical repair, and remains ready for an artist to refine creatively.
+> Asset Assistant can create useful editable starting assets across Human, Dog and Bird body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
