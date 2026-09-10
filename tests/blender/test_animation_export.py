@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 from blender_adapter.adapter import create_character
 from blender_adapter.animation import add_idle, add_locomotion, activate_generated_action
 from blender_adapter.materials import prepare_materials
-from blender_adapter.targets import get_adapter
+from blender_adapter.targets import asset_objects, get_adapter
 from blender_adapter.workflow import add_basic_rig
 from object_core.objects import get_provider
 
@@ -116,6 +116,9 @@ class AnimationExportTests(unittest.TestCase):
         active = self._generate_library()
         adapter = get_adapter('UNREAL', asset_use='ANIMATED')
         path = Path(self.temp.name) / 'Human_Unreal.fbx'
+        mesh_names = tuple(obj.name.encode('utf8') for obj in asset_objects(self.root) if obj.type == 'MESH')
+        material_names = tuple(material.name.encode('utf8') for material in bpy.data.materials
+                               if material not in self.before['materials'])
 
         result = adapter.export(self.root, bpy.context, path)
 
@@ -126,10 +129,21 @@ class AnimationExportTests(unittest.TestCase):
         for exported in (model, idle, walk):
             self.assertTrue(exported.is_file())
             self.assertGreater(exported.stat().st_size, 0)
-        self.assertIn(b'Idle', idle.read_bytes())
-        self.assertIn(b'Walk', walk.read_bytes())
-        self.assertNotIn(b'Walk', idle.read_bytes())
-        self.assertNotIn(b'Idle', walk.read_bytes())
+        idle_payload = idle.read_bytes()
+        walk_payload = walk.read_bytes()
+        self.assertIn(b'Idle', idle_payload)
+        self.assertIn(b'Walk', walk_payload)
+        self.assertNotIn(b'Walk', idle_payload)
+        self.assertNotIn(b'Idle', walk_payload)
+        self.assertTrue(mesh_names)
+        for payload in (idle_payload, walk_payload):
+            for name in mesh_names:
+                self.assertNotIn(name, payload)
+            for name in material_names:
+                self.assertNotIn(name, payload)
+            self.assertNotIn(b'asset_assistant_texture_', payload)
+        self.assertFalse(idle.with_suffix('.fbm').exists())
+        self.assertFalse(walk.with_suffix('.fbm').exists())
         self.assertIs(self.rig.animation_data.action, active)
         self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
 
