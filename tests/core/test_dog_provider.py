@@ -13,8 +13,8 @@ class DogProviderTests(unittest.TestCase):
     def test_dog_provider_declares_deforming_rig_capabilities(self):
         self.assertEqual(self.provider.label, "Dog")
         self.assertTrue(self.provider.supports_rig)
-        self.assertFalse(self.provider.supports_idle)
-        self.assertFalse(self.provider.supports_locomotion)
+        self.assertTrue(self.provider.supports_idle)
+        self.assertTrue(self.provider.supports_locomotion)
         self.assertTrue(self.provider.uses_skin_weights)
         self.assertFalse(self.provider.supports_materials)
 
