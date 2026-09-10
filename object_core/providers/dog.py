@@ -4,6 +4,7 @@
 from math import isfinite
 
 from .base import Parameter
+from .dog_animation import generate_dog_idle, generate_dog_walk
 from .dog_geometry import generate_dog_deformable_mesh
 from .dog_rigging import generate_dog_skeleton, generate_dog_skin_weights
 
@@ -33,8 +34,7 @@ class DogProvider:
     """Connected deformable quadruped provider."""
 
     key, label = "dog", "Dog"
-    supports_rig = True
-    supports_idle = supports_locomotion = False
+    supports_rig = supports_idle = supports_locomotion = True
     uses_skin_weights = True
     supports_materials = False
     parameters = DOG_PARAMETERS
@@ -51,3 +51,9 @@ class DogProvider:
     def skin_weights(self, mesh, values):
         skeleton = self.skeleton(values)
         return generate_dog_skin_weights(mesh, skeleton)
+
+    def idle(self, duration, strength):
+        return generate_dog_idle(duration, strength)
+
+    def locomotion(self, duration, strength):
+        return generate_dog_walk(duration, strength)
