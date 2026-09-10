@@ -39,11 +39,11 @@ def generate_dog_skeleton(dimensions):
         bones.extend((
             Bone("fore_upper." + side, (x, fore_y, shoulder), (x, fore_y, knee_z), "spine"),
             Bone("fore_lower." + side, (x, fore_y, knee_z), (x, fore_y, 0), "fore_upper." + side),
-            Bone("hind_upper." + side, (x, hind_y, shoulder * 0.86), (x, hind_y, knee_z), "root"),
+            Bone("hind_upper." + side, (x, hind_y, shoulder * 0.86), (x, hind_y, knee_z), "spine"),
             Bone("hind_lower." + side, (x, hind_y, knee_z), (x, hind_y, 0), "hind_upper." + side),
         ))
 
-    parent = "root"
+    parent = "spine"
     start_y = tail_base_y
     start_z = back_z
     for index in range(3):
