@@ -60,7 +60,9 @@ class DogProviderTests(unittest.TestCase):
             self.assertIn(name, names)
         by_name = {bone.name: bone for bone in skeleton.bones}
         self.assertEqual(by_name["fore_lower.left"].parent, "fore_upper.left")
+        self.assertEqual(by_name["hind_upper.left"].parent, "spine")
         self.assertEqual(by_name["hind_lower.right"].parent, "hind_upper.right")
+        self.assertEqual(by_name["tail.1"].parent, "spine")
         self.assertEqual(by_name["tail.3"].parent, "tail.2")
 
     def test_skin_weights_cover_connected_surface_and_stay_local(self):
@@ -80,6 +82,21 @@ class DogProviderTests(unittest.TestCase):
         used = {item.bone_name for row in rows for item in row}
         self.assertTrue({"spine", "neck", "head", "tail.1", "tail.2", "tail.3"} <= used)
         self.assertTrue({"fore_upper.left", "fore_lower.right", "hind_upper.left", "hind_lower.right"} <= used)
+
+    def test_deformation_junctions_share_weights_across_parent_child_bones(self):
+        mesh = self.provider.mesh(self.defaults)
+        rows = self.provider.skin_weights(mesh, self.defaults)[0].vertices
+        influence_sets = [{item.bone_name for item in row} for row in rows]
+        expected_blends = (
+            {"spine", "fore_upper.left"},
+            {"spine", "hind_upper.left"},
+            {"spine", "neck"},
+            {"spine", "tail.1"},
+            {"tail.1", "tail.2"},
+        )
+        for pair in expected_blends:
+            with self.subTest(pair=pair):
+                self.assertTrue(any(pair <= names for names in influence_sets))
 
     def test_invalid_parameters_are_rejected(self):
         for field in self.provider.parameters:
