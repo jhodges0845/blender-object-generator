@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Host-independent dog-derived quadruped provider."""
+"""Host-independent quadruped provider."""
 
 from math import isfinite
 
 from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
-from .dog_animation import generate_dog_idle, generate_dog_run, generate_dog_walk
-from .dog_geometry import generate_dog_deformable_mesh
-from .dog_rigging import generate_dog_skeleton, generate_dog_skin_weights
+from .quadruped_animation import generate_quadruped_idle, generate_quadruped_run, generate_quadruped_walk
+from .quadruped_geometry import generate_quadruped_deformable_mesh
+from .quadruped_rigging import generate_quadruped_skeleton, generate_quadruped_skin_weights
 
 
-DOG_PARAMETERS = (
+QUADRUPED_PARAMETERS = (
     Parameter("body_length_cm", "Body Length (cm)", 70, 25, 140),
     Parameter("shoulder_height_cm", "Shoulder Height (cm)", 55, 15, 100),
     Parameter("body_width_cm", "Body Width (cm)", 24, 8, 55),
@@ -31,42 +31,39 @@ def _dimensions(parameters, values):
     return dimensions
 
 
-class DogProvider:
-    """Connected deformable quadruped provider backed by the current dog implementation."""
+class QuadrupedProvider:
+    """Connected deformable quadruped provider."""
 
-    key, label = "dog", "Quadruped"
+    key, label = "quadruped", "Quadruped"
     supports_rig = supports_idle = supports_locomotion = supports_run = supports_materials = True
     uses_skin_weights = True
-    parameters = DOG_PARAMETERS
+    parameters = QUADRUPED_PARAMETERS
 
     def dimensions(self, values):
         return _dimensions(self.parameters, values)
 
     def mesh(self, values):
-        return generate_dog_deformable_mesh(self.dimensions(values))
+        return generate_quadruped_deformable_mesh(self.dimensions(values))
 
     def skeleton(self, values):
-        return generate_dog_skeleton(self.dimensions(values))
+        return generate_quadruped_skeleton(self.dimensions(values))
 
     def skin_weights(self, mesh, values):
         skeleton = self.skeleton(values)
-        return generate_dog_skin_weights(mesh, skeleton)
+        return generate_quadruped_skin_weights(mesh, skeleton)
 
     def idle(self, duration, strength):
-        return generate_dog_idle(duration, strength)
+        return generate_quadruped_idle(duration, strength)
 
     def locomotion(self, duration, strength):
-        return generate_dog_walk(duration, strength)
+        return generate_quadruped_walk(duration, strength)
 
     def run(self, duration, strength):
-        return generate_dog_run(duration, strength)
+        return generate_quadruped_run(duration, strength)
 
     def materials(self, values):
-        # Neutral brown coat is an exportable PBR starting point rather than an
-        # attempt to synthesize a breed-specific finished texture. Small tonal
-        # variation keeps the generated texture useful for UV/export validation.
         texture = ImageTextureSpec(
-            "Dog Coat Texture",
+            "Quadruped Coat Texture",
             2,
             2,
             (
@@ -78,8 +75,8 @@ class DogProvider:
         )
         return (
             MaterialSpec(
-                "Dog Base Coat",
-                ("dog",),
+                "Quadruped Base Coat",
+                ("quadruped",),
                 (0.32, 0.18, 0.09, 1.0),
                 metallic=0.0,
                 roughness=0.82,

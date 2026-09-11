@@ -12,22 +12,22 @@ from object_core.objects import get_provider
 
 
 @unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
-class DogGeneratedMaterialTests(unittest.TestCase):
+class QuadrupedGeneratedMaterialTests(unittest.TestCase):
     def setUp(self):
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.object.delete(use_global=False)
 
-    def _dog(self):
-        provider = get_provider("dog")
+    def _quadruped(self):
+        provider = get_provider("quadruped")
         values = {field.key: field.default for field in provider.parameters}
-        root = create_asset(provider.mesh(values), name="MaterialDog")
+        root = create_asset(provider.mesh(values), name="MaterialQuadruped")
         root["object_type"] = provider.key
         for key, value in values.items():
             root[key] = value
         return root, provider, values
 
-    def test_prepare_uses_portable_dog_coat_and_texture(self):
-        root, provider, values = self._dog()
+    def test_prepare_uses_portable_quadruped_coat_and_texture(self):
+        root, provider, values = self._quadruped()
         created = prepare_materials(root)
         mesh = next(obj for obj in root.children if obj.type == "MESH")
         expected = provider.materials(values)[0]
@@ -47,9 +47,9 @@ class DogGeneratedMaterialTests(unittest.TestCase):
         self.assertFalse(material_issues((mesh,)))
 
     def test_prepare_preserves_existing_artist_material(self):
-        root, _provider, _values = self._dog()
+        root, _provider, _values = self._quadruped()
         mesh = next(obj for obj in root.children if obj.type == "MESH")
-        artist = bpy.data.materials.new("Artist Dog Coat")
+        artist = bpy.data.materials.new("Artist Quadruped Coat")
         mesh.data.materials.append(artist)
         for face in mesh.data.polygons:
             face.material_index = 0

@@ -4,13 +4,14 @@ import unittest
 from object_core.objects import get_provider
 
 
-class DogAnimationTests(unittest.TestCase):
+class QuadrupedAnimationTests(unittest.TestCase):
     def setUp(self):
-        self.provider = get_provider("dog")
+        self.provider = get_provider("quadruped")
 
-    def test_dog_declares_idle_and_locomotion_support(self):
+    def test_quadruped_declares_idle_locomotion_and_run_support(self):
         self.assertTrue(self.provider.supports_idle)
         self.assertTrue(self.provider.supports_locomotion)
+        self.assertTrue(self.provider.supports_run)
 
     def test_idle_is_closed_and_targets_quadruped_upper_body_and_tail(self):
         clip = self.provider.idle(4.0, 1.0)
@@ -41,7 +42,7 @@ class DogAnimationTests(unittest.TestCase):
                         tracks["hind_upper.right"].keys[0][1], 0.0)
 
     def test_animation_validation_matches_shared_provider_ranges(self):
-        for method in (self.provider.idle, self.provider.locomotion):
+        for method in (self.provider.idle, self.provider.locomotion, self.provider.run):
             for duration, strength in ((True, 1.0), (1.2, True), (float("nan"), 1.0), (1.2, 0.0)):
                 with self.assertRaises((TypeError, ValueError)):
                     method(duration, strength)

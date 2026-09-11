@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Dog-specific quadruped rig and skin-weight generation."""
+"""Quadruped rig and skin-weight generation."""
 
 from math import sqrt
 
 from ..models import Bone, BoneWeight, Skeleton, SkinWeights
 
 
-def generate_dog_skeleton(dimensions):
-    """Build a deterministic quadruped skeleton from validated Dog dimensions."""
+def generate_quadruped_skeleton(dimensions):
+    """Build a deterministic quadruped skeleton from validated dimensions."""
     length = dimensions["body_length_cm"]
     shoulder = dimensions["shoulder_height_cm"]
     width = dimensions["body_width_cm"]
@@ -97,11 +97,11 @@ def _weights_for_vertex(vertex, bones, max_influences=4):
     return tuple(BoneWeight(name, value) for name, value in normalized if value > 0)
 
 
-def generate_dog_skin_weights(mesh, skeleton, *, max_influences=4):
-    """Return normalized local weights for a connected Dog surface."""
+def generate_quadruped_skin_weights(mesh, skeleton, *, max_influences=4):
+    """Return normalized local weights for a connected quadruped surface."""
     deform_bones = tuple(bone for bone in skeleton.bones if bone.name != "root")
     if not deform_bones:
-        raise ValueError("Dog skeleton must contain deform bones")
+        raise ValueError("Quadruped skeleton must contain deform bones")
     return tuple(
         SkinWeights(
             part.name,

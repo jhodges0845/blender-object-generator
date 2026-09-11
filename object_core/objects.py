@@ -6,14 +6,19 @@ registry can remain focused on shared contracts as new asset families are added.
 """
 
 from .providers import (
-    DOG_PARAMETERS,
     HUMAN_PARAMETERS,
+    QUADRUPED_PARAMETERS,
     BoxProvider,
-    DogProvider,
     HumanExperimentalProvider,
     HumanoidProvider,
     Parameter,
+    QuadrupedProvider,
 )
+
+
+# Saved assets from the pre-Quadruped naming era can still resolve their provider.
+# New assets always store the canonical provider key.
+LEGACY_PROVIDER_KEYS = {"dog": "quadruped"}
 
 
 def validate_provider(provider):
@@ -75,18 +80,23 @@ def validate_provider(provider):
 
 OBJECT_TYPES = {
     provider.key: validate_provider(provider)
-    for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider(), DogProvider())
+    for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider(), QuadrupedProvider())
 }
 
 
+def canonical_provider_key(key):
+    return LEGACY_PROVIDER_KEYS.get(key, key)
+
+
 def get_provider(key):
+    canonical_key = canonical_provider_key(key)
     try:
-        provider = OBJECT_TYPES[key]
+        provider = OBJECT_TYPES[canonical_key]
     except KeyError:
         raise ValueError("Unsupported object type: " + str(key)) from None
     validate_provider(provider)
-    if provider.key != key:
-        raise ValueError("Provider registry key does not match declared key: " + str(key))
+    if provider.key != canonical_key:
+        raise ValueError("Provider registry key does not match declared key: " + str(canonical_key))
     return provider
 
 
@@ -94,13 +104,15 @@ def get_provider(key):
 # from object_core.objects before provider implementations were split out.
 __all__ = [
     "Parameter",
-    "DOG_PARAMETERS",
-    "DogProvider",
+    "QUADRUPED_PARAMETERS",
+    "QuadrupedProvider",
     "HUMAN_PARAMETERS",
     "HumanoidProvider",
     "HumanExperimentalProvider",
     "BoxProvider",
     "validate_provider",
     "OBJECT_TYPES",
+    "LEGACY_PROVIDER_KEYS",
+    "canonical_provider_key",
     "get_provider",
 ]

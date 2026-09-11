@@ -1,94 +1,45 @@
 # Workflow and asset readiness
 
-Version 0.8.1 provides five vertical sidebar tabs: Generator, Rigging, Animations,
-Validation and Export. The internal stage-button row has been removed. Generation,
-rigging, animation, and validation are separate actions on one chosen character.
+Asset Assistant exposes five vertical sidebar tabs: Generator, Rigging, Animations, Validation and Export. Generation, rigging, animation, and validation are separate actions on one chosen asset.
 
 | Tab | Current behavior |
 | --- | --- |
-| Generator | Choose Humanoid for a character or Box for a static prop; each has its own inputs. |
-| Rigging | Add the 16-bone rigid rig to that character, then use Enter Pose Mode. Existing rigs are preserved. |
-| Animations | Generate an editable looping idle on a fresh rig and preview playback. See [animation](animation.md). |
+| Generator | Choose Human, Quadruped, or Box and generate an editable starting asset. |
+| Rigging | Add the selected provider's supported rig without replacing an existing rig. |
+| Animations | Generate/select supported clips such as Idle, Walk, and Run. See [animation](animation.md). |
 | Validation | Run target-specific checks for the selected intended use and texture requirements. |
-| Export | Choose the destination, prepare missing materials, resolve the live checklist and export through the file browser. |
+| Export | Choose the destination, prepare missing materials where appropriate, resolve the checklist and export through the file browser. |
 
-The Object field identifies which generated object Rigging, Animation and Validation
-will operate on. It is set automatically after generation. Choose another root
-in that field to work on an older character. When the field is empty, a selected
-part or rig can identify its generated parent. New measurements affect only the
-next generated model; rigging uses the character's saved generation dimensions.
+The Object field identifies which generated asset Rigging, Animations and Validation operate on. It is set automatically after generation. Choose another generated root in that field to work on an older asset. When the field is empty, a selected part or rig can identify its generated parent. New Generator measurements affect only the next generated asset; later workflow stages use the asset's saved generation parameters.
 
-Rigging preserves the mesh objects and existing edits. Its joint locations are
-based on the original proportions, so substantial artist edits may require
-manual bone adjustment. Automatic rigging refuses to overwrite an existing rig,
-conflicting bone groups, missing/renamed parts, or edited per-part transforms.
-Moving the common parent is supported. Version 0.5 records the original unit
-conversion; older unrigged characters without that metadata use the current
-scene unit scale. Restore the original scale before rigging those older files.
+Rigging preserves mesh objects and existing edits where the automatic workflow remains valid. Automatic rigging refuses to overwrite an existing rig, conflicting bone groups, missing/renamed generated parts, or incompatible edited per-part transforms. Moving the common generated parent is supported.
 
 ## What an asset needs
 
-A static prop does not need bones or animation. A poseable character needs a
-skeleton and skin weights. An animated character also needs animation clips.
-All need suitable geometry, scale, appearance, and a tested export for the
-intended game engine. No single checklist guarantees quality across every engine.
+A static prop does not need bones or animation. A poseable deforming asset needs a skeleton and skin weights. An animated asset also needs animation clips. All need suitable geometry, scale, appearance, and a tested export for the intended destination. No single checklist guarantees quality across every engine.
 
-A material defines surface appearance. Image textures supply details such as
-color or roughness; UV maps place those images on the surface. A simple flat-color
-material can be sufficient for a stylized model, so image textures are optional.
-For a textured character, plan UV unwrapping, image creation or baking, and
-packing/copying the images for delivery. Normal, roughness, metallic, and other
-maps are used as the art style and engine require; every model does not need
-every type of map. Blender procedural materials may need baking for export.
+A material defines surface appearance. Image textures supply details such as color or roughness; UV maps place those images on the surface. A simple flat-color material can be sufficient for a stylized model, so image textures are optional. Blender procedural materials may need baking for portable export.
 
-Add Missing Materials creates neutral Principled materials for faces without assignments.
-Existing materials are preserved. UV maps and image texture authoring/baking are
-still manual. Cura STL does not require materials, UVs, rigs or animation.
+Add Missing Materials creates conservative Principled materials only for missing assignments. Existing artist materials are preserved. Providers with generated material intent may supply their own editable base material/texture foundation. Cura STL does not require materials, UVs, rigs or animation.
 
 ## Validation options and scope
 
-Choose Static Asset, Rigged Asset, or Animated Asset. Enable Image Textures
-Expected only when your intended appearance requires image maps.
+Choose Static Asset, Rigged Asset, or Animated Asset. Enable Image Textures Expected only when the intended appearance requires image maps.
 
-- Geometry: checks mesh presence, finite coordinates, nonzero face area, and
-  edge usage consistent with closed individual parts. It does not detect all
-  self-intersections, flipped normals, bad shading, or poor topology.
-- Rigging: checks armature/bone presence, enabled armature modifiers, and
-  vertices with positive weights in deform-bone groups. It does not certify
-  weight normalization, joint anatomy, or deformation quality.
-- Animation: checks changing unmuted curves in actions or unmuted NLA strips,
-  missing targets, non-finite values, Rest Position and zero action influence.
-  It does not certify evaluated motion under arbitrary constraints, NLA blending,
-  loop quality, or export. Static props do not require animation or a rig.
-- Materials: missing game-material assignments are errors. Use Add Missing Materials
-  or author suitable materials before export. Procedural shaders require baking.
-- Textures: checks connected image nodes in assigned materials and linked node
-  groups. Missing image assignments or external files are errors. Packed images
-  are accepted. Generated, unpacked images and movie/sequence images need review.
-  UDIM filenames using the <UDIM> token are checked against listed tiles.
-- UVs: checks for an active layer with finite coordinates when image textures
-  are expected or found. It does not judge UV overlap, island area, seams, or
-  texel density. Non-UV projection workflows still need an export-specific review.
-- Transforms: flags unapplied per-mesh scale for review.
+- Geometry checks mesh presence, finite coordinates, nonzero face area, and important target-specific topology requirements. It does not detect every self-intersection, shading problem, or artistic topology issue.
+- Rigging checks armature/bone presence, enabled armature modifiers, and deform-weight coverage. It does not certify anatomy or final deformation quality.
+- Animation checks changing unmuted curves, missing targets, non-finite values, Rest Position and zero action influence. It does not certify final motion quality, arbitrary constraint/NLA combinations, or destination playback.
+- Materials checks required assignments and portable shader limitations.
+- Textures checks image references and missing/external data where applicable.
+- UVs checks active finite UV data when textures require it; it does not judge overlap, seams, or texel density.
+- Transforms flags target-relevant transform conditions for review.
 
-Connected image-node detection is conservative: it is not a full shader graph
-evaluation, and connected nodes on unused shader branches may also be reported.
-Actual multipart blockouts and target import review have informational notes.
-These notes are separate from actionable warnings and do not claim verification. Separate closed parts are expected in this prototype; they do not mean
-the character is a single welded surface suitable for smooth skinning.
+Validation-tab results are explicit snapshots. Redrawing the UI consumes the latest snapshot rather than repeatedly running expensive inspection. Export execution always performs a fresh safety preflight, so a stale green snapshot cannot authorize an invalid current scene.
 
-Validation-tab results are snapshots. The Export tab evaluates current readiness
-and blocks export on unresolved errors or warnings; the operator rechecks at execution.
-[Export workflow](targets.md) explains formats and preparation. Validation snapshots
-are not permission to export after later edits. Changing the target or requirements clears them; rerun
-validation after geometry, rig, material, image, or animation edits. The validator
-does not silently repair files or label the current blockout production-ready.
+## Provider behavior
 
-## Remaining roadmap
+Shared workflow code is capability-driven rather than anatomy-driven. Human and Quadruped both exercise connected deforming paths through the same Blender workflow, while Box demonstrates a static provider that skips rigging and animation. The next provider milestone is Avian and should use the same generic workflow wherever its actual capabilities fit.
 
-1. UV authoring and optional image textures/baking beyond neutral materials.
-2. Mesh topology and blended weights for smoother joints where needed.
-3. Destination-application import testing and project-specific art-budget checks.
+Older saved generated assets may be migrated from historical provider identifiers when they are resolved. New assets always store their canonical provider identity.
 
-Polygon budgets, texture resolution/color space, bone conventions, and clip
-requirements must be decided for the target project rather than guessed globally.
+[Export workflow](targets.md) explains formats and destination preparation. [Roadmap](roadmap.md) is the source of truth for active milestone work.

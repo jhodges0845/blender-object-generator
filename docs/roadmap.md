@@ -21,7 +21,7 @@ The project is broader than Human generation. The provider/capability model is i
 - Validation reports real limitations instead of manufacturing a green result.
 - A successful file write is not equivalent to destination certification.
 - Generated Blender data should remain editable by artists.
-- Public provider names may evolve independently from internal compatibility keys; migrations of saved identifiers are explicit compatibility work, not cosmetic cleanup.
+- Provider names and keys are canonical architecture identifiers; saved legacy identifiers are handled only through explicit compatibility mapping.
 
 ## Completed platform foundation
 
@@ -43,7 +43,7 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Redraw-time validation caching so Blender UI polling uses the latest explicit validation snapshot while export execution still performs a fresh safety preflight.
 - [x] Cura Human print preparation plus selectable print-scale presets without changing the source/game asset.
 - [x] Legacy Humanoid hidden from new generation while retaining compatibility resolution for existing generated assets.
-- [x] Artist-facing generator names simplified to Human, Quadruped, and Box while retaining internal compatibility keys.
+- [x] Canonical generation providers named Human, Quadruped, and Box.
 
 ## Human provider — foundation complete
 
@@ -57,13 +57,11 @@ Definition of done: supported Human parameters produce an editable, deformable, 
 
 ## Quadruped provider — foundation complete
 
-Quadruped is the public artist-facing name for the current four-legged provider. Its internal compatibility key and implementation modules remain `dog` for now. That distinction is intentional: public product naming has been generalized without forcing a saved-asset migration before the actual provider is generalized beyond dog-oriented geometry, surfacing, and motion assumptions.
-
 Quadruped is the first genuine non-Human deforming-provider architecture proof. It was implemented without introducing a parallel Blender workflow or speculative cross-provider framework.
 
 ### Implemented Quadruped foundation
 
-- [x] Host-independent provider with validated body-length, shoulder-height, width, head-length and tail-length parameters.
+- [x] Host-independent Quadruped provider with validated body-length, shoulder-height, width, head-length and tail-length parameters.
 - [x] One deterministic connected quadruped surface rather than the initial multipart blockout.
 - [x] Quadruped skeleton and normalized spatial skin weights behind generic skeleton/skinning contracts.
 - [x] Parent-child influence blending through shoulder, hip, neck and tail junctions, including corrected spine attachment for hind legs and tail base.
@@ -76,14 +74,15 @@ Quadruped is the first genuine non-Human deforming-provider architecture proof. 
 - [x] Automated core and Blender coverage for generation, rigging, skinning, deformation, animation, UVs and materials on both supported Blender CI runtimes.
 - [x] Interactive Blender 5.2.1 checkpoint confirmed the generated connected Quadruped, armature and generated animations work in Blender.
 - [x] Architecture audit confirmed quadruped anatomy remains provider-specific while shared Blender and target adapters remain provider-neutral.
+- [x] Provider implementation, generated part names, material names, tests, and stored key standardized on `quadruped` / Quadruped.
 
-The current implementation remains an editable low-poly dog-oriented starting point rather than a generic all-species quadruped generator, finished breed anatomy, fur simulation, or exhaustive destination certification. Generalizing body-family presets beyond dog-like proportions should be a deliberate future provider evolution rather than a naming-only rewrite.
+The current implementation remains an editable low-poly four-legged starting point rather than an exhaustive all-species generator, finished anatomy, fur simulation, or exhaustive destination certification. Broader morphology presets should be driven by real requirements rather than speculative abstraction.
 
-Definition of done: supported current Quadruped parameters produce an editable connected four-legged asset with a deforming rig, localized weights, UV'd/textured base surface, Idle/Walk/Run, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
+Definition of done: supported Quadruped parameters produce an editable connected four-legged asset with a deforming rig, localized weights, UV'd/textured base surface, Idle/Walk/Run, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human has direct Godot, Unity, and Unreal destination evidence. Quadruped has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Quadruped certification is release-hardening evidence rather than a blocker for beginning Bird.
+Initial smoke checks exist for all four destinations. Human has direct Godot, Unity, and Unreal destination evidence. Quadruped has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Quadruped certification is release-hardening evidence rather than a blocker for beginning Avian.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
@@ -97,24 +96,23 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 
 ## Next provider milestone
 
-### P1 — Bird — active next
+### P1 — Avian — active next
 
-Bird is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
+Avian is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
 
 Implementation order:
 
-1. Define the smallest host-independent Bird provider contract and useful generation parameters.
-2. Prove Bird generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
-3. Add Bird-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
+1. Define the smallest host-independent Avian provider contract and useful generation parameters.
+2. Prove Avian generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
+3. Add Avian-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
 4. Add wing/tail deformation coverage driven by actual avian motion needs.
-5. Add Bird surface/UV/material intent through existing portable contracts where they fit.
-6. Add appropriate Bird Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
+5. Add Avian surface/UV/material intent through existing portable contracts where they fit.
+6. Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
 7. Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
 
 ### Shared follow-ups
 
 - Human Run animation-quality tuning: upper-arm swing, knee lift, torso pitch and timing/phase polish.
-- Generalize the current `dog` implementation only when real non-dog quadruped requirements justify the migration and compatibility plan.
 - Reusable UV/material/validation infrastructure driven by real provider needs.
 - Watertight print-preparation work for providers that explicitly support 3D printing.
 
@@ -126,11 +124,11 @@ Implementation order:
 
 ## Suggested implementation order
 
-1. Build Bird as the second non-Human anatomy/motion proof, using the Quadruped lessons but not its anatomy.
-2. Run Bird closeout across tests, docs, architecture and representative target evidence.
-3. Run release-hardening/publish readiness across Human, Quadruped and Bird.
+1. Build Avian as the second non-Human anatomy/motion proof, using the Quadruped lessons but not its anatomy.
+2. Run Avian closeout across tests, docs, architecture and representative target evidence.
+3. Run release-hardening/publish readiness across Human, Quadruped and Avian.
 4. Capture remaining destination-certification and usability work according to release severity rather than expanding provider scope indefinitely.
 
 ## Near-term release milestone
 
-> Asset Assistant can create useful editable starting assets across Human, Quadruped and Bird body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
+> Asset Assistant can create useful editable starting assets across Human, Quadruped and Avian body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.

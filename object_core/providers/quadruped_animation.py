@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Portable Dog/quadruped animation generation."""
+"""Portable quadruped animation generation."""
 
 from math import cos, isfinite, pi, radians
 
@@ -27,8 +27,8 @@ def _closed_wave(duration, degrees, strength, samples=16, phase=0.0):
     )
 
 
-def generate_dog_idle(duration=4.0, strength=1.0):
-    """Return a subtle closed Dog idle with breathing, head and tail motion."""
+def generate_quadruped_idle(duration=4.0, strength=1.0):
+    """Return a subtle closed quadruped idle with breathing, head and tail motion."""
     _validate(duration, strength, 1.0, 20.0)
     tracks = (
         RotationTrack("spine", (1.0, 0.0, 0.0), _closed_wave(duration, 2.0, strength)),
@@ -41,7 +41,7 @@ def generate_dog_idle(duration=4.0, strength=1.0):
     return IdleClip(float(duration), tracks)
 
 
-def generate_dog_walk(duration=1.2, strength=1.0):
+def generate_quadruped_walk(duration=1.2, strength=1.0):
     """Return an in-place closed quadruped walk with diagonal gait timing."""
     _validate(duration, strength, 0.5, 4.0)
     tracks = []
@@ -66,7 +66,7 @@ def generate_dog_walk(duration=1.2, strength=1.0):
     return WalkClip(float(duration), tuple(tracks))
 
 
-def generate_dog_run(duration=0.64, strength=1.0):
+def generate_quadruped_run(duration=0.64, strength=1.0):
     """Return an in-place closed faster quadruped run with stronger limb drive."""
     _validate(duration, strength, 0.3, 2.0)
     tracks = []

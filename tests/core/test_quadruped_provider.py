@@ -5,24 +5,25 @@ from object_core.models import MaterialSpec, ObjectMesh, Skeleton
 from object_core.objects import get_provider
 
 
-class DogProviderTests(unittest.TestCase):
+class QuadrupedProviderTests(unittest.TestCase):
     def setUp(self):
-        self.provider = get_provider("dog")
+        self.provider = get_provider("quadruped")
         self.defaults = {field.key: field.default for field in self.provider.parameters}
 
-    def test_dog_provider_declares_deforming_rig_capabilities(self):
+    def test_quadruped_provider_declares_deforming_rig_capabilities(self):
         self.assertEqual(self.provider.label, "Quadruped")
         self.assertTrue(self.provider.supports_rig)
         self.assertTrue(self.provider.supports_idle)
         self.assertTrue(self.provider.supports_locomotion)
+        self.assertTrue(self.provider.supports_run)
         self.assertTrue(self.provider.uses_skin_weights)
         self.assertTrue(self.provider.supports_materials)
 
-    def test_default_dog_generates_one_connected_deformable_surface(self):
+    def test_default_quadruped_generates_one_connected_deformable_surface(self):
         mesh = self.provider.mesh(self.defaults)
         self.assertIsInstance(mesh, ObjectMesh)
         self.assertEqual(mesh, self.provider.mesh(self.defaults))
-        self.assertEqual(tuple(part.name for part in mesh.parts), ("dog",))
+        self.assertEqual(tuple(part.name for part in mesh.parts), ("quadruped",))
         self.assertEqual(mesh.vertex_count, 280)
         self.assertEqual(mesh.face_count, 274)
         part = mesh.parts[0]
@@ -34,7 +35,7 @@ class DogProviderTests(unittest.TestCase):
             self.assertTrue(all(0.0 <= coordinate <= 1.0
                                 for uv in face_uvs for coordinate in uv))
 
-    def test_dimensions_drive_independent_dog_axes(self):
+    def test_dimensions_drive_independent_quadruped_axes(self):
         short = self.provider.mesh(dict(self.defaults, body_length_cm=40))
         long = self.provider.mesh(dict(self.defaults, body_length_cm=120))
         narrow = self.provider.mesh(dict(self.defaults, body_width_cm=10))
@@ -74,7 +75,7 @@ class DogProviderTests(unittest.TestCase):
         mesh = self.provider.mesh(self.defaults)
         skeleton = self.provider.skeleton(self.defaults)
         weights = self.provider.skin_weights(mesh, self.defaults)
-        self.assertEqual(tuple(item.part_name for item in weights), ("dog",))
+        self.assertEqual(tuple(item.part_name for item in weights), ("quadruped",))
         rows = weights[0].vertices
         self.assertEqual(len(rows), len(mesh.parts[0].vertices))
         bone_names = {bone.name for bone in skeleton.bones}
@@ -108,14 +109,17 @@ class DogProviderTests(unittest.TestCase):
         self.assertEqual(len(materials), 1)
         material = materials[0]
         self.assertIsInstance(material, MaterialSpec)
-        self.assertEqual(material.name, "Dog Base Coat")
-        self.assertEqual(material.part_names, ("dog",))
+        self.assertEqual(material.name, "Quadruped Base Coat")
+        self.assertEqual(material.part_names, ("quadruped",))
         self.assertEqual(material.metallic, 0.0)
         self.assertGreater(material.roughness, 0.7)
         self.assertIsNotNone(material.base_color_texture)
-        self.assertEqual(material.base_color_texture.name, "Dog Coat Texture")
+        self.assertEqual(material.base_color_texture.name, "Quadruped Coat Texture")
         self.assertEqual((material.base_color_texture.width, material.base_color_texture.height), (2, 2))
         self.assertEqual(len(material.base_color_texture.pixels), 16)
+
+    def test_legacy_provider_key_resolves_to_quadruped(self):
+        self.assertIs(get_provider("dog"), self.provider)
 
     def test_invalid_parameters_are_rejected(self):
         for field in self.provider.parameters:

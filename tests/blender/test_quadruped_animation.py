@@ -12,9 +12,9 @@ from humanoid_blender.animation import add_idle, add_locomotion, generated_actio
 
 
 @unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
-class DogAnimationBlenderTests(unittest.TestCase):
+class QuadrupedAnimationBlenderTests(unittest.TestCase):
     def setUp(self):
-        self.scene = bpy.data.scenes.new("DogAnimationTest")
+        self.scene = bpy.data.scenes.new("QuadrupedAnimationTest")
         self.previous_scene = bpy.context.window.scene
         bpy.context.window.scene = self.scene
         self.objects_before = set(bpy.data.objects)
@@ -37,20 +37,20 @@ class DogAnimationBlenderTests(unittest.TestCase):
             bpy.data.armatures.remove(data)
         bpy.data.scenes.remove(self.scene)
 
-    def _dog(self):
-        provider = get_provider("dog")
+    def _quadruped(self):
+        provider = get_provider("quadruped")
         values = {field.key: field.default for field in provider.parameters}
         mesh = provider.mesh(values)
         skeleton = provider.skeleton(values)
         weights = provider.skin_weights(mesh, values)
         root = create_character(mesh, scene=self.scene, skeleton=skeleton, skin_weights=weights)
-        root["object_type"] = "dog"
+        root["object_type"] = provider.key
         for key, value in values.items():
             root[key] = value
         return root
 
-    def test_idle_and_walk_actions_generate_and_drive_connected_dog_surface(self):
-        root = self._dog()
+    def test_idle_and_walk_actions_generate_and_drive_connected_quadruped_surface(self):
+        root = self._quadruped()
         rig = next(obj for obj in root.children if obj.type == "ARMATURE")
         mesh = next(obj for obj in root.children if obj.type == "MESH")
 

@@ -1,17 +1,34 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Operations on an existing generated asset."""
 
-from .core import get_provider
+from .core import canonical_provider_key, get_provider
 
 
 def is_generated(obj):
     return obj is not None and obj.get('generator') in ('humanoid_blockout', 'object_generator')
 
 
+def _migrate_provider_metadata(root, stored_key, canonical_key):
+    """Upgrade persisted provider/part identifiers without changing artist data."""
+    if canonical_key == stored_key:
+        return
+    root['object_type'] = canonical_key
+    for obj in root.children:
+        if obj.type != 'MESH':
+            continue
+        if obj.get('part_name') == stored_key:
+            obj['part_name'] = canonical_key
+        if obj.get('body_part') == stored_key:
+            obj['body_part'] = canonical_key
+
+
 def provider_for(root):
     if not is_generated(root):
         raise ValueError('Choose a generated asset first.')
-    return get_provider(root.get('object_type', 'humanoid'))
+    stored_key = root.get('object_type', 'humanoid')
+    canonical_key = canonical_provider_key(stored_key)
+    _migrate_provider_metadata(root, stored_key, canonical_key)
+    return get_provider(canonical_key)
 
 
 def find_character(obj):

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Dog-specific connected quadruped surface generation."""
+"""Connected quadruped surface generation."""
 
 from math import cos, pi, sin, sqrt
 
@@ -92,12 +92,7 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
 
 
 def _project_uvs(vertices, faces):
-    """Create deterministic box-projected UVs inside the unit square.
-
-    Projection is selected per face from its dominant normal axis. This keeps
-    tube sides and limb surfaces useful without forcing topology seams into the
-    geometry contract; per-corner UVs can still differ across adjacent faces.
-    """
+    """Create deterministic box-projected UVs inside the unit square."""
     minimum = tuple(min(vertex[axis] for vertex in vertices) for axis in range(3))
     maximum = tuple(max(vertex[axis] for vertex in vertices) for axis in range(3))
     spans = tuple(max(maximum[axis] - minimum[axis], 1e-9) for axis in range(3))
@@ -123,8 +118,8 @@ def _project_uvs(vertices, faces):
     return tuple(face_uvs)
 
 
-def generate_dog_deformable_mesh(dimensions):
-    """Return one connected quadruped mesh shaped by validated Dog dimensions."""
+def generate_quadruped_deformable_mesh(dimensions):
+    """Return one connected quadruped mesh shaped by validated dimensions."""
     length = dimensions["body_length_cm"]
     shoulder = dimensions["shoulder_height_cm"]
     width = dimensions["body_width_cm"]
@@ -168,10 +163,7 @@ def generate_dog_deformable_mesh(dimensions):
     vertices, faces = [], []
     _append_tube(vertices, faces, centers, widths, depths)
 
-    # One lateral torso quad per limb becomes the shared seam into that limb.
     openings = {}
-    # Body tube side faces start after the initial cap. Each level contributes 8 quads.
-    # Segment 3 sits on negative X (left), segment 7 on positive X (right).
     level_by_pair = {"hind": 3, "fore": 5}
     for region, level in level_by_pair.items():
         for side, segment in (("left", 3), ("right", 7)):
@@ -203,4 +195,4 @@ def generate_dog_deformable_mesh(dimensions):
             _append_branch(vertices, faces, openings[(region, side)], centers_leg, widths_leg, depths_leg)
 
     vertices, faces = tuple(vertices), tuple(faces)
-    return ObjectMesh((MeshPart("dog", vertices, faces, _project_uvs(vertices, faces)),))
+    return ObjectMesh((MeshPart("quadruped", vertices, faces, _project_uvs(vertices, faces)),))

@@ -106,7 +106,7 @@ class AnimationExportTests(unittest.TestCase):
     def test_generated_actions_ignore_stale_action_with_reused_rig_name(self):
         self._generate_library()
         self.assertTrue(self.rig.get('asset_assistant_rig_id'))
-        stale = bpy.data.actions.new('Dog.Rig.Idle')
+        stale = bpy.data.actions.new('Stale.Rig.Idle')
         stale['asset_assistant_generated'] = True
         stale['asset_assistant_rig'] = self.rig.name
         stale['asset_assistant_rig_id'] = 'stale-deleted-rig'
@@ -178,9 +178,6 @@ class AnimationExportTests(unittest.TestCase):
             self.assertTrue(exported.is_file())
             self.assertGreater(exported.stat().st_size, 0)
 
-        # The main Unreal FBX must be a real skinned skeletal model, not merely
-        # a container that happens to carry materials/textures. Unreal 5.8's
-        # Interchange importer exposed the latter as a false-positive export.
         model_payload = model.read_bytes()
         self.assertTrue(mesh_names)
         for name in mesh_names:
@@ -192,10 +189,6 @@ class AnimationExportTests(unittest.TestCase):
 
         idle_payload = idle.read_bytes()
         walk_payload = walk.read_bytes()
-        # Unreal 5.8 Interchange rejected Blender armature-only FBXs as empty.
-        # Each clip therefore carries the same recognizable skinned hierarchy
-        # as the model plus one baked animation, while Unreal's Import Only
-        # Animations option prevents duplicate mesh assets at destination.
         for payload in (idle_payload, walk_payload):
             self.assertIn(self.rig.name.encode('utf8'), payload)
             self.assertIn(b'Geometry', payload)

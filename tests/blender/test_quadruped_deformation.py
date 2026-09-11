@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Real Blender deformation checks for the connected Dog surface."""
+"""Real Blender deformation checks for the connected Quadruped surface."""
 
 import unittest
 
@@ -13,9 +13,9 @@ from blender_adapter.adapter import create_character
 
 
 @unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
-class DogDeformationTests(unittest.TestCase):
+class QuadrupedDeformationTests(unittest.TestCase):
     def setUp(self):
-        self.scene = bpy.data.scenes.new("DogDeformationTest")
+        self.scene = bpy.data.scenes.new("QuadrupedDeformationTest")
         self.previous_scene = bpy.context.window.scene
         bpy.context.window.scene = self.scene
         self.objects_before = set(bpy.data.objects)
@@ -23,20 +23,20 @@ class DogDeformationTests(unittest.TestCase):
         self.armatures_before = set(bpy.data.armatures)
         self.collections_before = set(bpy.data.collections)
 
-        provider = get_provider("dog")
+        provider = get_provider("quadruped")
         values = {field.key: field.default for field in provider.parameters}
         mesh = provider.mesh(values)
         skeleton = provider.skeleton(values)
         weights = provider.skin_weights(mesh, values)
         self.root = create_character(
             mesh,
-            name="DogDeformation",
+            name="QuadrupedDeformation",
             scene=self.scene,
             skeleton=skeleton,
             skin_weights=weights,
         )
         self.rig = next(obj for obj in self.root.children if obj.type == "ARMATURE")
-        self.dog = next(obj for obj in self.root.children if obj.type == "MESH")
+        self.quadruped = next(obj for obj in self.root.children if obj.type == "MESH")
 
     def tearDown(self):
         bpy.context.window.scene = self.previous_scene
@@ -53,14 +53,14 @@ class DogDeformationTests(unittest.TestCase):
     def _evaluated_points(self):
         bpy.context.view_layer.update()
         graph = bpy.context.evaluated_depsgraph_get()
-        evaluated = self.dog.evaluated_get(graph)
+        evaluated = self.quadruped.evaluated_get(graph)
         return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
 
     def _indices_weighted_to(self, bone_name, minimum=0.12):
-        group = self.dog.vertex_groups.get(bone_name)
+        group = self.quadruped.vertex_groups.get(bone_name)
         self.assertIsNotNone(group, bone_name)
         indices = []
-        for vertex in self.dog.data.vertices:
+        for vertex in self.quadruped.data.vertices:
             try:
                 weight = group.weight(vertex.index)
             except RuntimeError:
@@ -83,8 +83,6 @@ class DogDeformationTests(unittest.TestCase):
         bpy.context.view_layer.update()
 
     def test_major_quadruped_junctions_deform_when_bent(self):
-        # Each anatomical junction must visibly deform the connected surface,
-        # rather than merely rotating an armature inside a rigid shell.
         for bone_name, axis in (
             ("fore_upper.left", "x"),
             ("hind_upper.left", "x"),
@@ -96,8 +94,6 @@ class DogDeformationTests(unittest.TestCase):
                 self._assert_bone_bends_surface(bone_name, axis)
 
     def test_bends_remain_local_to_the_target_region(self):
-        # A shoulder bend should not drag the opposite hind leg. This catches
-        # accidental cross-body weight leakage while still allowing torso blend.
         before = self._evaluated_points()
         target = self._indices_weighted_to("fore_upper.left")
         opposite = self._indices_weighted_to("hind_lower.right", minimum=0.20)
