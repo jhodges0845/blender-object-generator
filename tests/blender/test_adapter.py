@@ -91,9 +91,9 @@ class BlenderAdapterTests(unittest.TestCase):
             options = self.scene.humanoid_settings.bl_rna.properties["object_type"].enum_items
             self.assertEqual(
                 [(item.identifier, item.name) for item in options],
-                [("human_experimental", "Human 1.0 (Experimental)"),
+                [("human_experimental", "Human"),
                  ("box", "Box"),
-                 ("dog", "Dog")],
+                 ("dog", "Quadruped")],
             )
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")

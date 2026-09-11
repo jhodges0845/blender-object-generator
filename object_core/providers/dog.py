@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Host-independent Dog/quadruped provider."""
+"""Host-independent dog-derived quadruped provider."""
 
 from math import isfinite
 
@@ -32,9 +32,9 @@ def _dimensions(parameters, values):
 
 
 class DogProvider:
-    """Connected deformable quadruped provider."""
+    """Connected deformable quadruped provider backed by the current dog implementation."""
 
-    key, label = "dog", "Dog"
+    key, label = "dog", "Quadruped"
     supports_rig = supports_idle = supports_locomotion = supports_run = supports_materials = True
     uses_skin_weights = True
     parameters = DOG_PARAMETERS
