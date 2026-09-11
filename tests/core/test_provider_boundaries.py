@@ -6,6 +6,7 @@ from object_core.objects import (
     HumanExperimentalProvider as RegistryHumanExperimentalProvider,
     HumanoidProvider as RegistryHumanoidProvider,
     Parameter as RegistryParameter,
+    QuadrupedProvider as RegistryQuadrupedProvider,
     get_provider,
 )
 from object_core.providers import (
@@ -13,6 +14,7 @@ from object_core.providers import (
     HumanExperimentalProvider,
     HumanoidProvider,
     Parameter,
+    QuadrupedProvider,
 )
 
 
@@ -22,11 +24,13 @@ class ProviderBoundaryTests(unittest.TestCase):
         self.assertIs(RegistryBoxProvider, BoxProvider)
         self.assertIs(RegistryHumanoidProvider, HumanoidProvider)
         self.assertIs(RegistryHumanExperimentalProvider, HumanExperimentalProvider)
+        self.assertIs(RegistryQuadrupedProvider, QuadrupedProvider)
 
     def test_registry_resolves_extracted_provider_implementations(self):
         self.assertIsInstance(get_provider("box"), BoxProvider)
         self.assertIsInstance(get_provider("humanoid"), HumanoidProvider)
         self.assertIsInstance(get_provider("human_experimental"), HumanExperimentalProvider)
+        self.assertIsInstance(get_provider("quadruped"), QuadrupedProvider)
 
 
 if __name__ == "__main__":
