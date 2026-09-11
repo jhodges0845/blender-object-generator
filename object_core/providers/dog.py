@@ -5,7 +5,7 @@ from math import isfinite
 
 from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
-from .dog_animation import generate_dog_idle, generate_dog_walk
+from .dog_animation import generate_dog_idle, generate_dog_run, generate_dog_walk
 from .dog_geometry import generate_dog_deformable_mesh
 from .dog_rigging import generate_dog_skeleton, generate_dog_skin_weights
 
@@ -35,7 +35,7 @@ class DogProvider:
     """Connected deformable quadruped provider."""
 
     key, label = "dog", "Dog"
-    supports_rig = supports_idle = supports_locomotion = supports_materials = True
+    supports_rig = supports_idle = supports_locomotion = supports_run = supports_materials = True
     uses_skin_weights = True
     parameters = DOG_PARAMETERS
 
@@ -57,6 +57,9 @@ class DogProvider:
 
     def locomotion(self, duration, strength):
         return generate_dog_walk(duration, strength)
+
+    def run(self, duration, strength):
+        return generate_dog_run(duration, strength)
 
     def materials(self, values):
         # Neutral brown coat is an exportable PBR starting point rather than an
