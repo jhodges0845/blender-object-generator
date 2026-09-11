@@ -87,12 +87,11 @@ class BlenderAdapterTests(unittest.TestCase):
         bpy.context.window.scene = self.scene
         humanoid_blender.register()
         try:
-            self.assertEqual(self.scene.humanoid_settings.object_type, "humanoid")
+            self.assertEqual(self.scene.humanoid_settings.object_type, "human_experimental")
             options = self.scene.humanoid_settings.bl_rna.properties["object_type"].enum_items
             self.assertEqual(
                 [(item.identifier, item.name) for item in options],
-                [("humanoid", "Humanoid"),
-                 ("human_experimental", "Human 1.0 (Experimental)"),
+                [("human_experimental", "Human 1.0 (Experimental)"),
                  ("box", "Box"),
                  ("dog", "Dog")],
             )
@@ -112,11 +111,11 @@ class BlenderAdapterTests(unittest.TestCase):
             self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION", "EXPORT"])
             self.scene.cursor.location = (2, 3, 4)
             for preset in BodyType:
-                self.scene.humanoid_settings.body_type = preset.value
+                self.scene.humanoid_settings.human_experimental_body_type = preset.value
                 self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
                 model = bpy.context.view_layer.objects.active
                 self.assertEqual(model.type, "EMPTY")
-                self.assertEqual(len(model.children), 15)
+                self.assertEqual(len(model.children), 1)
                 meshes_before_rig = {obj.data for obj in model.children}
                 self.assertEqual(self.scene.humanoid_settings.target, model)
                 self.scene.humanoid_settings.workflow_tab = "RIGGING"
@@ -126,14 +125,14 @@ class BlenderAdapterTests(unittest.TestCase):
                 root = armature.parent
                 self.assertEqual(root, model)
                 self.assertEqual({obj.data for obj in root.children if obj.type == "MESH"}, meshes_before_rig)
-                self.assertEqual(root["object_type"], "humanoid")
+                self.assertEqual(root["object_type"], "human_experimental")
                 self.assertEqual(root["body_type"], preset.value)
                 self.assertEqual(tuple(root.location), (2, 3, 4))
-                self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 15)
+                self.assertEqual(len([obj for obj in root.children if obj.type == "MESH"]), 1)
             self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
             unrigged = bpy.context.view_layer.objects.active
             self.assertEqual(unrigged.type, "EMPTY")
-            self.assertEqual(len(unrigged.children), 15)
+            self.assertEqual(len(unrigged.children), 1)
             self.assertTrue(all(obj.type == "MESH" for obj in unrigged.children))
             self.scene.humanoid_settings.workflow_tab = "VALIDATION"
             self.assertEqual(bpy.ops.humanoid.validate_character(), {"FINISHED"})

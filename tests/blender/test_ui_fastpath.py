@@ -29,6 +29,14 @@ class UIFastPathTests(unittest.TestCase):
         bpy.context.window.scene = self.previous_scene
         bpy.data.scenes.remove(self.scene)
 
+    def test_generation_ui_hides_legacy_humanoid_provider(self):
+        enum_items = type(self.settings).bl_rna.properties['object_type'].enum_items
+        identifiers = {item.identifier for item in enum_items}
+        self.assertNotIn('humanoid', identifiers)
+        self.assertIn('human_experimental', identifiers)
+        self.assertIn('dog', identifiers)
+        self.assertIn('box', identifiers)
+
     def test_export_poll_uses_snapshot_without_full_validation(self):
         from blender_adapter import ui
         original = ui._export_issues

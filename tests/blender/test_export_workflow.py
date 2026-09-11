@@ -52,28 +52,20 @@ class ExportWorkflowTests(unittest.TestCase):
         root = self.generate()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.assertEqual(bpy.ops.humanoid.prepare_materials(), {'FINISHED'})
-        # Preparation invalidates the prior snapshot; redraw-time polling stays
-        # cheap and locked until the artist explicitly validates again.
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         self.assertFalse(any(row.status in ('WARN', 'ERROR') for row in self.settings.validation_results))
         self.assertFalse(any(row.code == 'blockout' for row in self.settings.validation_results))
-
-        # Low-level Blender edits can make a green snapshot stale. Polling must
-        # not rescan the scene; explicit validation refreshes and relocks it.
         mesh = root.children[0]
         mesh.data.materials.clear()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         bpy.ops.humanoid.validate_character()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
-
         bpy.ops.humanoid.prepare_materials()
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
-
-        # Settings changes already invalidate the explicit snapshot.
         self.settings.asset_use = 'ANIMATED'
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
         self.settings.asset_use = 'STATIC'
@@ -137,30 +129,19 @@ class ExportWorkflowTests(unittest.TestCase):
         heights = [struct.unpack_from('<12fH', data, 84 + index * 50)[i]
                    for index in range(count) for i in (5, 8, 11)]
         self.assertAlmostEqual(max(heights), 3, places=4)
-
-        # Export clears the snapshot after success. Revalidate while the mesh is
-        # still good so the next low-level scene edit creates a genuine stale-
-        # green Cura UI state.
         bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
-
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.faces.ensure_lookup_table()
         bmesh.ops.delete(bm, geom=[bm.faces[0]], context='FACES')
         bm.to_mesh(obj.data)
         bm.free()
-
-        # Cura's explicit validation snapshot is only the UI gate, so direct
-        # low-level edits can leave it stale. Call execute() directly to verify
-        # its independent preflight without Blender's bpy.ops error propagation.
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         invalid_path = Path(self.temp.name) / 'invalid.stl'
         operator = SimpleNamespace(filepath=str(invalid_path), report=lambda *args: None)
         self.assertEqual(HUMANOID_OT_export.execute(operator, bpy.context), {'CANCELLED'})
         self.assertFalse(invalid_path.exists())
-
-        # execute() stores the failed validation result, so Export is now locked.
         self.assertFalse(bpy.ops.humanoid.export_asset.poll())
 
     def test_material_preparation_preserves_existing_and_shared_data(self):
@@ -193,7 +174,7 @@ class ExportWorkflowTests(unittest.TestCase):
 
     def test_fbx_contains_skin_animation_and_only_scoped_objects(self):
         from io_scene_fbx import parse_fbx
-        root = self.generate('humanoid')
+        root = self.generate('human_experimental')
         bpy.ops.humanoid.add_basic_rig()
         bpy.ops.humanoid.generate_idle()
         bpy.ops.humanoid.prepare_materials()
@@ -229,8 +210,6 @@ class ExportWorkflowTests(unittest.TestCase):
         bpy.ops.humanoid.validate_character()
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         root.children[0].data.materials.clear()
-        # The cached UI snapshot remains green, but execute() must independently
-        # revalidate the actual scene before writing the file.
         self.assertTrue(bpy.ops.humanoid.export_asset.poll())
         path = Path(self.temp.name) / 'invalid.glb'
         operator = SimpleNamespace(filepath=str(path), report=lambda *args: None)
@@ -252,7 +231,6 @@ class ExportWorkflowTests(unittest.TestCase):
         node = material.node_tree.nodes.new('ShaderNodeTexImage')
         node.image = image
         material.node_tree.links.new(node.outputs['Color'], material.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
-        # Load a saved file, matching the FBX preparation requirement.
         node.image = bpy.data.images.load(image.filepath_raw, check_existing=False)
         for target in ('UNITY', 'UNREAL'):
             result = get_adapter(target, asset_use='STATIC').export(root, bpy.context,
@@ -269,7 +247,7 @@ class ExportWorkflowTests(unittest.TestCase):
             self.assertTrue(any(e.id == b'Content' and e.props and e.props[0] for e in elements))
 
     def test_fbx_rejects_action_outside_export_range(self):
-        root = self.generate('humanoid')
+        root = self.generate('human_experimental')
         bpy.ops.humanoid.add_basic_rig()
         bpy.ops.humanoid.generate_idle()
         bpy.ops.humanoid.prepare_materials()
