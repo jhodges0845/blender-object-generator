@@ -45,14 +45,14 @@ def _stage_generated_animation_tracks(root):
     single-strip NLA tracks only while the exporter runs. Existing artist NLA or
     drivers remain a preservation boundary and are never modified.
     """
-    from .animation import generated_actions
+    from .animation import clip_export_name, generated_actions
 
     rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
     if len(rigs) != 1:
         yield False
         return
     actions = generated_actions(root)
-    if len(actions) <= 1:
+    if not actions:
         yield False
         return
 
@@ -67,7 +67,7 @@ def _stage_generated_animation_tracks(root):
     try:
         data.action = None
         for action in actions:
-            clip_name = action.get('asset_assistant_clip') or action.name
+            clip_name = clip_export_name(action)
             track = data.nla_tracks.new()
             track.name = clip_name
             track.strips.new(clip_name, int(round(action.frame_range[0])), action)
@@ -88,12 +88,14 @@ def _export_gltf(options, root):
     # Blender 2.92 scopes selected objects without this newer scene option.
     if 'use_active_scene' not in properties:
         options.pop('use_active_scene', None)
-    with _stage_generated_animation_tracks(root):
-        # Current Blender exports active or stashed actions individually in ACTIONS
-        # mode. Blender 2.92 has no animation-mode option; its export_nla_strips
-        # flag handles the temporary one-strip-per-track organization instead.
+    with _stage_generated_animation_tracks(root) as staged:
+        # Current Blender can name exported animations from the temporary NLA
+        # tracks, which lets engine-facing names stay simple/editable even though
+        # Blender action data-block names must remain globally unique. Blender
+        # 2.92 has no animation-mode option; export_nla_strips handles the same
+        # temporary one-strip-per-track organization there.
         if 'export_animation_mode' in properties:
-            options['export_animation_mode'] = 'ACTIONS'
+            options['export_animation_mode'] = 'NLA_TRACKS' if staged else 'ACTIONS'
         return bpy.ops.export_scene.gltf(**options)
 
 
@@ -423,10 +425,9 @@ class UnrealAdapter(FBXAdapter):
         plus one active action; Unreal imports it with Import Only Animations
         against the skeleton created from the model FBX.
         """
-        from .animation import generated_actions
+        from .animation import clip_export_name, generated_actions
 
-        actions = tuple(sorted(generated_actions(root),
-                               key=lambda action: str(action.get('asset_assistant_clip') or action.name)))
+        actions = tuple(sorted(generated_actions(root), key=clip_export_name))
         if self.profile.asset_use != 'ANIMATED' or len(actions) <= 1:
             return super().export(root, context, filepath)
 
@@ -434,8 +435,7 @@ class UnrealAdapter(FBXAdapter):
             model_path = self.output_path(filepath)
         except (ValueError, TypeError, OSError) as exc:
             return ExportResult(False, str(filepath), (ValidationIssue('export_path', 'ERROR', str(exc)),))
-        clip_paths = tuple((action, self._clip_path(model_path,
-                            action.get('asset_assistant_clip') or action.name)) for action in actions)
+        clip_paths = tuple((action, self._clip_path(model_path, clip_export_name(action))) for action in actions)
         conflicts = [path for _, path in clip_paths if path.exists()]
         if model_path.exists():
             conflicts.insert(0, model_path)
