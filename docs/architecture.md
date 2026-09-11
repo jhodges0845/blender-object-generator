@@ -21,7 +21,7 @@ Important areas include:
 - `animation/`: portable animation contracts/shared generation;
 - `validation/`: host-independent readiness rules;
 - `providers/`: concrete provider implementations and anatomy-specific geometry, rigging, surfacing and animation behavior;
-- `objects.py`: provider declaration validation, registry construction, and lookup; and
+- `objects.py`: provider declaration validation, registry construction, lookup, and narrow saved-key compatibility mapping; and
 - `targets.py`: destination profiles and target-level requirements.
 
 The public `object_core` entry points should stay small. New implementation detail should not be promoted into the root API without a caller need.
@@ -34,29 +34,27 @@ Providers declare what operations they actually support. Current shared architec
 - rigid animated assets; and
 - skin-weight deforming assets across both Human and quadruped anatomy.
 
-Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human, quadruped, or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
+Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human, Quadruped, or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
 
 Animation capabilities are explicit. Idle, Walk/locomotion, and Run each have independent provider flags. A provider declaring Run must also support rigging and implement `run(duration, strength)`. Shared Blender UI and operators consume those capabilities rather than checking anatomy or provider keys.
 
 Deforming providers explicitly supply skin weights. Anatomy-specific geometry, bone names, landmarks, UV/surface choices, weighting heuristics and motion generation stay with their provider rather than leaking into generic workflow code. Shared contracts should grow only when more than one real implementation exposes the same need.
 
-## Public names and compatibility identities
+## Provider identities and compatibility
 
-The artist-facing Generator exposes **Human**, **Quadruped**, and **Box**. Public labels are product/UI concepts; provider keys are persisted compatibility identities.
+The canonical generation providers are **Human**, **Quadruped**, and **Box**. Canonical provider keys are the identities stored by new assets and used by new code.
 
-The current Human key remains `human_experimental`, and the current Quadruped implementation remains keyed as `dog`. The historical `humanoid` provider also remains registered internally so older generated assets can still resolve their provider even though Humanoid is no longer offered for new generation.
-
-Changing or removing those internal keys is therefore a migration problem, not ordinary naming cleanup. New code should not leak compatibility identifiers into artist-facing UI merely because the stored keys remain stable.
+The historical `humanoid` provider remains registered internally so older generated assets can still resolve their provider even though Humanoid is no longer offered for new generation. Earlier saved identifiers from provider renames are handled through a narrow compatibility mapping at lookup time rather than by preserving obsolete implementation names throughout the codebase.
 
 ## Quadruped architecture proof
 
-The current Quadruped provider validated the provider boundary with genuinely non-Human anatomy. Its implementation is still dog-oriented and supplies connected quadruped geometry, skeleton, spatial skin weights, UVs, portable material/texture intent and Idle/Walk/Run clips entirely from the host-independent provider layer.
+Quadruped validated the provider boundary with genuinely non-Human anatomy. It supplies connected quadruped geometry, skeleton, spatial skin weights, UVs, portable material/texture intent and Idle/Walk/Run clips entirely from the host-independent provider layer.
 
 The existing generic Blender path generates the Quadruped, applies its armature and vertex groups, translates its animation clips, prepares its material/texture and exposes its workflow through the dynamic provider UI without a provider-specific Blender branch. This is the desired architectural result: new anatomy changes provider logic while the host adapter continues translating shared contracts.
 
 The implementation also exposed useful concrete refinements without requiring a framework rewrite: hind-leg/tail parenting was corrected to blend through the deforming spine, and the material milestone exposed the need for quadruped UVs. Both fixes remained provider-specific because no new shared abstraction was required.
 
-Bird should follow the same rule: reuse existing contracts where they fit, but keep avian geometry/rigging/motion concrete until a repeated cross-provider need is demonstrated.
+Avian should follow the same rule: reuse existing contracts where they fit, but keep avian geometry/rigging/motion concrete until a repeated cross-provider need is demonstrated.
 
 ## Blender adapter boundary
 
