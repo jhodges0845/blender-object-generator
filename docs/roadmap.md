@@ -96,19 +96,21 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 
 ## Next provider milestone
 
-### P1 — Avian — active next
+### P1 — Avian — active
 
-Avian is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
+Avian is the next architecture proof. It tests another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
+
+The initial Avian foundation is intentionally a deterministic editable multipart blockout with body, head, left/right wings, and tail. It is currently static: rigging, skinning, surfacing, and flight are later steps. This lets the provider identity, parameters, generic generation UI, and Blender translation prove themselves before anatomy-specific deformation work is introduced.
 
 Implementation order:
 
-1. Define the smallest host-independent Avian provider contract and useful generation parameters.
-2. Prove Avian generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
-3. Add Avian-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
-4. Add wing/tail deformation coverage driven by actual avian motion needs.
-5. Add Avian surface/UV/material intent through existing portable contracts where they fit.
-6. Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
-7. Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
+1. [x] Define the smallest host-independent Avian provider contract and useful generation parameters.
+2. [x] Prove Avian generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
+3. [ ] Add Avian-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
+4. [ ] Add wing/tail deformation coverage driven by actual avian motion needs.
+5. [ ] Add Avian surface/UV/material intent through existing portable contracts where they fit.
+6. [ ] Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
+7. [ ] Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
 
 ### Shared follow-ups
 
