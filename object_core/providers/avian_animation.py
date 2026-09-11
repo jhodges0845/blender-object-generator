@@ -49,7 +49,7 @@ def generate_avian_idle(duration=4.0, strength=1.0):
 
 def generate_avian_flight(duration=0.9, strength=1.0):
     """Return a closed in-place wingbeat cycle with symmetric wings and body follow-through."""
-    _validate(duration, strength, 0.35, 3.0)
+    _validate(duration, strength, 0.5, 4.0)
     tracks = (
         RotationTrack("wing.upper.left", (0.0, 1.0, 0.0), _wave(duration, 48.0, strength)),
         RotationTrack("wing.upper.right", (0.0, 1.0, 0.0), _wave(duration, -48.0, strength)),
