@@ -3,6 +3,7 @@
 
 from math import isfinite
 
+from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
 from .avian_geometry import generate_avian_deformable_mesh
 from .avian_rigging import generate_avian_skeleton, generate_avian_skin_weights
@@ -35,8 +36,8 @@ class AvianProvider:
     """Connected deformable Avian provider foundation."""
 
     key, label = "avian", "Avian"
-    supports_rig = True
-    supports_idle = supports_locomotion = supports_run = supports_materials = False
+    supports_rig = supports_materials = True
+    supports_idle = supports_locomotion = supports_run = False
     uses_skin_weights = True
     parameters = AVIAN_PARAMETERS
 
@@ -52,3 +53,27 @@ class AvianProvider:
     def skin_weights(self, mesh, values):
         skeleton = self.skeleton(values)
         return generate_avian_skin_weights(mesh, skeleton)
+
+    def materials(self, values):
+        self.dimensions(values)
+        texture = ImageTextureSpec(
+            "Avian Plumage Texture",
+            2,
+            2,
+            (
+                0.12, 0.18, 0.28, 1.0,
+                0.18, 0.28, 0.42, 1.0,
+                0.10, 0.15, 0.24, 1.0,
+                0.24, 0.36, 0.50, 1.0,
+            ),
+        )
+        return (
+            MaterialSpec(
+                "Avian Base Plumage",
+                ("avian",),
+                (0.16, 0.24, 0.36, 1.0),
+                metallic=0.0,
+                roughness=0.74,
+                base_color_texture=texture,
+            ),
+        )

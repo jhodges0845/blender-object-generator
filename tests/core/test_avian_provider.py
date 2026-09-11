@@ -18,7 +18,7 @@ class AvianProviderTests(unittest.TestCase):
         self.assertFalse(self.provider.supports_locomotion)
         self.assertFalse(self.provider.supports_run)
         self.assertTrue(self.provider.uses_skin_weights)
-        self.assertFalse(self.provider.supports_materials)
+        self.assertTrue(self.provider.supports_materials)
 
     def test_default_avian_surface_is_connected_deterministic_and_editable(self):
         mesh = self.provider.mesh(self.defaults)
@@ -30,6 +30,30 @@ class AvianProviderTests(unittest.TestCase):
         part = mesh.parts[0]
         referenced = {index for face in part.faces for index in face}
         self.assertEqual(referenced, set(range(len(part.vertices))))
+
+    def test_avian_surface_has_deterministic_unit_uvs(self):
+        part = self.provider.mesh(self.defaults).parts[0]
+        self.assertEqual(len(part.uvs), len(part.faces))
+        for face, uvs in zip(part.faces, part.uvs):
+            self.assertEqual(len(uvs), len(face))
+            for u, v in uvs:
+                self.assertGreaterEqual(u, 0.0)
+                self.assertLessEqual(u, 1.0)
+                self.assertGreaterEqual(v, 0.0)
+                self.assertLessEqual(v, 1.0)
+
+    def test_avian_material_intent_is_portable_and_deterministic(self):
+        materials = self.provider.materials(self.defaults)
+        self.assertEqual(materials, self.provider.materials(self.defaults))
+        self.assertEqual(len(materials), 1)
+        material = materials[0]
+        self.assertEqual(material.name, "Avian Base Plumage")
+        self.assertEqual(material.part_names, ("avian",))
+        self.assertEqual(material.metallic, 0.0)
+        self.assertGreater(material.roughness, 0.6)
+        self.assertIsNotNone(material.base_color_texture)
+        self.assertEqual(material.base_color_texture.name, "Avian Plumage Texture")
+        self.assertEqual((material.base_color_texture.width, material.base_color_texture.height), (2, 2))
 
     def test_wingspan_parameter_controls_lateral_extent(self):
         narrow = self.provider.mesh(dict(self.defaults, wingspan_cm=50))

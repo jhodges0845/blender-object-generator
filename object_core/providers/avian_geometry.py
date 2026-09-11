@@ -90,6 +90,33 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
         faces.append((root_start, ring_end, ring_mid, ring_start))
 
 
+def _project_uvs(vertices, faces):
+    """Create deterministic box-projected UVs inside the unit square."""
+    minimum = tuple(min(vertex[axis] for vertex in vertices) for axis in range(3))
+    maximum = tuple(max(vertex[axis] for vertex in vertices) for axis in range(3))
+    spans = tuple(max(maximum[axis] - minimum[axis], 1e-9) for axis in range(3))
+
+    def normalized(vertex, axis):
+        return (vertex[axis] - minimum[axis]) / spans[axis]
+
+    face_uvs = []
+    for face in faces:
+        a, b, c = (vertices[index] for index in face[:3])
+        normal = _cross(_subtract(b, a), _subtract(c, a))
+        dominant = max(range(3), key=lambda axis: abs(normal[axis]))
+        if dominant == 0:
+            axes = (1, 2)
+        elif dominant == 1:
+            axes = (0, 2)
+        else:
+            axes = (0, 1)
+        face_uvs.append(tuple(
+            (normalized(vertices[index], axes[0]), normalized(vertices[index], axes[1]))
+            for index in face
+        ))
+    return tuple(face_uvs)
+
+
 def generate_avian_deformable_mesh(dimensions):
     """Return one connected low-poly Avian surface with integrated wings and tail."""
     length = dimensions["body_length_cm"]
@@ -159,4 +186,5 @@ def generate_avian_deformable_mesh(dimensions):
         depths_wing = (base * 0.78, base * 0.66, base * 0.54, base * 0.34, base * 0.12)
         _append_branch(vertices, faces, openings[side], centers_wing, widths_wing, depths_wing)
 
-    return ObjectMesh((MeshPart("avian", tuple(vertices), tuple(faces)),))
+    vertices, faces = tuple(vertices), tuple(faces)
+    return ObjectMesh((MeshPart("avian", vertices, faces, _project_uvs(vertices, faces)),))
