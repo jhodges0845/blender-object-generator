@@ -35,6 +35,9 @@ def validate_provider(provider):
     supports_locomotion = getattr(provider, "supports_locomotion", False)
     if not isinstance(supports_locomotion, bool):
         raise TypeError(provider.key + ": supports_locomotion must be a boolean")
+    supports_flight = getattr(provider, "supports_flight", False)
+    if not isinstance(supports_flight, bool):
+        raise TypeError(provider.key + ": supports_flight must be a boolean")
     supports_run = getattr(provider, "supports_run", False)
     if not isinstance(supports_run, bool):
         raise TypeError(provider.key + ": supports_run must be a boolean")
@@ -45,10 +48,15 @@ def validate_provider(provider):
         raise ValueError(provider.key + ": idle support requires rig support")
     if supports_locomotion and not provider.supports_rig:
         raise ValueError(provider.key + ": locomotion support requires rig support")
+    if supports_flight and not supports_locomotion:
+        raise ValueError(provider.key + ": flight support requires locomotion support")
     if supports_run and not provider.supports_rig:
         raise ValueError(provider.key + ": run support requires rig support")
     if provider.uses_skin_weights and not provider.supports_rig:
         raise ValueError(provider.key + ": skin weights require rig support")
+    locomotion_label = getattr(provider, "locomotion_label", None)
+    if locomotion_label is not None and (not isinstance(locomotion_label, str) or not locomotion_label.strip()):
+        raise ValueError(provider.key + ": locomotion_label must be a nonempty string when declared")
 
     required = ["mesh"]
     if provider.supports_rig:
