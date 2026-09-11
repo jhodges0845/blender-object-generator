@@ -19,6 +19,7 @@ from blender_adapter.animation import (
     add_locomotion,
     activate_generated_action,
     generated_action,
+    generated_actions,
 )
 from blender_adapter.materials import prepare_materials
 from blender_adapter.targets import asset_objects, get_adapter
@@ -99,6 +100,20 @@ class AnimationExportTests(unittest.TestCase):
             paths = {curve.data_path for curve in action_curves(action, slot)}
             self.assertTrue(expected.issubset(paths),
                             clip_name + ' must explicitly define every bone rotation to prevent cross-clip pose leakage.')
+
+    def test_generated_actions_ignore_stale_action_with_reused_rig_name(self):
+        self._generate_library()
+        self.assertTrue(self.rig.get('asset_assistant_rig_id'))
+        stale = bpy.data.actions.new('Dog.Rig.Idle')
+        stale['asset_assistant_generated'] = True
+        stale['asset_assistant_rig'] = self.rig.name
+        stale['asset_assistant_rig_id'] = 'stale-deleted-rig'
+        stale['asset_assistant_clip'] = 'Idle'
+
+        owned = generated_actions(self.root)
+
+        self.assertNotIn(stale, owned)
+        self.assertEqual({action.get('asset_assistant_clip') for action in owned}, {'Idle', 'Walk'})
 
     def test_all_generated_clips_are_exported_to_glb(self):
         active = self._generate_library()
