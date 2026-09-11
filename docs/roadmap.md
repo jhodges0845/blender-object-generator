@@ -34,7 +34,7 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Godot, Unity, Unreal, and Cura target profiles/adapters.
 - [x] GLB/glTF, FBX, and STL export paths.
 - [x] Provider-aware rigging and animation workflow gating.
-- [x] Idle, Walk, and Run capability-driven animation workflow.
+- [x] Idle, provider-named locomotion, and Run capability-driven animation workflow.
 - [x] Blender 5.2 layered-action support and active-scene glTF scoping.
 - [x] CI on standalone Python 3.9-3.12 plus Blender 2.92.0 and 5.2.1.
 - [x] Cached Blender runtimes in CI.
@@ -53,36 +53,34 @@ The completed Human path includes connected deformable geometry, dedicated skele
 
 The current Run clip is a first-pass game-animation foundation and remains a quality-polish item rather than an architectural blocker.
 
-Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion/run, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
-
 ## Quadruped provider — foundation complete
 
-Quadruped is the first genuine non-Human deforming-provider architecture proof. It was implemented without introducing a parallel Blender workflow or speculative cross-provider framework.
+Quadruped is the first genuine non-Human deforming-provider architecture proof. It has connected four-legged geometry, a dedicated skeleton and normalized weights, deformation coverage, Idle/Walk/Run, deterministic UVs, portable textured material intent, and generic Blender workflow coverage.
 
-### Implemented Quadruped foundation
+Interactive Blender review confirmed generation, rigging, animation, and surfacing. Broader per-engine certification remains release-hardening evidence rather than a provider-foundation blocker.
 
-- [x] Host-independent Quadruped provider with validated body-length, shoulder-height, width, head-length and tail-length parameters.
-- [x] One deterministic connected quadruped surface rather than the initial multipart blockout.
-- [x] Quadruped skeleton and normalized spatial skin weights behind generic skeleton/skinning contracts.
-- [x] Parent-child influence blending through shoulder, hip, neck and tail junctions, including corrected spine attachment for hind legs and tail base.
-- [x] Automated Blender deformation checks that bend shoulder, hip, neck and tail and verify localized surface movement.
-- [x] Portable Idle, Walk, and Run clips using quadruped-specific motion generation and the shared Blender clip/action translator.
-- [x] Walk gait uses opposing diagonal limb phase relationships with spine, neck and tail follow-through.
-- [x] Deterministic face-corner UVs on the connected surface.
-- [x] Portable textured PBR base coat translated through the generic Blender material path while preserving artist-authored material data.
-- [x] Generic Blender Generator/Rigging/Animations workflow exercised through capability declarations; no provider-specific Blender workflow branch required.
-- [x] Automated core and Blender coverage for generation, rigging, skinning, deformation, animation, UVs and materials on both supported Blender CI runtimes.
-- [x] Interactive Blender 5.2.1 checkpoint confirmed the generated connected Quadruped, armature and generated animations work in Blender.
-- [x] Architecture audit confirmed quadruped anatomy remains provider-specific while shared Blender and target adapters remain provider-neutral.
-- [x] Provider implementation, generated part names, material names, tests, and stored key standardized on `quadruped` / Quadruped.
+## Avian provider — foundation complete
 
-The current implementation remains an editable low-poly four-legged starting point rather than an exhaustive all-species generator, finished anatomy, fur simulation, or exhaustive destination certification. Broader morphology presets should be driven by real requirements rather than speculative abstraction.
+Avian is the second non-Human deforming-provider proof and demonstrates that shared locomotion does not need to mean Walk.
 
-Definition of done: supported Quadruped parameters produce an editable connected four-legged asset with a deforming rig, localized weights, UV'd/textured base surface, Idle/Walk/Run, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
+The completed Avian foundation includes:
+
+- [x] canonical `avian` / Avian provider identity and parameter contract
+- [x] deterministic connected low-poly body with integrated wings and tail
+- [x] Avian spine/neck/head, upper/lower wing, and tail skeleton
+- [x] normalized local skin weights plus wing-root, wing-segment, neck/head, and tail deformation coverage
+- [x] deterministic face-corner UVs and portable textured plumage material intent
+- [x] provider-specific Idle and Flight motion using the shared editable Blender action pipeline
+- [x] distinct `Flight` clip identity rather than disguising Avian motion as Walk
+- [x] capability isolation so Human and Quadruped do not expose Flight
+- [x] representative automated Godot GLB and Unity FBX export coverage for Avian skinning plus Idle/Flight packaging
+- [x] documentation and architecture closeout confirming Avian anatomy stays provider-specific and target adapters remain provider-neutral
+
+Manual visual review of Avian Idle/Flight motion remains desirable before release, because automated tests cannot judge animation aesthetics. Broader destination import/playback certification is tracked under release hardening.
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human has direct Godot, Unity, and Unreal destination evidence. Quadruped has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Quadruped certification is release-hardening evidence rather than a blocker for beginning Avian.
+Initial smoke checks exist for all four destinations. Human has direct Godot, Unity, and Unreal destination evidence. Quadruped and Avian use the same provider-neutral adapters with automated packaging coverage; additional destination-specific interactive evidence can be captured during release hardening.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
@@ -91,45 +89,31 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 - [x] Cura Box STL import/slicing smoke check.
 - [x] Human Godot, Unity and Unreal game-target checkpoints.
 - [x] Quadruped Blender generation/rig/animation/material checkpoint.
-- [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations. This is not a blocker for additional providers.
-- [ ] Broader Quadruped destination certification across Godot/Unity/Unreal can be captured during release hardening; generic target adapters already have Human destination evidence and Quadruped exercises the same provider-neutral paths.
+- [x] Avian automated Godot GLB and Unity FBX animation-packaging checkpoint.
+- [ ] Avian interactive Blender visual-quality checkpoint for Idle/Flight.
+- [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations.
+- [ ] Broader Quadruped and Avian destination certification across Godot/Unity/Unreal during release hardening.
 
-## Next provider milestone
+## Current milestone — release hardening / publish readiness
 
-### P1 — Avian — active
+Provider expansion is no longer the immediate priority. Human, Quadruped, and Avian now cover three meaningfully different deforming body/motion plans and have exercised the provider architecture enough to shift focus toward product readiness.
 
-Avian is the next architecture proof. It tests another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
+Near-term order:
 
-Avian now has a deterministic connected low-poly surface with integrated wings and tail, an Avian-specific spine/neck/head/wing/tail skeleton, normalized local skin weights, Blender rigging through the existing provider-driven workflow, focused deformation coverage, deterministic face-corner UVs, portable textured plumage material intent, and provider-specific Idle/Flight motion. Flight uses the existing editable action/export pipeline but keeps its own clip identity instead of masquerading as Walk; Human and Quadruped remain gated to their own supported motion types. Automated core and Blender coverage verify closed wingbeat motion, both wing segments, separate Idle/Flight actions, and Flight capability isolation. Visual animation-quality review remains a manual checkpoint.
-
-Implementation order:
-
-1. [x] Define the smallest host-independent Avian provider contract and useful generation parameters.
-2. [x] Prove Avian generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
-3. [x] Add Avian-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
-4. [x] Add wing/tail deformation coverage driven by actual avian motion needs.
-5. [x] Add Avian surface/UV/material intent through existing portable contracts where they fit.
-6. [x] Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider. Automated coverage is complete; interactive visual quality remains to be reviewed.
-7. [ ] Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
+1. [ ] Run a cross-provider test-coverage and architecture audit for release-severity gaps.
+2. [ ] Complete the remaining manual Avian visual checkpoint and any motion-quality fixes it reveals.
+3. [ ] Recheck representative Human / Quadruped / Avian exports and document destination evidence without treating a successful file write as full certification.
+4. [ ] Review UI clarity, especially the Animations sidebar naming against Blender 5.x's built-in Animation category.
+5. [ ] Review installation, version support, packaging, license/readme, and first-run instructions for publication.
+6. [ ] Classify remaining Cura, destination-certification, and animation-polish work as blocker vs post-release follow-up.
 
 ### Shared follow-ups
 
 - Human Run animation-quality tuning: upper-arm swing, knee lift, torso pitch and timing/phase polish.
-- Reusable UV/material/validation infrastructure driven by real provider needs.
+- Avian Flight animation-quality tuning after visual review.
+- Reusable UV/material/validation infrastructure only when additional real provider needs justify it.
 - Watertight print-preparation work for providers that explicitly support 3D printing.
-
-### P2
-
 - Optional Godot `.tscn` packaging research while retaining GLB as the portable default.
-- UI/usability polish, including reviewing the **Animations** sidebar name against Blender 5.x's built-in **Animation** category.
-- Additional static/prop providers, LOD/collision work, and other artist-assistance stages when real workflows justify them.
-
-## Suggested implementation order
-
-1. Build Avian as the second non-Human anatomy/motion proof, using the Quadruped lessons but not its anatomy.
-2. Run Avian closeout across tests, docs, architecture and representative target evidence.
-3. Run release-hardening/publish readiness across Human, Quadruped and Avian.
-4. Capture remaining destination-certification and usability work according to release severity rather than expanding provider scope indefinitely.
 
 ## Near-term release milestone
 
