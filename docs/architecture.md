@@ -34,17 +34,27 @@ Providers declare what operations they actually support. Current shared architec
 - rigid animated assets; and
 - skin-weight deforming assets across both Human and quadruped anatomy.
 
-Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human, Dog or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
+Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human, quadruped, or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
+
+Animation capabilities are explicit. Idle, Walk/locomotion, and Run each have independent provider flags. A provider declaring Run must also support rigging and implement `run(duration, strength)`. Shared Blender UI and operators consume those capabilities rather than checking anatomy or provider keys.
 
 Deforming providers explicitly supply skin weights. Anatomy-specific geometry, bone names, landmarks, UV/surface choices, weighting heuristics and motion generation stay with their provider rather than leaking into generic workflow code. Shared contracts should grow only when more than one real implementation exposes the same need.
 
-## Dog architecture proof
+## Public names and compatibility identities
 
-Dog Provider 1.0 validated the provider boundary with genuinely non-Human anatomy. Dog supplies its connected quadruped geometry, skeleton, spatial skin weights, UVs, portable material/texture intent and quadruped Idle/Walk clips entirely from the host-independent provider layer.
+The artist-facing Generator exposes **Human**, **Quadruped**, and **Box**. Public labels are product/UI concepts; provider keys are persisted compatibility identities.
 
-The existing generic Blender path generated the Dog, applied its armature and vertex groups, translated its animation clips, prepared its material/texture and exposed its workflow through the dynamic provider UI without a Dog-specific Blender branch. This is the desired architectural result: new anatomy changes provider logic while the host adapter continues translating shared contracts.
+The current Human key remains `human_experimental`, and the current Quadruped implementation remains keyed as `dog`. The historical `humanoid` provider also remains registered internally so older generated assets can still resolve their provider even though Humanoid is no longer offered for new generation.
 
-Dog also exposed useful concrete refinements without requiring a framework rewrite: hind-leg/tail parenting was corrected to blend through the deforming spine, and the material milestone exposed the need for Dog UVs. Both fixes remained provider-specific because no new shared abstraction was required.
+Changing or removing those internal keys is therefore a migration problem, not ordinary naming cleanup. New code should not leak compatibility identifiers into artist-facing UI merely because the stored keys remain stable.
+
+## Quadruped architecture proof
+
+The current Quadruped provider validated the provider boundary with genuinely non-Human anatomy. Its implementation is still dog-oriented and supplies connected quadruped geometry, skeleton, spatial skin weights, UVs, portable material/texture intent and Idle/Walk/Run clips entirely from the host-independent provider layer.
+
+The existing generic Blender path generates the Quadruped, applies its armature and vertex groups, translates its animation clips, prepares its material/texture and exposes its workflow through the dynamic provider UI without a provider-specific Blender branch. This is the desired architectural result: new anatomy changes provider logic while the host adapter continues translating shared contracts.
+
+The implementation also exposed useful concrete refinements without requiring a framework rewrite: hind-leg/tail parenting was corrected to blend through the deforming spine, and the material milestone exposed the need for quadruped UVs. Both fixes remained provider-specific because no new shared abstraction was required.
 
 Bird should follow the same rule: reuse existing contracts where they fit, but keep avian geometry/rigging/motion concrete until a repeated cross-provider need is demonstrated.
 
@@ -62,9 +72,9 @@ Asset Assistant should create ordinary editable Blender data wherever practical.
 
 Generation parameters are inputs to generation, not a requirement that artists continue editing through Asset Assistant afterward.
 
-## Human 1.0 architecture
+## Human architecture
 
-Human retains a legacy multipart/rigid compatibility path plus the connected deforming Human 1.0 path. The deforming path reuses the Human proportion foundation, generates one connected mesh, creates a dedicated skeleton and deterministic localized skin weights, and lets `blender_adapter` apply those portable results. UV, material, generated-image texture, idle, and locomotion intent remain outside Blender and are translated into ordinary editable Blender data by the adapter.
+Human retains a legacy multipart/rigid compatibility path plus the connected deforming public Human path. The deforming path reuses the Human proportion foundation, generates one connected mesh, creates a dedicated skeleton and deterministic localized skin weights, and lets `blender_adapter` apply those portable results. UV, material, generated-image texture, Idle, Walk, and Run intent remain outside Blender and are translated into ordinary editable Blender data by the adapter.
 
 Shared provider/workflow code depends on capabilities and contracts rather than branching on Human anatomy.
 
@@ -94,7 +104,7 @@ Tests mirror the boundaries:
 - CI on Python 3.9-3.12; and
 - Blender integration on 2.92.0 and 5.2.1.
 
-Dog adds focused Blender coverage for generic provider generation/rigging, evaluated surface deformation, animation and material/UV translation. This complements Human's deeper geometry/export coverage and demonstrates that the shared Blender path is not accidentally Human-only.
+Quadruped adds focused Blender coverage for generic provider generation/rigging, evaluated surface deformation, animation and material/UV translation. This complements Human's deeper geometry/export coverage and demonstrates that the shared Blender path is not accidentally Human-only.
 
 Blender 5.2.x is the primary current runtime target. Older Blender compatibility is valuable and should be retained while it remains reasonably small, clean, and testable. Current-version correctness and a clean architecture take precedence over preserving an old runtime indefinitely. If an older Blender version begins forcing duplicated implementations, awkward cross-layer workarounds, or weaker current-version behavior, raise the minimum supported Blender version deliberately and document the migration rather than degrading the design.
 
