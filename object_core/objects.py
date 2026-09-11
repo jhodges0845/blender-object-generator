@@ -28,6 +28,9 @@ def validate_provider(provider):
     supports_locomotion = getattr(provider, "supports_locomotion", False)
     if not isinstance(supports_locomotion, bool):
         raise TypeError(provider.key + ": supports_locomotion must be a boolean")
+    supports_run = getattr(provider, "supports_run", False)
+    if not isinstance(supports_run, bool):
+        raise TypeError(provider.key + ": supports_run must be a boolean")
     supports_materials = getattr(provider, "supports_materials", False)
     if not isinstance(supports_materials, bool):
         raise TypeError(provider.key + ": supports_materials must be a boolean")
@@ -35,6 +38,8 @@ def validate_provider(provider):
         raise ValueError(provider.key + ": idle support requires rig support")
     if supports_locomotion and not provider.supports_rig:
         raise ValueError(provider.key + ": locomotion support requires rig support")
+    if supports_run and not provider.supports_rig:
+        raise ValueError(provider.key + ": run support requires rig support")
     if provider.uses_skin_weights and not provider.supports_rig:
         raise ValueError(provider.key + ": skin weights require rig support")
 
@@ -45,6 +50,8 @@ def validate_provider(provider):
         required.append("idle")
     if supports_locomotion:
         required.append("locomotion")
+    if supports_run:
+        required.append("run")
     if provider.uses_skin_weights:
         required.append("skin_weights")
     if supports_materials:
