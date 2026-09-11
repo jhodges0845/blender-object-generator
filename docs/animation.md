@@ -12,7 +12,7 @@ Artist-authored actions are never replaced by generated clips. Existing NLA trac
 
 ## Idle
 
-The idle generator produces a closed breathing cycle affecting torso, head, and upper arms while leaving root and legs stationary. In Blender, generate a model, add its basic rig, choose Idle in the Animations panel, set cycle duration and motion strength, and generate the clip. Preview Motion Pose shows the middle of the active clip without playback.
+The idle generator produces a closed breathing cycle affecting the provider-defined upper body while leaving locomotion roots stable. In Blender, generate a model, add its basic rig, choose Idle in the Animations panel, set cycle duration and motion strength, and generate the clip. Preview Motion Pose shows the middle of the active clip without playback.
 
 ## Human locomotion
 
@@ -26,7 +26,7 @@ Generated actions are self-contained poses: each clip owns rotation data for eve
 
 ## Quadruped locomotion
 
-The public Quadruped provider also exposes Idle, Walk, and Run. Its current implementation remains dog-oriented internally, with four-legged gait, spine/neck/tail follow-through, and provider-specific motion generation behind the same generic Blender clip workflow used by Human. The internal `dog` compatibility key is intentionally retained for saved assets while the artist-facing label is Quadruped.
+Quadruped exposes Idle, Walk, and Run through provider-specific four-legged gait generation with spine, neck, and tail follow-through. The implementation lives entirely under the canonical Quadruped provider and uses the same generic Blender clip workflow as Human.
 
 ## Export behavior
 
@@ -44,6 +44,6 @@ All temporary selection, active-action, playback-range, and export state is rest
 
 Generated animation refuses to overwrite artist actions, NLA tracks, drivers, constraints, or non-rest poses. Generated Asset Assistant clips can coexist on the same rig and can be switched explicitly. Removing the add-on preserves the actions and keyframes.
 
-Provider declaration validation now treats `supports_run` like the other animation capabilities: it must be boolean, it requires rig support, and a provider declaring it must implement `run(duration, strength)`. This keeps the Blender UI capability gate aligned with the host-independent provider contract.
+Provider declaration validation treats `supports_run` like the other animation capabilities: it must be boolean, it requires rig support, and a provider declaring it must implement `run(duration, strength)`. This keeps the Blender UI capability gate aligned with the host-independent provider contract.
 
 Validation checks changing unmuted curves, missing targets, non-finite values, Rest Position, zero action influence, and exporter-specific animation restrictions. A successful Blender action or file write is not destination certification; destination import and playback remain separate evidence.
