@@ -38,6 +38,7 @@ class AvianProvider:
 
     key, label = "avian", "Avian"
     supports_rig = supports_materials = supports_idle = supports_locomotion = True
+    supports_flight = True
     supports_run = False
     locomotion_label = "Flight"
     uses_skin_weights = True
