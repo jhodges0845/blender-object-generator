@@ -11,7 +11,7 @@ class DogProviderTests(unittest.TestCase):
         self.defaults = {field.key: field.default for field in self.provider.parameters}
 
     def test_dog_provider_declares_deforming_rig_capabilities(self):
-        self.assertEqual(self.provider.label, "Dog")
+        self.assertEqual(self.provider.label, "Quadruped")
         self.assertTrue(self.provider.supports_rig)
         self.assertTrue(self.provider.supports_idle)
         self.assertTrue(self.provider.supports_locomotion)
