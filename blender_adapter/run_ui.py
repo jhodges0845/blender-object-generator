@@ -95,9 +95,9 @@ _CLASSES = (HUMANOID_OT_run_clip, HUMANOID_PT_run_animation)
 
 
 def register(settings_type):
-    settings_type.__annotations__['run_duration'] = FloatProperty(
+    settings_type.run_duration = FloatProperty(
         name='Cycle (seconds)', default=0.72, min=0.35, max=2.0)
-    settings_type.__annotations__['run_strength'] = FloatProperty(
+    settings_type.run_strength = FloatProperty(
         name='Motion Strength', default=1.0, min=0.1, max=2.0)
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
@@ -106,3 +106,7 @@ def register(settings_type):
 def unregister(settings_type):
     for cls in reversed(_CLASSES):
         bpy.utils.unregister_class(cls)
+    if hasattr(settings_type, 'run_duration'):
+        del settings_type.run_duration
+    if hasattr(settings_type, 'run_strength'):
+        del settings_type.run_strength
