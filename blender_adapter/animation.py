@@ -7,7 +7,9 @@ from .workflow import provider_for
 
 _GENERATED = 'asset_assistant_generated'
 _GENERATED_RIG = 'asset_assistant_rig'
+_RIG_ID = 'asset_assistant_rig_id'
 _GENERATED_CLIP = 'asset_assistant_clip'
+_EXPORT_NAME = 'asset_assistant_export_name'
 
 
 def action_curves(action, slot=None):
@@ -30,12 +32,22 @@ def _rig(root):
 
 
 def generated_actions(root):
-    """Return generated actions for this rig, or none when no single rig exists."""
+    """Return generated actions owned by this rig, or none when no single rig exists.
+
+    New rigs carry a persistent Asset Assistant identity so orphaned actions from a
+    deleted/recreated rig cannot be mistaken for clips on a different character just
+    because Blender later reused the same object name. Legacy rigs without the stable
+    identity retain the original name-based lookup for backwards compatibility.
+    """
     import bpy
     rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
     if len(rigs) != 1:
         return ()
     rig = rigs[0]
+    rig_id = rig.get(_RIG_ID)
+    if rig_id:
+        return tuple(action for action in bpy.data.actions
+                     if action.get(_GENERATED) and action.get(_RIG_ID) == rig_id)
     return tuple(action for action in bpy.data.actions
                  if action.get(_GENERATED) and action.get(_GENERATED_RIG) == rig.name)
 
@@ -43,6 +55,28 @@ def generated_actions(root):
 def generated_action(root, clip_name):
     return next((action for action in generated_actions(root)
                  if action.get(_GENERATED_CLIP) == clip_name), None)
+
+
+def clip_export_name(action):
+    """Return the artist-facing engine clip name, independent of Blender data-block names."""
+    value = str(action.get(_EXPORT_NAME) or action.get(_GENERATED_CLIP) or action.name).strip()
+    return value or str(action.get(_GENERATED_CLIP) or action.name)
+
+
+def set_clip_export_name(root, clip_name, export_name):
+    """Rename a generated clip for export without changing its stable internal identity."""
+    action = generated_action(root, clip_name)
+    if action is None:
+        raise ValueError('Generate the ' + clip_name + ' clip first.')
+    export_name = str(export_name).strip()
+    if not export_name:
+        raise ValueError('Animation export name cannot be empty.')
+    duplicate = next((other for other in generated_actions(root)
+                      if other is not action and clip_export_name(other) == export_name), None)
+    if duplicate is not None:
+        raise ValueError('Animation export names must be unique for this character.')
+    action[_EXPORT_NAME] = export_name
+    return action
 
 
 def activate_generated_action(root, clip_name):
@@ -56,7 +90,7 @@ def activate_generated_action(root, clip_name):
     data = rig.animation_data_create()
     if data.nla_tracks or data.drivers:
         raise ValueError('Existing NLA tracks or drivers are preserved; prepare them manually before switching clips.')
-    if data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
+    if data.action and not (data.action.get(_GENERATED) and data.action in generated_actions(root)):
         raise ValueError('Existing artist animation preserved; generated clips cannot replace it.')
 
     # Generated clips are complete poses, but Blender can retain evaluated values
@@ -87,7 +121,7 @@ def _add_clip(root, scene, clip, suffix):
         raise ValueError('Existing animation preserved. ' + suffix + ' already exists; select that clip instead of overwriting it.')
     if data and (data.nla_tracks or data.drivers):
         raise ValueError('Existing animation preserved. NLA tracks and drivers require manual preparation.')
-    if data and data.action and not (data.action.get(_GENERATED) and data.action.get(_GENERATED_RIG) == rig.name):
+    if data and data.action and not (data.action.get(_GENERATED) and data.action in generated_actions(root)):
         raise ValueError('Existing animation preserved. Use a fresh rig or keep the artist action active.')
 
     previous_action = data.action if data else None
@@ -115,7 +149,10 @@ def _add_clip(root, scene, clip, suffix):
         action = bpy.data.actions.new(rig.name + '.' + suffix)
         action[_GENERATED] = True
         action[_GENERATED_RIG] = rig.name
+        if rig.get(_RIG_ID):
+            action[_RIG_ID] = rig[_RIG_ID]
         action[_GENERATED_CLIP] = suffix
+        action[_EXPORT_NAME] = suffix
         modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
         had_data = data is not None
         try:
