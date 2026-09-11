@@ -4,7 +4,7 @@
 
 Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
 
-The project uses an independent Python core with a thin Blender adapter. **Human and Quadruped are completed deforming-provider foundations**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Avian is the next major provider milestone.
+The project uses an independent Python core with a thin Blender adapter. **Human and Quadruped are completed deforming-provider foundations**. Avian is now active with its first host-independent generation foundation, while Box and a small non-Human animated proof exercise additional shared capability shapes.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
@@ -22,7 +22,7 @@ The 3D Viewport sidebar has five workflow tabs:
 
 Not every provider needs every stage. Shared workflow behavior follows explicit provider capabilities.
 
-The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. The legacy Humanoid generator is retained only where required for saved-file compatibility and is no longer offered for new assets.
+The artist-facing Generator currently exposes **Human**, **Quadruped**, **Avian**, and **Box**. The legacy Humanoid generator is retained only where required for saved-file compatibility and is no longer offered for new assets.
 
 ## Human status
 
@@ -40,7 +40,13 @@ It remains a generated blockout foundation rather than finished anatomy. Individ
 
 Quadruped deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Quadruped-specific anatomy remains in `object_core/providers`; no parallel provider-specific Blender workflow is required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated rig and animations play on the connected mesh.
 
-The current implementation is a low-poly editable starting point rather than an exhaustive all-species generator, finished anatomy, or fur system. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Avian.
+The current implementation is a low-poly editable starting point rather than an exhaustive all-species generator, finished anatomy, or fur system. Broader destination-specific certification can continue as release hardening.
+
+## Avian status
+
+**Avian is the active provider milestone.** Its first foundation is intentionally small: a host-independent provider with canonical `avian` identity, useful body/wingspan/tail parameters, deterministic editable body/head/wing/tail blockout parts, and direct generation through the same dynamic Blender Generator used by the other providers.
+
+Avian is currently a static generation proof. Rigging, connected deformable geometry, skin weights, wing/tail deformation, surfacing, and flight/locomotion behavior are the next Avian steps. Keeping those capabilities off until they are actually implemented lets the shared Blender UI and workflow remain truthful and capability-driven.
 
 ## Install from source
 
@@ -78,7 +84,7 @@ python -m unittest discover -s tests -v
 
 Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming providers, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
 
-Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Quadruped coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk/Run generation, UV completeness, generated texture/material preparation and generic provider workflow integration.
+Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Quadruped coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk/Run generation, UV completeness, generated texture/material preparation and generic provider workflow integration. Avian foundation coverage verifies deterministic parameterized blockout generation and the generic Blender generation/UI path while unsupported rigging/animation operations stay disabled.
 
 ## Structure
 
@@ -114,4 +120,4 @@ See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [w
 | Unity | FBX with supported rig/animation/material data |
 | Unreal Engine | Model/skeleton FBX plus one FBX sidecar per generated clip, imported as animation-only against the model skeleton |
 
-Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human has completed destination evidence for Godot, Unity, and Unreal; Quadruped has completed its Blender provider checkpoint and reuses those generic target adapters. Destination checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human has completed destination evidence for Godot, Unity, and Unreal; Quadruped has completed its Blender provider checkpoint and reuses those generic target adapters. Avian is still at generation-foundation scope and has not yet reached destination certification. Destination checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
