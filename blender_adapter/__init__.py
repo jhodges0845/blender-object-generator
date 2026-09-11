@@ -22,18 +22,20 @@ bl_info = {
 
 
 def register():
-    from . import animation_names_ui, cura_scale_ui, ui, ui_fastpath
+    from . import animation_names_ui, cura_scale_ui, run_ui, ui, ui_fastpath
     # Keep stable class/operator IDs for compatibility while presenting the new
     # product name to artists in Blender.
     ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
     ui_fastpath.install(ui)
     ui.register()
     animation_names_ui.register()
+    run_ui.register(ui.HUMANOID_PG_settings)
     cura_scale_ui.register(ui.HUMANOID_PG_settings)
 
 
 def unregister():
-    from . import animation_names_ui, cura_scale_ui, ui
+    from . import animation_names_ui, cura_scale_ui, run_ui, ui
     cura_scale_ui.unregister(ui.HUMANOID_PG_settings)
+    run_ui.unregister(ui.HUMANOID_PG_settings)
     animation_names_ui.unregister()
     ui.unregister()

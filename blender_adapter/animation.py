@@ -93,9 +93,6 @@ def activate_generated_action(root, clip_name):
     if data.action and not (data.action.get(_GENERATED) and data.action in generated_actions(root)):
         raise ValueError('Existing artist animation preserved; generated clips cannot replace it.')
 
-    # Generated clips are complete poses, but Blender can retain evaluated values
-    # from the previously active action until the dependency graph is refreshed.
-    # Detach and clear first so preview/export never inherits the prior clip pose.
     data.action = None
     for bone in rig.pose.bones:
         bone.matrix_basis.identity()
@@ -129,9 +126,6 @@ def _add_clip(root, scene, clip, suffix):
     previous_frame, previous_subframe = scene.frame_current, scene.frame_subframe
     if previous_action is not None:
         data.action = None
-        # Blender can retain the evaluated pose from the detached generated action,
-        # especially when the user is parked on a non-start frame. Explicitly clear
-        # those generated transforms before applying the artist-pose safety check.
         for bone in rig.pose.bones:
             bone.matrix_basis.identity()
         scene.frame_set(previous_frame, subframe=previous_subframe)
@@ -168,10 +162,6 @@ def _add_clip(root, scene, clip, suffix):
             for bone in rig.pose.bones:
                 track = tracks_by_bone.get(bone.name)
                 if track is None:
-                    # Every generated action explicitly owns every bone rotation.
-                    # Matching identity keys at both clip boundaries prevent
-                    # cross-clip pose leakage while preserving the action's loop
-                    # duration contract for otherwise-unanimated bones.
                     identity = Quaternion((1.0, 0.0, 0.0, 0.0))
                     samples = [(start, identity), (start + clip.duration * fps, identity)]
                 else:
@@ -229,3 +219,10 @@ def add_locomotion(root, scene, duration=1.2, strength=1.0):
     if not getattr(provider, 'supports_locomotion', False):
         raise ValueError(provider.label + ' does not support locomotion animation.')
     return _add_clip(root, scene, provider.locomotion(duration, strength), 'Walk')
+
+
+def add_run(root, scene, duration=0.72, strength=1.0):
+    provider = provider_for(root)
+    if not getattr(provider, 'supports_run', False):
+        raise ValueError(provider.label + ' does not support run animation.')
+    return _add_clip(root, scene, provider.run(duration, strength), 'Run')
