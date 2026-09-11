@@ -4,7 +4,7 @@
 
 Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
 
-The project uses an independent Python core with a thin Blender adapter. Human is the first completed deforming character provider, while Box and a small non-Human animated proof exercise the shared capability architecture. Dog/quadruped is the next major provider milestone, followed by Bird.
+The project uses an independent Python core with a thin Blender adapter. **Human 1.0 and Dog 1.0 are completed deforming providers**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Bird is the next major provider milestone.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
@@ -31,9 +31,17 @@ Asset Assistant currently retains two Human paths:
 
 Human 1.0 includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk actions. Generated textures are packed for self-contained export. Godot and Unity can export the generated clip library together. Unreal writes one model/skeleton/material FBX plus one Interchange-recognizable FBX per generated clip; those sidecars retain the skinned hierarchy Unreal 5.8 needs to classify them and are imported as animation-only against the model skeleton.
 
-The Blender 5.2.1 visual/deformation milestone has passed at foundation quality. Human 1.0 has direct destination evidence in Godot, Unity, and Unreal, including working Idle/Walk playback. The final Human closeout audit also confirmed that the capability-driven architecture is ready to move to Dog without another speculative refactor.
+The Blender 5.2.1 visual/deformation milestone has passed at foundation quality. Human 1.0 has direct destination evidence in Godot, Unity, and Unreal, including working Idle/Walk playback.
 
 It remains a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail and higher-fidelity joint deformation are future refinement; current low-poly shoulder/armpit and other joint transitions are intentionally angular. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), [animation](docs/animation.md), [deformation quality](docs/deformation-quality.md), and [target verification](docs/target-verification.md).
+
+## Dog status
+
+**Dog Provider 1.0 is complete as an editable quadruped foundation.** It generates one connected deformable surface from host-independent Dog parameters, supplies a quadruped skeleton and localized skin weights, face-corner UVs, a portable textured PBR base coat, and separate generated Idle/Walk clips.
+
+Dog deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Dog-specific anatomy remains in `object_core/providers`; no parallel Dog Blender workflow was required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated Dog rig and animations play on the connected mesh.
+
+Dog 1.0 is a low-poly editable starting point rather than breed-specific finished anatomy or fur. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Bird.
 
 ## Install from source
 
@@ -69,9 +77,9 @@ Presets are slim, average, muscular, overweight, and obese. They are artistic co
 python -m unittest discover -s tests -v
 ```
 
-Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming Human, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
+Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming providers, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
 
-Recent Human coverage verifies deformable topology across all five body presets and supported height extremes, representative joint deformation, generated surface/texture preparation, Idle/Walk coexistence and switching, Godot multi-clip GLB export, Unity multi-clip FBX export, Unreal model-plus-animation-sidecar packaging, Cura Human print preparation, print scaling, and redraw-time validation caching.
+Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Dog coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk generation, UV completeness, generated texture/material preparation and generic provider workflow integration.
 
 ## Structure
 
@@ -84,6 +92,7 @@ object_core/
     geometry/        Mesh generation
     rigging/         Skeleton and skin-weight generation
     animation/       Portable animation tracks and generation
+    providers/       Provider-specific generation, anatomy and behavior
     validation/      Host-independent readiness rules
 blender_adapter/     Canonical Blender adapter, UI, rigging, scene inspection, and export
 humanoid_blender/    Historical compatibility entry point/module ID
@@ -106,4 +115,4 @@ See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [w
 | Unity | FBX with supported rig/animation/material data |
 | Unreal Engine | Model/skeleton FBX plus one FBX sidecar per generated clip, imported as animation-only against the model skeleton |
 
-Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 has completed destination evidence for Godot, Unity, and Unreal; Cura also has automated Human preparation/scale coverage plus earlier Box slicing evidence. These checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 has completed destination evidence for Godot, Unity, and Unreal; Dog 1.0 has completed its Blender provider checkpoint and reuses those generic target adapters. Destination checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
