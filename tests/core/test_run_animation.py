@@ -28,6 +28,16 @@ class RunAnimationTests(unittest.TestCase):
         for track in clip.tracks:
             self.assertAlmostEqual(track.keys[0][1], track.keys[-1][1])
 
+    def test_run_tracks_exist_on_provider_skeletons(self):
+        for provider_key, duration in (('human_experimental', 0.72), ('dog', 0.64)):
+            provider = get_provider(provider_key)
+            values = {field.key: field.default for field in provider.parameters}
+            skeleton_names = {bone.name for bone in provider.skeleton(values).bones}
+            run_names = {track.bone for track in provider.run(duration, 1.0).tracks}
+            self.assertTrue(run_names.issubset(skeleton_names),
+                            provider_key + ' run references bones missing from its skeleton: ' +
+                            ', '.join(sorted(run_names - skeleton_names)))
+
     def test_human_and_dog_providers_advertise_run(self):
         human = get_provider('human_experimental')
         dog = get_provider('dog')
