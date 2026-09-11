@@ -214,11 +214,17 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
     return _add_clip(root, scene, provider.idle(duration, strength), 'Idle')
 
 
+def locomotion_clip_name(provider):
+    """Return the provider's artist-facing locomotion clip name."""
+    name = str(getattr(provider, 'locomotion_label', 'Walk')).strip()
+    return name or 'Walk'
+
+
 def add_locomotion(root, scene, duration=1.2, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_locomotion', False):
         raise ValueError(provider.label + ' does not support locomotion animation.')
-    return _add_clip(root, scene, provider.locomotion(duration, strength), 'Walk')
+    return _add_clip(root, scene, provider.locomotion(duration, strength), locomotion_clip_name(provider))
 
 
 def add_run(root, scene, duration=0.72, strength=1.0):
