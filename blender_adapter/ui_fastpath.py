@@ -1,9 +1,25 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Keep Blender UI redraws lightweight without weakening export preflight."""
+"""Keep Blender UI redraws lightweight and apply small pre-registration UI policy."""
 
 
 def install(ui):
-    """Route redraw-time readiness checks through the explicit validation snapshot."""
+    """Apply lightweight redraw behavior and the public generation-provider list."""
+
+    # Keep the legacy ``humanoid`` provider available to load/operate on older
+    # generated assets, but stop offering it for creation. Human 1.0 is the
+    # supported human path for new assets.
+    visible_providers = tuple(
+        provider for provider in ui.OBJECT_TYPES.values()
+        if provider.key != 'humanoid'
+    )
+    ui.HUMANOID_PG_settings.__annotations__['object_type'] = ui.EnumProperty(
+        name='Object Type',
+        default='human_experimental',
+        items=[
+            (provider.key, provider.label, 'Generate ' + provider.label)
+            for provider in visible_providers
+        ],
+    )
 
     @classmethod
     def export_poll(cls, context):
