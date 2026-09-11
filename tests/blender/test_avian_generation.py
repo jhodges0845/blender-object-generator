@@ -16,7 +16,7 @@ class AvianGenerationTests(unittest.TestCase):
         self.scene = bpy.data.scenes.new("AvianGenerationTest")
         bpy.context.window.scene = self.scene
         self.before = {name: set(getattr(bpy.data, name)) for name in
-                       ("objects", "meshes", "collections")}
+                       ("objects", "meshes", "armatures", "collections")}
         addon.register()
 
     def tearDown(self):
@@ -28,7 +28,7 @@ class AvianGenerationTests(unittest.TestCase):
             for item in set(data) - original:
                 data.remove(item, do_unlink=True)
 
-    def test_avian_appears_and_generates_through_shared_ui(self):
+    def test_avian_generates_and_rigs_through_shared_ui(self):
         settings = self.scene.humanoid_settings
         options = settings.bl_rna.properties["object_type"].enum_items
         self.assertIn(("avian", "Avian"),
@@ -47,13 +47,26 @@ class AvianGenerationTests(unittest.TestCase):
         self.assertEqual(root["object_type"], "avian")
         self.assertEqual(root["wingspan_cm"], 120)
         self.assertEqual(tuple(root.location), (1, 2, 3))
-        self.assertEqual(settings.asset_use, "STATIC")
-        self.assertEqual(
-            {obj.get("part_name", obj.get("body_part")) for obj in root.children},
-            {"avian.body", "avian.head", "avian.wing.left", "avian.wing.right", "avian.tail"},
-        )
-        self.assertFalse(bpy.ops.humanoid.add_basic_rig.poll())
+        self.assertEqual(settings.asset_use, "RIGGED")
+        meshes = [obj for obj in root.children if obj.type == "MESH"]
+        self.assertEqual(len(meshes), 1)
+        self.assertEqual(meshes[0].get("part_name", meshes[0].get("body_part")), "avian")
+
+        self.assertTrue(bpy.ops.humanoid.add_basic_rig.poll())
+        self.assertEqual(bpy.ops.humanoid.add_basic_rig(), {"FINISHED"})
+        rig = next(obj for obj in root.children if obj.type == "ARMATURE")
+        self.assertIn("spine", rig.data.bones)
+        self.assertIn("wing.upper.left", rig.data.bones)
+        self.assertIn("wing.lower.right", rig.data.bones)
+        self.assertIn("tail.2", rig.data.bones)
+        self.assertEqual(len(meshes[0].modifiers), 1)
+        self.assertIs(meshes[0].modifiers[0].object, rig)
+        self.assertGreater(len(meshes[0].vertex_groups), 0)
+
+        # Animation remains intentionally disabled until the next Avian motion milestone.
         self.assertFalse(bpy.ops.humanoid.generate_idle.poll())
+        settings.animation_clip = "WALK"
+        self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
 
 
 if __name__ == "__main__":
