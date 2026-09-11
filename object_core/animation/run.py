@@ -43,8 +43,8 @@ def generate_run(duration=0.72, strength=1.0):
         RotationTrack("lower_leg.right", (1.0, 0.0, 0.0), _keys(duration, 28.0, strength)),
         RotationTrack("upper_arm.left", (1.0, 0.0, 0.0), _keys(duration, -34.0, strength)),
         RotationTrack("upper_arm.right", (1.0, 0.0, 0.0), _keys(duration, 34.0, strength)),
-        RotationTrack("lower_arm.left", (1.0, 0.0, 0.0), _keys(duration, -14.0, strength)),
-        RotationTrack("lower_arm.right", (1.0, 0.0, 0.0), _keys(duration, 14.0, strength)),
+        RotationTrack("forearm.left", (1.0, 0.0, 0.0), _keys(duration, -14.0, strength)),
+        RotationTrack("forearm.right", (1.0, 0.0, 0.0), _keys(duration, 14.0, strength)),
         RotationTrack("torso", (0.0, 0.0, 1.0), _keys(duration, 5.0, strength)),
     )
     return RunClip(float(duration), tracks)
