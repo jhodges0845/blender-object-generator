@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Real Blender deformation checks for the connected Avian surface."""
+
+import unittest
+
+try:
+    import bpy
+except ModuleNotFoundError:
+    bpy = None
+
+from object_core.objects import get_provider
+from blender_adapter.adapter import create_character
+
+
+@unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
+class AvianDeformationTests(unittest.TestCase):
+    def setUp(self):
+        self.scene = bpy.data.scenes.new("AvianDeformationTest")
+        self.previous_scene = bpy.context.window.scene
+        bpy.context.window.scene = self.scene
+        self.objects_before = set(bpy.data.objects)
+        self.meshes_before = set(bpy.data.meshes)
+        self.armatures_before = set(bpy.data.armatures)
+        self.collections_before = set(bpy.data.collections)
+
+        provider = get_provider("avian")
+        values = {field.key: field.default for field in provider.parameters}
+        mesh = provider.mesh(values)
+        skeleton = provider.skeleton(values)
+        weights = provider.skin_weights(mesh, values)
+        self.root = create_character(
+            mesh,
+            name="AvianDeformation",
+            scene=self.scene,
+            skeleton=skeleton,
+            skin_weights=weights,
+        )
+        self.rig = next(obj for obj in self.root.children if obj.type == "ARMATURE")
+        self.avian = next(obj for obj in self.root.children if obj.type == "MESH")
+
+    def tearDown(self):
+        bpy.context.window.scene = self.previous_scene
+        for obj in set(bpy.data.objects) - self.objects_before:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        for mesh in set(bpy.data.meshes) - self.meshes_before:
+            bpy.data.meshes.remove(mesh)
+        for collection in set(bpy.data.collections) - self.collections_before:
+            bpy.data.collections.remove(collection)
+        for armature in set(bpy.data.armatures) - self.armatures_before:
+            bpy.data.armatures.remove(armature)
+        bpy.data.scenes.remove(self.scene)
+
+    def _evaluated_points(self):
+        bpy.context.view_layer.update()
+        graph = bpy.context.evaluated_depsgraph_get()
+        evaluated = self.avian.evaluated_get(graph)
+        return [evaluated.matrix_world @ vertex.co for vertex in evaluated.data.vertices]
+
+    def _indices_weighted_to(self, bone_name, minimum=0.12):
+        group = self.avian.vertex_groups.get(bone_name)
+        self.assertIsNotNone(group, bone_name)
+        indices = []
+        for vertex in self.avian.data.vertices:
+            try:
+                weight = group.weight(vertex.index)
+            except RuntimeError:
+                continue
+            if weight >= minimum:
+                indices.append(vertex.index)
+        self.assertTrue(indices, bone_name)
+        return indices
+
+    def _assert_bone_bends_surface(self, bone_name, axis="x", angle=0.35):
+        before = self._evaluated_points()
+        indices = self._indices_weighted_to(bone_name)
+        pose_bone = self.rig.pose.bones[bone_name]
+        pose_bone.rotation_mode = "XYZ"
+        setattr(pose_bone.rotation_euler, axis, angle)
+        after = self._evaluated_points()
+        movement = [(after[index] - before[index]).length for index in indices]
+        self.assertGreater(max(movement), 0.003, bone_name)
+        pose_bone.rotation_euler = (0.0, 0.0, 0.0)
+        bpy.context.view_layer.update()
+
+    def test_major_avian_junctions_deform_when_bent(self):
+        for bone_name, axis in (
+            ("wing.upper.left", "x"),
+            ("wing.lower.left", "x"),
+            ("tail.1", "x"),
+            ("tail.2", "x"),
+            ("neck", "x"),
+            ("head", "x"),
+        ):
+            with self.subTest(bone=bone_name):
+                self._assert_bone_bends_surface(bone_name, axis)
+
+    def test_wing_motion_stays_local_to_its_side(self):
+        before = self._evaluated_points()
+        target = self._indices_weighted_to("wing.upper.left", minimum=0.20)
+        opposite = self._indices_weighted_to("wing.lower.right", minimum=0.20)
+        bone = self.rig.pose.bones["wing.upper.left"]
+        bone.rotation_mode = "XYZ"
+        bone.rotation_euler.x = 0.40
+        after = self._evaluated_points()
+        target_move = max((after[index] - before[index]).length for index in target)
+        opposite_move = max((after[index] - before[index]).length for index in opposite)
+        self.assertGreater(target_move, 0.003)
+        self.assertLess(opposite_move, target_move * 0.20)
+
+    def test_wing_root_blends_with_spine_instead_of_hinging_as_a_rigid_seam(self):
+        wing_group = self.avian.vertex_groups.get("wing.upper.left")
+        spine_group = self.avian.vertex_groups.get("spine")
+        self.assertIsNotNone(wing_group)
+        self.assertIsNotNone(spine_group)
+        shared = []
+        for vertex in self.avian.data.vertices:
+            try:
+                wing_weight = wing_group.weight(vertex.index)
+                spine_weight = spine_group.weight(vertex.index)
+            except RuntimeError:
+                continue
+            if wing_weight > 0.05 and spine_weight > 0.05:
+                shared.append(vertex.index)
+        self.assertTrue(shared, "left wing root should have shared spine/wing influence")
+
+
+if __name__ == "__main__":
+    unittest.main()
