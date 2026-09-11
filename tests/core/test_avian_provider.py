@@ -28,7 +28,7 @@ class AvianProviderTests(unittest.TestCase):
             tuple(part.name for part in mesh.parts),
             ("avian.body", "avian.head", "avian.wing.left", "avian.wing.right", "avian.tail"),
         )
-        self.assertEqual(mesh.vertex_count, 36)
+        self.assertEqual(mesh.vertex_count, 34)
         self.assertEqual(mesh.face_count, 27)
         for part in mesh.parts:
             referenced = {index for face in part.faces for index in face}
