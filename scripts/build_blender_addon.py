@@ -5,10 +5,15 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
-def build_addon():
+def build_addon(output=None):
+    """Build the installable ZIP and return its path.
+
+    ``output`` is optional so release/CI tests can build into an isolated temporary
+    directory without mutating the repository's normal ``dist`` output.
+    """
     root = Path(__file__).resolve().parents[1]
-    output = root / "dist" / "asset_assistant.zip"
-    output.parent.mkdir(exist_ok=True)
+    output = Path(output) if output is not None else root / "dist" / "asset_assistant.zip"
+    output.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
         # Source uses the host-neutral name blender_adapter. Keep the historical
         # installed module ID humanoid_blender for Blender/saved-file compatibility.
