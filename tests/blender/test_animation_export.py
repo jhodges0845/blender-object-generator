@@ -18,7 +18,10 @@ from blender_adapter.animation import (
     add_idle,
     add_locomotion,
     activate_generated_action,
+    clip_export_name,
     generated_action,
+    generated_actions,
+    set_clip_export_name,
 )
 from blender_adapter.materials import prepare_materials
 from blender_adapter.targets import asset_objects, get_adapter
@@ -100,6 +103,20 @@ class AnimationExportTests(unittest.TestCase):
             self.assertTrue(expected.issubset(paths),
                             clip_name + ' must explicitly define every bone rotation to prevent cross-clip pose leakage.')
 
+    def test_generated_actions_ignore_stale_action_with_reused_rig_name(self):
+        self._generate_library()
+        self.assertTrue(self.rig.get('asset_assistant_rig_id'))
+        stale = bpy.data.actions.new('Dog.Rig.Idle')
+        stale['asset_assistant_generated'] = True
+        stale['asset_assistant_rig'] = self.rig.name
+        stale['asset_assistant_rig_id'] = 'stale-deleted-rig'
+        stale['asset_assistant_clip'] = 'Idle'
+
+        owned = generated_actions(self.root)
+
+        self.assertNotIn(stale, owned)
+        self.assertEqual({action.get('asset_assistant_clip') for action in owned}, {'Idle', 'Walk'})
+
     def test_all_generated_clips_are_exported_to_glb(self):
         active = self._generate_library()
         adapter = get_adapter('GODOT', asset_use='ANIMATED')
@@ -111,11 +128,25 @@ class AnimationExportTests(unittest.TestCase):
         document = read_glb(result.filepath)
         animations = document.get('animations', [])
         self.assertEqual(len(animations), 2)
+        self.assertEqual({animation.get('name') for animation in animations}, {'Idle', 'Walk'})
         durations = sorted(animation_duration(document, animation) for animation in animations)
         self.assertAlmostEqual(durations[0], 1.2, delta=0.05)
         self.assertAlmostEqual(durations[1], 4.0, delta=0.05)
         self.assertIs(self.rig.animation_data.action, active)
         self.assertEqual(len(self.rig.animation_data.nla_tracks), 0)
+
+    def test_artist_export_name_is_written_to_glb(self):
+        self._generate_library()
+        action = set_clip_export_name(self.root, 'Walk', 'Sneak')
+        self.assertEqual(clip_export_name(action), 'Sneak')
+        adapter = get_adapter('GODOT', asset_use='ANIMATED')
+        path = Path(self.temp.name) / 'renamed.glb'
+
+        result = adapter.export(self.root, bpy.context, path)
+
+        self.assertTrue(result.success, result.issues)
+        names = {animation.get('name') for animation in read_glb(result.filepath).get('animations', [])}
+        self.assertEqual(names, {'Idle', 'Sneak'})
 
     def test_all_generated_clips_are_named_in_unity_fbx(self):
         active = self._generate_library()

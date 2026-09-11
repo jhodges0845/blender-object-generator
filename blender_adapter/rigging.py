@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Translate independent skeleton and skinning data into Blender rigs."""
 
+from uuid import uuid4
+
+
+_RIG_ID = 'asset_assistant_rig_id'
+
 
 def _populate_bones(data, skeleton, scale, *, deform_unbound=False):
     for source in skeleton.bones:
@@ -47,6 +52,7 @@ def attach_rig(root, skeleton, scale):
     created_groups, created_modifiers = [], []
     try:
         armature = bpy.data.objects.new(root.name + ".Rig", data)
+        armature[_RIG_ID] = uuid4().hex
         root.users_collection[0].objects.link(armature)
         armature.parent = root
         armature.show_in_front = True
@@ -115,6 +121,7 @@ def attach_deforming_rig(root, skeleton, skin_weights, scale):
     created_groups, created_modifiers = [], []
     try:
         armature = bpy.data.objects.new(root.name + ".Rig", data)
+        armature[_RIG_ID] = uuid4().hex
         root.users_collection[0].objects.link(armature)
         armature.parent = root
         armature.show_in_front = True
