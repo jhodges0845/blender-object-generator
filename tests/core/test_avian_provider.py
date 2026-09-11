@@ -33,8 +33,8 @@ class AvianProviderTests(unittest.TestCase):
 
     def test_avian_surface_has_deterministic_unit_uvs(self):
         part = self.provider.mesh(self.defaults).parts[0]
-        self.assertEqual(len(part.face_uvs), len(part.faces))
-        for face, uvs in zip(part.faces, part.face_uvs):
+        self.assertEqual(len(part.uvs), len(part.faces))
+        for face, uvs in zip(part.faces, part.uvs):
             self.assertEqual(len(uvs), len(face))
             for u, v in uvs:
                 self.assertGreaterEqual(u, 0.0)
@@ -48,7 +48,7 @@ class AvianProviderTests(unittest.TestCase):
         self.assertEqual(len(materials), 1)
         material = materials[0]
         self.assertEqual(material.name, "Avian Base Plumage")
-        self.assertEqual(material.parts, ("avian",))
+        self.assertEqual(material.part_names, ("avian",))
         self.assertEqual(material.metallic, 0.0)
         self.assertGreater(material.roughness, 0.6)
         self.assertIsNotNone(material.base_color_texture)
