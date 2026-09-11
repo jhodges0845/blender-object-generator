@@ -34,7 +34,7 @@ class UIFastPathTests(unittest.TestCase):
         identifiers = {item.identifier for item in enum_items}
         self.assertNotIn('humanoid', identifiers)
         self.assertIn('human_experimental', identifiers)
-        self.assertIn('dog', identifiers)
+        self.assertIn('quadruped', identifiers)
         self.assertIn('box', identifiers)
 
     def test_export_poll_uses_snapshot_without_full_validation(self):
