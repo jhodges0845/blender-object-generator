@@ -37,11 +37,16 @@ class ProviderKeyMigrationTests(unittest.TestCase):
         root["generator"] = "object_generator"
         # Historical persisted value retained only as migration input.
         root["object_type"] = "dog"
+        mesh = next(obj for obj in root.children if obj.type == "MESH")
+        mesh["part_name"] = "dog"
+        mesh["body_part"] = "dog"
 
         resolved = provider_for(root)
 
         self.assertIs(resolved, provider)
         self.assertEqual(root["object_type"], "quadruped")
+        self.assertEqual(mesh["part_name"], "quadruped")
+        self.assertEqual(mesh["body_part"], "quadruped")
 
 
 if __name__ == "__main__":
