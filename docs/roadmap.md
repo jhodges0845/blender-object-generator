@@ -21,6 +21,7 @@ The project is broader than Human generation. The provider/capability model is i
 - Validation reports real limitations instead of manufacturing a green result.
 - A successful file write is not equivalent to destination certification.
 - Generated Blender data should remain editable by artists.
+- Public provider names may evolve independently from internal compatibility keys; migrations of saved identifiers are explicit compatibility work, not cosmetic cleanup.
 
 ## Completed platform foundation
 
@@ -33,6 +34,7 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Godot, Unity, Unreal, and Cura target profiles/adapters.
 - [x] GLB/glTF, FBX, and STL export paths.
 - [x] Provider-aware rigging and animation workflow gating.
+- [x] Idle, Walk, and Run capability-driven animation workflow.
 - [x] Blender 5.2 layered-action support and active-scene glTF scoping.
 - [x] CI on standalone Python 3.9-3.12 plus Blender 2.92.0 and 5.2.1.
 - [x] Cached Blender runtimes in CI.
@@ -40,59 +42,64 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Initial Godot, Unity, Unreal, and Cura smoke verification.
 - [x] Redraw-time validation caching so Blender UI polling uses the latest explicit validation snapshot while export execution still performs a fresh safety preflight.
 - [x] Cura Human print preparation plus selectable print-scale presets without changing the source/game asset.
+- [x] Legacy Humanoid hidden from new generation while retaining compatibility resolution for existing generated assets.
+- [x] Artist-facing generator names simplified to Human, Quadruped, and Box while retaining internal compatibility keys.
 
-## Human Provider 1.0 — complete
+## Human provider — foundation complete
 
-Human 1.0 completed the P0 milestone: an editable, deformable, UV'd, basically surfaced and animated character foundation that exports successfully and remains ready for artist refinement.
+Human completed the P0 milestone: an editable, deformable, UV'd, basically surfaced and animated character foundation that exports successfully and remains ready for artist refinement.
 
-The completed Human path includes connected deformable geometry, dedicated skeleton and skin weights, editable UV/material/texture data, Idle/Walk actions, automated deformation coverage, Blender 5.2.1 visual review, and direct Godot/Unity/Unreal destination evidence. Cura has automated preparation/scale coverage with detailed physical-print certification tracked separately.
+The completed Human path includes connected deformable geometry, dedicated skeleton and skin weights, editable UV/material/texture data, Idle/Walk/Run actions, automated deformation coverage, Blender 5.2.1 visual review, and direct Godot/Unity/Unreal destination evidence. Cura has automated preparation/scale coverage with detailed physical-print certification tracked separately.
 
-Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
+The current Run clip is a first-pass game-animation foundation and remains a quality-polish item rather than an architectural blocker.
 
-## Dog Provider 1.0 — complete
+Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion/run, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
-Dog is the first genuine non-Human deforming-provider architecture proof. It was implemented without introducing a parallel Blender workflow or speculative cross-provider framework.
+## Quadruped provider — foundation complete
 
-### Implemented Dog foundation
+Quadruped is the public artist-facing name for the current four-legged provider. Its internal compatibility key and implementation modules remain `dog` for now. That distinction is intentional: public product naming has been generalized without forcing a saved-asset migration before the actual provider is generalized beyond dog-oriented geometry, surfacing, and motion assumptions.
 
-- [x] Host-independent Dog provider and validated body-length, shoulder-height, width, head-length and tail-length parameters.
+Quadruped is the first genuine non-Human deforming-provider architecture proof. It was implemented without introducing a parallel Blender workflow or speculative cross-provider framework.
+
+### Implemented Quadruped foundation
+
+- [x] Host-independent provider with validated body-length, shoulder-height, width, head-length and tail-length parameters.
 - [x] One deterministic connected quadruped surface rather than the initial multipart blockout.
-- [x] Dog-specific quadruped skeleton and normalized spatial skin weights behind generic skeleton/skinning contracts.
+- [x] Quadruped skeleton and normalized spatial skin weights behind generic skeleton/skinning contracts.
 - [x] Parent-child influence blending through shoulder, hip, neck and tail junctions, including corrected spine attachment for hind legs and tail base.
 - [x] Automated Blender deformation checks that bend shoulder, hip, neck and tail and verify localized surface movement.
-- [x] Portable Dog Idle and Walk clips using quadruped-specific motion generation and the shared Blender clip/action translator.
+- [x] Portable Idle, Walk, and Run clips using quadruped-specific motion generation and the shared Blender clip/action translator.
 - [x] Walk gait uses opposing diagonal limb phase relationships with spine, neck and tail follow-through.
-- [x] Deterministic face-corner UVs on the connected Dog surface.
-- [x] Portable textured PBR Dog base coat translated through the generic Blender material path while preserving artist-authored material data.
-- [x] Generic Blender Generator/Rigging/Animations workflow exercised with Dog capability declarations; no Dog-specific Blender UI branch required.
+- [x] Deterministic face-corner UVs on the connected surface.
+- [x] Portable textured PBR base coat translated through the generic Blender material path while preserving artist-authored material data.
+- [x] Generic Blender Generator/Rigging/Animations workflow exercised through capability declarations; no provider-specific Blender workflow branch required.
 - [x] Automated core and Blender coverage for generation, rigging, skinning, deformation, animation, UVs and materials on both supported Blender CI runtimes.
-- [x] Interactive Blender 5.2.1 checkpoint confirmed the generated connected Dog, armature and generated animations work in Blender.
-- [x] Architecture audit confirmed Dog anatomy remains provider-specific while shared Blender and target adapters remain provider-neutral.
-- [x] Superseded Dog foundation note removed; canonical roadmap restored as the milestone source of truth.
+- [x] Interactive Blender 5.2.1 checkpoint confirmed the generated connected Quadruped, armature and generated animations work in Blender.
+- [x] Architecture audit confirmed quadruped anatomy remains provider-specific while shared Blender and target adapters remain provider-neutral.
 
-Dog 1.0 remains an editable low-poly starting point rather than finished breed anatomy, fur simulation or exhaustive destination certification. Those are refinement/certification dimensions rather than blockers for the provider architecture milestone.
+The current implementation remains an editable low-poly dog-oriented starting point rather than a generic all-species quadruped generator, finished breed anatomy, fur simulation, or exhaustive destination certification. Generalizing body-family presets beyond dog-like proportions should be a deliberate future provider evolution rather than a naming-only rewrite.
 
-Definition of done: supported Dog parameters produce an editable connected quadruped with a deforming rig, localized weights, UV'd/textured base surface, Idle and locomotion, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
+Definition of done: supported current Quadruped parameters produce an editable connected four-legged asset with a deforming rig, localized weights, UV'd/textured base surface, Idle/Walk/Run, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human 1.0 has direct Godot, Unity, and Unreal destination evidence. Dog 1.0 has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Dog certification is release-hardening evidence rather than a blocker for beginning Bird.
+Initial smoke checks exist for all four destinations. Human has direct Godot, Unity, and Unreal destination evidence. Quadruped has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Quadruped certification is release-hardening evidence rather than a blocker for beginning Bird.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
 - [x] Unity FBX model/animation smoke check.
 - [x] Unreal FBX model/animation smoke check.
 - [x] Cura Box STL import/slicing smoke check.
-- [x] Human 1.0 Godot, Unity and Unreal game-target checkpoints.
-- [x] Dog 1.0 Blender generation/rig/animation/material checkpoint.
+- [x] Human Godot, Unity and Unreal game-target checkpoints.
+- [x] Quadruped Blender generation/rig/animation/material checkpoint.
 - [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations. This is not a blocker for additional providers.
-- [ ] Broader Dog destination certification across Godot/Unity/Unreal can be captured during release hardening; generic target adapters already have Human destination evidence and Dog exercises the same provider-neutral paths.
+- [ ] Broader Quadruped destination certification across Godot/Unity/Unreal can be captured during release hardening; generic target adapters already have Human destination evidence and Quadruped exercises the same provider-neutral paths.
 
 ## Next provider milestone
 
 ### P1 — Bird — active next
 
-Bird is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Dog proved the first non-Human deforming expansion.
+Bird is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
 
 Implementation order:
 
@@ -106,6 +113,8 @@ Implementation order:
 
 ### Shared follow-ups
 
+- Human Run animation-quality tuning: upper-arm swing, knee lift, torso pitch and timing/phase polish.
+- Generalize the current `dog` implementation only when real non-dog quadruped requirements justify the migration and compatibility plan.
 - Reusable UV/material/validation infrastructure driven by real provider needs.
 - Watertight print-preparation work for providers that explicitly support 3D printing.
 
@@ -117,11 +126,11 @@ Implementation order:
 
 ## Suggested implementation order
 
-1. Build Bird as the second non-Human anatomy/motion proof, using Dog's lessons but not Dog anatomy.
+1. Build Bird as the second non-Human anatomy/motion proof, using the Quadruped lessons but not its anatomy.
 2. Run Bird closeout across tests, docs, architecture and representative target evidence.
-3. Run release-hardening/publish readiness across Human, Dog and Bird.
+3. Run release-hardening/publish readiness across Human, Quadruped and Bird.
 4. Capture remaining destination-certification and usability work according to release severity rather than expanding provider scope indefinitely.
 
 ## Near-term release milestone
 
-> Asset Assistant can create useful editable starting assets across Human, Dog and Bird body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
+> Asset Assistant can create useful editable starting assets across Human, Quadruped and Bird body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
