@@ -54,9 +54,9 @@ class HumanoidProvider:
 
 
 class HumanExperimentalProvider:
-    """Opt-in Human 1.0 surface for deformation testing; not the production default."""
+    """Deformable Human provider used for new human assets."""
 
-    key, label = "human_experimental", "Human 1.0 (Experimental)"
+    key, label = "human_experimental", "Human"
     supports_rig = supports_materials = supports_idle = supports_locomotion = supports_run = True
     uses_skin_weights = True
     parameters = HUMAN_PARAMETERS
