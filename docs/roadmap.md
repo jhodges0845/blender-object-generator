@@ -45,83 +45,64 @@ The project is broader than Human generation. The provider/capability model is i
 
 Human 1.0 completed the P0 milestone: an editable, deformable, UV'd, basically surfaced and animated character foundation that exports successfully and remains ready for artist refinement.
 
-### Implemented Human foundation
-
-- [x] Opt-in connected Human mesh replacing the disconnected deformation path.
-- [x] Shoulder and hip branches stitched into the torso.
-- [x] Feet integrated into the leg surface.
-- [x] Support geometry around shoulders, elbows, wrists, hips, knees, ankles, foot bends, and neck transition.
-- [x] Dedicated deforming skeleton separate from the legacy rigid part-binding path.
-- [x] Deterministic normalized skin weights with bounded influences and left/right isolation.
-- [x] Connected-joint influence localization plus deliberate same-side hip bridge.
-- [x] Softer torso/neck and torso/shoulder weight transitions.
-- [x] Blender armature and skin-weight application.
-- [x] Provider-aware rigging UI for the deforming Human path.
-- [x] Automated deformation movement coverage for shoulder, elbow, wrist, hip, knee, ankle, and neck.
-- [x] Automated transition-spread/collapse guards for all seven representative deformation joints.
-- [x] Manual deformation inspection harness for milestone-level review.
-- [x] Improved blockout hands with palm, knuckle, and tapered fingertip sections.
-- [x] Improved blockout feet with heel, midfoot, ball, and tapered toe sections.
-- [x] Geometry regressions across all five body presets and supported height extremes.
-- [x] Deterministic face-corner UV generation with an editable Blender `UVMap` layer.
-- [x] Portable provider material contract plus an editable Human 1.0 Principled base surface.
-- [x] Portable generated-image texture contract with Human UV-driven base texture and editable Blender Image Texture translation.
-- [x] Portable Human in-place walk cycle with shared Blender clip-to-action translation and automated core/Blender coverage.
-- [x] Explicit Idle/Walk selection with separate editable generated actions and safe clip switching.
-- [x] Generated Human textures are packed automatically for self-contained export while artist-supplied external textures remain untouched.
-- [x] Generated Idle/Walk clips can be created and switched from an evaluated generated pose without being mistaken for artist pose edits.
-- [x] Milestone visual/deformation review in Blender 5.2.1 covering neck, shoulder, elbow, wrist, hip, knee, ankle, silhouette, and connected deformation. No blocking separation or catastrophic collapse observed; angular low-poly joint transitions remain acceptable for the editable 1.0 foundation.
-- [x] Completed Human 1.0 validates and exports successfully through the Godot GLB path with generated rig, skinning, material/texture and generated animation library.
-- [x] Godot destination verification confirmed connected hierarchy, Skeleton3D, generated texture, AnimationPlayer, upright orientation and working Idle/Walk motion.
-- [x] Unity generated-animation FBX export carries Idle and Walk together, with automated regression coverage and manual destination confirmation that both generated clips are exposed.
-- [x] Unreal animated export writes one model/skeleton/material FBX plus one Interchange-recognizable sidecar FBX per generated clip. Sidecars retain the skinned hierarchy needed by Unreal 5.8 while animation-only import avoids creating duplicate destination render assets.
-- [x] Unreal destination verification confirmed the corrected model plus Idle/Walk sidecar workflow and playback after generated clip-pose isolation removed cross-clip contamination.
-- [x] Human Provider 1.0 closeout checkpoint completed across test coverage, documentation, architecture, compatibility, destination evidence, performance/UI readiness, and remaining-risk review.
+The completed Human path includes connected deformable geometry, dedicated skeleton and skin weights, editable UV/material/texture data, Idle/Walk actions, automated deformation coverage, Blender 5.2.1 visual review, and direct Godot/Unity/Unreal destination evidence. Cura has automated preparation/scale coverage with detailed physical-print certification tracked separately.
 
 Definition of done: supported Human parameters produce an editable, deformable, UV'd, basically surfaced character foundation with a rig, idle plus locomotion, truthful validation, successful game-engine export/import, and a clear handoff to an artist.
 
-## Cleanup gate before UV work
+## Dog Provider 1.0 — complete
 
-The pre-UV cleanup gate is complete:
+Dog is the first genuine non-Human deforming-provider architecture proof. It was implemented without introducing a parallel Blender workflow or speculative cross-provider framework.
 
-- [x] Test-coverage audit and targeted Human geometry coverage expansion.
-- [x] Documentation sync/cleanup.
-- [x] Architecture audit/cleanup.
+### Implemented Dog foundation
 
-Future architecture cleanup should remain evidence-driven: remove concrete duplication/confusion and strengthen dependency boundaries only when a real feature exposes the need.
+- [x] Host-independent Dog provider and validated body-length, shoulder-height, width, head-length and tail-length parameters.
+- [x] One deterministic connected quadruped surface rather than the initial multipart blockout.
+- [x] Dog-specific quadruped skeleton and normalized spatial skin weights behind generic skeleton/skinning contracts.
+- [x] Parent-child influence blending through shoulder, hip, neck and tail junctions, including corrected spine attachment for hind legs and tail base.
+- [x] Automated Blender deformation checks that bend shoulder, hip, neck and tail and verify localized surface movement.
+- [x] Portable Dog Idle and Walk clips using quadruped-specific motion generation and the shared Blender clip/action translator.
+- [x] Walk gait uses opposing diagonal limb phase relationships with spine, neck and tail follow-through.
+- [x] Deterministic face-corner UVs on the connected Dog surface.
+- [x] Portable textured PBR Dog base coat translated through the generic Blender material path while preserving artist-authored material data.
+- [x] Generic Blender Generator/Rigging/Animations workflow exercised with Dog capability declarations; no Dog-specific Blender UI branch required.
+- [x] Automated core and Blender coverage for generation, rigging, skinning, deformation, animation, UVs and materials on both supported Blender CI runtimes.
+- [x] Interactive Blender 5.2.1 checkpoint confirmed the generated connected Dog, armature and generated animations work in Blender.
+- [x] Architecture audit confirmed Dog anatomy remains provider-specific while shared Blender and target adapters remain provider-neutral.
+- [x] Superseded Dog foundation note removed; canonical roadmap restored as the milestone source of truth.
+
+Dog 1.0 remains an editable low-poly starting point rather than finished breed anatomy, fur simulation or exhaustive destination certification. Those are refinement/certification dimensions rather than blockers for the provider architecture milestone.
+
+Definition of done: supported Dog parameters produce an editable connected quadruped with a deforming rig, localized weights, UV'd/textured base surface, Idle and locomotion, truthful capability-driven workflow behavior, automated Blender coverage and a successful interactive Blender milestone review.
 
 ## Target verification
 
-Initial smoke checks exist for all four destinations. Human 1.0 now has direct Godot, Unity, and Unreal destination evidence. Cura has automated Human print-preparation coverage and earlier Box slicing evidence; broader print certification remains separate from the Human game-character milestone.
+Initial smoke checks exist for all four destinations. Human 1.0 has direct Godot, Unity, and Unreal destination evidence. Dog 1.0 has completed the generic Blender-side generation/rig/animation/surface checkpoint and uses the same provider-neutral target adapters. Detailed per-destination Dog certification is release-hardening evidence rather than a blocker for beginning Bird.
 
 - [x] Repeatable target-verification checklist.
 - [x] Godot GLB import and animation smoke check.
 - [x] Unity FBX model/animation smoke check.
 - [x] Unreal FBX model/animation smoke check.
 - [x] Cura Box STL import/slicing smoke check.
-- [x] Human 1.0 Godot pass covering hierarchy, skinning integrity, generated texture transfer, orientation and Idle/Walk playback evidence. Measured scale and destination edit/reimport workflow remain broader certification work, not blockers for the Human 1.0 game-character milestone.
-- [x] Human 1.0 Unity pass confirming model/rig import and generated Idle/Walk clip availability after the multi-clip export fix. Broader Humanoid-avatar retargeting, exact scale measurement, and edit/reimport remain certification follow-ups rather than 1.0 blockers.
-- [x] Human 1.0 Unreal pass using the corrected model + animation-sidecar workflow, including destination playback of both generated clips after clip-pose isolation.
-- [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations. This is not a blocker for starting additional providers.
+- [x] Human 1.0 Godot, Unity and Unreal game-target checkpoints.
+- [x] Dog 1.0 Blender generation/rig/animation/material checkpoint.
+- [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations. This is not a blocker for additional providers.
+- [ ] Broader Dog destination certification across Godot/Unity/Unreal can be captured during release hardening; generic target adapters already have Human destination evidence and Dog exercises the same provider-neutral paths.
 
-## Next provider milestones
+## Next provider milestone
 
-### P1 — Dog/quadruped
+### P1 — Bird — active next
 
-Dog is the next major architecture proof. It should exercise the existing provider/capability model with genuinely different anatomy rather than introducing speculative abstractions first.
+Bird is now the next architecture proof. It should test another genuinely different body plan and, importantly, a different motion model after Dog proved the first non-Human deforming expansion.
 
-Near-term goals:
+Implementation order:
 
-- define a Dog/quadruped provider contract and parameters;
-- generate an editable quadruped blockout through the host-independent core;
-- add quadruped-specific skeleton, skinning, UV/surface, validation, Idle and locomotion behavior as the provider requires;
-- reuse shared Blender workflow and target adapters wherever the existing contracts genuinely fit;
-- add new shared abstractions only when Dog exposes a concrete cross-provider requirement; and
-- validate representative export behavior before declaring the provider complete.
-
-### P1 — Bird
-
-Bird follows Dog as an additional anatomy and animation proof. Its purpose is to test another non-Human body plan and motion model after the quadruped path has exercised the first real provider expansion.
+1. Define the smallest host-independent Bird provider contract and useful generation parameters.
+2. Prove Bird generation through the existing dynamic provider UI and generic Blender asset path before adding new shared abstractions.
+3. Add Bird-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
+4. Add wing/tail deformation coverage driven by actual avian motion needs.
+5. Add Bird surface/UV/material intent through existing portable contracts where they fit.
+6. Add appropriate Bird Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
+7. Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
 
 ### Shared follow-ups
 
@@ -136,11 +117,10 @@ Bird follows Dog as an additional anatomy and animation proof. Its purpose is to
 
 ## Suggested implementation order
 
-1. Start Dog/quadruped with the smallest provider/core slice that proves generation through the existing capability architecture.
-2. Grow Dog through rigging, deformation, surfacing, animation, validation and representative target export without pre-building unused framework layers.
-3. Run a Dog closeout checkpoint across tests, docs and architecture.
-4. Build Bird as the second non-Human anatomy proof.
-5. Run release-hardening/publish readiness after the Human, Dog and Bird provider milestones are complete.
+1. Build Bird as the second non-Human anatomy/motion proof, using Dog's lessons but not Dog anatomy.
+2. Run Bird closeout across tests, docs, architecture and representative target evidence.
+3. Run release-hardening/publish readiness across Human, Dog and Bird.
+4. Capture remaining destination-certification and usability work according to release severity rather than expanding provider scope indefinitely.
 
 ## Near-term release milestone
 
