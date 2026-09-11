@@ -6,6 +6,7 @@ These are destination observations reported by the user and complemented by auto
 
 | Target | Application/version evidence | Asset and result | Broader follow-up |
 | --- | --- | --- | --- |
+| Blender | 5.2.1 LTS | Human and Dog deforming-provider milestones generated successfully. Dog interactive review confirmed the connected quadruped, armature and generated animations work in Blender. | Continue representative visual checks as providers mature; automated CI also covers Blender 2.92.0 and 5.2.1. |
 | Godot | Current Human 1.0 verification screenshots show Godot 4.0.3 stable in the editor; earlier portable 4.0.3 installation was also verified | Completed Human 1.0 GLB imported with connected hierarchy, Skeleton3D, mesh, generated Human Base Texture and AnimationPlayer. Idle and Walk were validated through the generated animation library workflow, with working motion observed in destination. Upright orientation and gross skinning integrity were confirmed visually. | Exact destination scale and broader save/edit/reimport behavior remain useful certification work, not Human 1.0 blockers. |
 | Unity | 2020.3.31f1 installed on the test machine; import-session version not independently captured | Completed Human 1.0 FBX import was exercised after the multi-clip export fix. The model/rig imported and Unity exposed both generated Idle and Walk clips from the exported animation library. | Humanoid avatar mapping/retargeting, exact measured scale and broader save/edit/reimport behavior remain useful certification follow-ups. |
 | Unreal Engine | 5.8.2 verified from installed build and editor initialization log | Completed Human 1.0 Unreal workflow passed after the Interchange and clip-isolation fixes. The base skeletal model imported correctly; Idle and Walk sidecars imported against its skeleton and both animations played without the earlier cross-clip pose contamination. | Broader retargeting, measured scale and edit/reimport behavior remain certification follow-ups rather than Human 1.0 blockers. |
@@ -18,6 +19,14 @@ Blender 5.2.1 LTS is the primary modern runtime target. Automated integration co
 Interactive Blender 5.2.1 testing confirmed the user-facing Human workflow through generation, deforming rig setup, generated UV/material/texture preparation, Idle/Walk creation and selection, validation and engine export. Destination testing exposed workflow gaps that were fixed before Human 1.0 closeout: generated Human textures are packed automatically, generated clips can be created from evaluated generated poses without tripping artist-pose protection, Godot/Unity can carry the generated clip library together, Unreal uses a destination-specific one-model-plus-animation-sidecars strategy, and generated clip actions are self-contained to prevent cross-clip pose contamination.
 
 The Human 1.0 visual/deformation milestone was reviewed interactively in Blender 5.2.1 with the deformation inspection harness. Representative neck, shoulder, elbow, wrist, hip, knee, and ankle poses remained connected without obvious separation or catastrophic collapse. Shoulder/armpit and other low-poly joint transitions remain angular and are recorded as non-blocking foundation-quality limitations for 1.0.
+
+## Dog 1.0 Blender checkpoint — passed
+
+Dog is the first full non-Human deforming provider to exercise the same capability-driven Blender workflow as Human. Automated integration tests cover generic Dog generation, armature/skin-weight binding, real evaluated-mesh deformation at shoulder/hip/neck/tail, localized deformation, generated Idle/Walk actions, UV creation, generated textured material preparation and preservation of artist-authored materials.
+
+Interactive Blender 5.2.1 review on September 10, 2026 confirmed the generated Dog connected mesh and quadruped armature are present and that generated animations play successfully on the rigged asset. This closes the interactive Blender gate for Dog Provider 1.0.
+
+Dog has not yet received separate manual Godot/Unity/Unreal destination certification. The target adapters remain provider-neutral and already have direct Human destination evidence; broader Dog destination checks are therefore tracked as release-hardening certification rather than a blocker for starting Bird.
 
 ## Human 1.0 Godot checkpoint — passed
 
@@ -51,13 +60,13 @@ The original Box sample was generated with Blender 2.92 at 2 x 3 x 4 cm. Reading
 
 Human 1.0 subsequently exposed print-specific geometry validation issues. The current Cura path now performs the required Human print preparation and has automated regression coverage for the generated/evaluated Human path. Print scale is explicitly selectable without changing the source/game asset; for example, a 180 cm Human at 1:10 exports at approximately 180 mm tall.
 
-Detailed representative Human slicing, orientation/warning review and any physical print remain broader Cura certification work. They are not blockers for beginning Dog/quadruped development.
+Detailed representative Human slicing, orientation/warning review and any physical print remain broader Cura certification work.
 
-## Human 1.0 game-target review — complete
+## Provider milestone review
 
-The Blender visual/deformation gate and the Godot, Unity and Unreal destination gates are complete. This is enough evidence to close Human Provider 1.0 as an editable game-character foundation and move the architecture to its next real provider proof.
+Human Provider 1.0 is closed with Blender visual/deformation evidence plus direct Godot, Unity and Unreal destination evidence. Dog Provider 1.0 is closed as the first non-Human deforming architecture proof with comprehensive core/Blender automation and interactive Blender 5.2.1 animation confirmation.
 
-A successful Blender file write still does not imply broad production certification. Measured scale, retargeting, destination editing/reimport, physical printing and more exhaustive destination/version coverage remain separate follow-up dimensions.
+A successful Blender file write still does not imply broad production certification. Measured scale, retargeting, destination editing/reimport, physical printing and provider-by-provider destination coverage remain separate release-hardening dimensions.
 
 ## Repeatable review checklist
 
