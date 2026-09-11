@@ -6,7 +6,7 @@ def install(ui):
     """Apply lightweight redraw behavior and the public generation-provider list."""
 
     # Keep the legacy ``humanoid`` provider available to load/operate on older
-    # generated assets, but stop offering it for creation. Human 1.0 is the
+    # generated assets, but stop offering it for creation. Human is the
     # supported human path for new assets.
     visible_providers = tuple(
         provider for provider in ui.OBJECT_TYPES.values()
