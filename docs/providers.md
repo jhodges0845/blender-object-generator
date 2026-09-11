@@ -28,9 +28,9 @@ Human is the first public provider using the material and generated-texture path
 
 ## Blender workflow and compatibility
 
-Mesh objects use `part_name` for shared binding/material assignment; `body_part` remains a fallback for older saved assets. Existing root tags, package names, and operator IDs are retained for saved-file/script compatibility, including the historical humanoid fallback when no `object_type` is stored. New generated assets must store their actual provider key.
+Mesh objects use `part_name` for shared binding/material assignment; `body_part` remains a fallback for older saved assets. Existing root tags, package names, and operator IDs are retained for saved-file/script compatibility, including the historical humanoid fallback when no `object_type` is stored. New generated assets must store their actual canonical provider key.
 
-The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. Their compatibility keys remain `human_experimental`, `dog`, and `box`; the legacy `humanoid` provider remains registered internally so older generated assets can still resolve it, but it is not offered for new generation.
+The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. New provider code, generated metadata, tests, materials, and module names use those canonical identities. Earlier saved provider identifiers are accepted only through a narrow lookup compatibility map rather than preserved throughout the implementation.
 
 Rig and animation operator polls inspect the selected asset's provider capabilities. Rigging requires no existing armature; generated animation requires exactly one. The Animations panel exposes Idle, Walk, and Run according to the selected provider's declared capabilities. Static assets cannot invoke these operators merely because a different Generator type is selected for future generation.
 
