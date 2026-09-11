@@ -63,9 +63,10 @@ class AvianGenerationTests(unittest.TestCase):
         self.assertIs(meshes[0].modifiers[0].object, rig)
         self.assertGreater(len(meshes[0].vertex_groups), 0)
 
-        # Animation remains intentionally disabled until the next Avian motion milestone.
-        self.assertFalse(bpy.ops.humanoid.generate_idle.poll())
-        settings.animation_clip = "WALK"
+        self.assertTrue(bpy.ops.humanoid.generate_idle.poll())
+        settings.animation_clip = "FLIGHT"
+        self.assertTrue(bpy.ops.humanoid.select_animation_clip.poll())
+        settings.animation_clip = "RUN"
         self.assertFalse(bpy.ops.humanoid.select_animation_clip.poll())
 
 
