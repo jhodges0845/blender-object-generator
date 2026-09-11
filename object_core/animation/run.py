@@ -43,10 +43,9 @@ def _pose_keys(duration, degrees, strength):
 def generate_run(duration=0.72, strength=1.0):
     """Return a closed in-place run cycle with anatomically consistent joint flexion.
 
-    Hip and shoulder swing alternate across the body. Knees and elbows, however,
-    flex in the same anatomical direction on both sides and are phase-shifted rather
-    than mirrored by sign. This avoids the bow-legged / backwards-joint silhouette
-    that results from treating a run as a larger walk sine wave.
+    Hip and shoulder swing alternate across the body. Knees flex backward while
+    elbows flex forward toward the torso. Left/right flexion is phase-shifted rather
+    than mirrored by sign so both sides keep the same anatomical bend direction.
     """
     for name, value, lower, upper in (("duration", duration, 0.35, 2.0), ("strength", strength, 0.1, 2.0)):
         if isinstance(value, bool) or not isinstance(value, (float, int)):
@@ -59,22 +58,24 @@ def generate_run(duration=0.72, strength=1.0):
         RotationTrack("upper_leg.left", (1.0, 0.0, 0.0), _keys(duration, 44.0, strength)),
         RotationTrack("upper_leg.right", (1.0, 0.0, 0.0), _keys(duration, -44.0, strength)),
 
-        # Both knees bend backwards anatomically; the right leg is half a cycle out
+        # Both knees bend backward anatomically; the right leg is half a cycle out
         # of phase with the left rather than bending in the opposite direction.
         RotationTrack("lower_leg.left", (1.0, 0.0, 0.0),
                       _pose_keys(duration, (-24.0, -78.0, -34.0, -96.0, -24.0), strength)),
         RotationTrack("lower_leg.right", (1.0, 0.0, 0.0),
                       _pose_keys(duration, (-34.0, -96.0, -24.0, -78.0, -34.0), strength)),
 
-        # Strong opposing arm drive with elbows kept bent throughout the cycle.
+        # Strong opposing arm drive. Blender's generated Human rig needs positive
+        # forearm X rotation for elbow flexion toward the torso; negative values
+        # fold the forearms behind the character.
         RotationTrack("upper_arm.left", (1.0, 0.0, 0.0), _keys(duration, -34.0, strength)),
         RotationTrack("upper_arm.right", (1.0, 0.0, 0.0), _keys(duration, 34.0, strength)),
         RotationTrack("forearm.left", (1.0, 0.0, 0.0),
-                      _pose_keys(duration, (-68.0, -88.0, -72.0, -98.0, -68.0), strength)),
+                      _pose_keys(duration, (68.0, 88.0, 72.0, 98.0, 68.0), strength)),
         RotationTrack("forearm.right", (1.0, 0.0, 0.0),
-                      _pose_keys(duration, (-72.0, -98.0, -68.0, -88.0, -72.0), strength)),
+                      _pose_keys(duration, (72.0, 98.0, 68.0, 88.0, 72.0), strength)),
 
-        # A small forward body pitch reads more like running than a large torso twist.
+        # Small forward body pitch for the running silhouette.
         RotationTrack("torso", (1.0, 0.0, 0.0),
                       _pose_keys(duration, (8.0, 10.0, 8.0, 10.0, 8.0), strength)),
     )
