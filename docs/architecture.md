@@ -16,11 +16,11 @@ Important areas include:
 
 - `models/`: immutable shared contracts;
 - `proportions/`: Human measurements and shared landmarks;
-- `geometry/`: generated mesh data, including legacy and Human 1.0 deformable geometry;
-- `rigging/`: skeleton and skin-weight generation;
-- `animation/`: portable animation tracks/generators;
+- `geometry/`: shared/legacy mesh generation;
+- `rigging/`: shared/legacy skeleton and skin-weight generation;
+- `animation/`: portable animation contracts/shared generation;
 - `validation/`: host-independent readiness rules;
-- `providers/`: concrete provider implementations plus shared provider parameter contracts;
+- `providers/`: concrete provider implementations and anatomy-specific geometry, rigging, surfacing and animation behavior;
 - `objects.py`: provider declaration validation, registry construction, and lookup; and
 - `targets.py`: destination profiles and target-level requirements.
 
@@ -32,11 +32,21 @@ Providers declare what operations they actually support. Current shared architec
 
 - static assets with no rig/animation requirement;
 - rigid animated assets; and
-- skin-weight deforming assets.
+- skin-weight deforming assets across both Human and quadruped anatomy.
 
-Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
+Concrete provider implementations live under `object_core/providers` rather than inside the shared registry. `object_core.objects` validates declarations and resolves registered providers without owning Human, Dog or Box generation behavior. Existing imports from `object_core.objects` remain available as compatibility re-exports.
 
-Deforming providers explicitly supply skin weights. Human-specific geometry, bone names, landmarks, UV generation, surfacing choices, and weighting heuristics stay in Human-focused implementation rather than leaking into generic workflow code. Shared contracts should grow only when a real provider needs them.
+Deforming providers explicitly supply skin weights. Anatomy-specific geometry, bone names, landmarks, UV/surface choices, weighting heuristics and motion generation stay with their provider rather than leaking into generic workflow code. Shared contracts should grow only when more than one real implementation exposes the same need.
+
+## Dog architecture proof
+
+Dog Provider 1.0 validated the provider boundary with genuinely non-Human anatomy. Dog supplies its connected quadruped geometry, skeleton, spatial skin weights, UVs, portable material/texture intent and quadruped Idle/Walk clips entirely from the host-independent provider layer.
+
+The existing generic Blender path generated the Dog, applied its armature and vertex groups, translated its animation clips, prepared its material/texture and exposed its workflow through the dynamic provider UI without a Dog-specific Blender branch. This is the desired architectural result: new anatomy changes provider logic while the host adapter continues translating shared contracts.
+
+Dog also exposed useful concrete refinements without requiring a framework rewrite: hind-leg/tail parenting was corrected to blend through the deforming spine, and the material milestone exposed the need for Dog UVs. Both fixes remained provider-specific because no new shared abstraction was required.
+
+Bird should follow the same rule: reuse existing contracts where they fit, but keep avian geometry/rigging/motion concrete until a repeated cross-provider need is demonstrated.
 
 ## Blender adapter boundary
 
@@ -54,14 +64,9 @@ Generation parameters are inputs to generation, not a requirement that artists c
 
 ## Human 1.0 architecture
 
-Human currently has two paths:
+Human retains a legacy multipart/rigid compatibility path plus the connected deforming Human 1.0 path. The deforming path reuses the Human proportion foundation, generates one connected mesh, creates a dedicated skeleton and deterministic localized skin weights, and lets `blender_adapter` apply those portable results. UV, material, generated-image texture, idle, and locomotion intent remain outside Blender and are translated into ordinary editable Blender data by the adapter.
 
-- a legacy multipart/rigid path kept for compatibility and pipeline smoke testing; and
-- an opt-in connected deforming path used for Human 1.0.
-
-The deforming path reuses the existing Human proportion foundation, generates one connected mesh, creates a separate deforming skeleton, generates deterministic localized skin weights, and lets `blender_adapter` apply those results to Blender. Portable UV, material, generated-image texture, idle, and locomotion intent remain outside Blender and are translated into ordinary editable Blender data by the adapter.
-
-This split is intentional while Human 1.0 is being completed. Shared provider/workflow code should depend on capabilities and contracts rather than branching on Human anatomy.
+Shared provider/workflow code depends on capabilities and contracts rather than branching on Human anatomy.
 
 ## Validation boundary
 
@@ -77,14 +82,7 @@ The destination flow is:
 
 `object_core/targets.py` owns destination profiles and target-independent requirements. `blender_adapter/targets.py` owns Blender-side Godot, Unity, Unreal, and Cura export behavior, including Blender-version-specific exporter options when required.
 
-Current defaults are:
-
-- Godot: GLB/glTF;
-- Unity: FBX;
-- Unreal: FBX; and
-- Cura: STL.
-
-Target adapters should preserve source scene state where practical, scope exports to the intended hierarchy, and avoid turning a successful file write into a claim of production readiness. Version-specific Blender behavior belongs at this adapter boundary rather than in `object_core` or provider logic.
+Current defaults are Godot GLB/glTF, Unity FBX, Unreal FBX, and Cura STL. Target adapters should preserve source scene state where practical, scope exports to the intended hierarchy, and avoid turning a successful file write into a claim of production readiness. Version-specific Blender behavior belongs at this adapter boundary rather than in `object_core` or provider logic.
 
 ## Tests and compatibility
 
@@ -95,6 +93,8 @@ Tests mirror the boundaries:
 - focused compatibility-import coverage for `humanoid_blender`;
 - CI on Python 3.9-3.12; and
 - Blender integration on 2.92.0 and 5.2.1.
+
+Dog adds focused Blender coverage for generic provider generation/rigging, evaluated surface deformation, animation and material/UV translation. This complements Human's deeper geometry/export coverage and demonstrates that the shared Blender path is not accidentally Human-only.
 
 Blender 5.2.x is the primary current runtime target. Older Blender compatibility is valuable and should be retained while it remains reasonably small, clean, and testable. Current-version correctness and a clean architecture take precedence over preserving an old runtime indefinitely. If an older Blender version begins forcing duplicated implementations, awkward cross-layer workarounds, or weaker current-version behavior, raise the minimum supported Blender version deliberately and document the migration rather than degrading the design.
 
@@ -107,7 +107,7 @@ The historical `humanoid.*` operator identifiers and `humanoid_blender` module c
 When adding a feature, ask in this order:
 
 1. Is this host-independent asset behavior? Put it in `object_core`.
-2. Is this Human/provider-specific behavior? Keep it with that provider/component rather than generic workflow code.
+2. Is this provider-specific behavior? Keep it with that provider/component rather than generic workflow code.
 3. Is this Blender translation or scene behavior? Put it in `blender_adapter`.
 4. Is this destination-specific behavior? Keep it in the relevant target adapter/profile.
 5. Is a new abstraction required by more than one real implementation? If not, prefer the simpler concrete boundary.
