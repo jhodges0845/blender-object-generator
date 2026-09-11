@@ -93,7 +93,7 @@ class BlenderAdapterTests(unittest.TestCase):
                 [(item.identifier, item.name) for item in options],
                 [("human_experimental", "Human"),
                  ("box", "Box"),
-                 ("dog", "Quadruped")],
+                 ("quadruped", "Quadruped")],
             )
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
@@ -155,28 +155,28 @@ class BlenderAdapterTests(unittest.TestCase):
         humanoid_blender.register()
         humanoid_blender.unregister()
 
-    def test_dog_generates_and_rigs_through_generic_blender_workflow(self):
+    def test_quadruped_generates_and_rigs_through_generic_blender_workflow(self):
         import humanoid_blender
         previous_scene = bpy.context.window.scene
         bpy.context.window.scene = self.scene
         humanoid_blender.register()
         try:
             settings = self.scene.humanoid_settings
-            settings.object_type = "dog"
-            settings.dog_body_length_cm = 82
-            settings.dog_shoulder_height_cm = 61
+            settings.object_type = "quadruped"
+            settings.quadruped_body_length_cm = 82
+            settings.quadruped_shoulder_height_cm = 61
             self.scene.cursor.location = (1, 2, 3)
 
             self.assertEqual(bpy.ops.humanoid.generate_blockout(), {"FINISHED"})
             root = settings.target
             self.assertEqual(root.type, "EMPTY")
-            self.assertEqual(root["object_type"], "dog")
+            self.assertEqual(root["object_type"], "quadruped")
             self.assertEqual(root["body_length_cm"], 82)
             self.assertEqual(root["shoulder_height_cm"], 61)
             self.assertEqual(tuple(root.location), (1, 2, 3))
             meshes = [obj for obj in root.children if obj.type == "MESH"]
             self.assertEqual(len(meshes), 1)
-            self.assertEqual(meshes[0]["body_part"], "dog")
+            self.assertEqual(meshes[0]["body_part"], "quadruped")
             self.assertEqual(settings.asset_use, "RIGGED")
 
             self.assertTrue(bpy.ops.humanoid.add_basic_rig.poll())
