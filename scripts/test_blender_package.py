@@ -43,8 +43,10 @@ with tempfile.TemporaryDirectory() as directory:
 
         character = rig.parent
         meshes = [obj for obj in character.children if obj.type == "MESH"]
-        assert len(meshes) == 15
-        assert sum(len(obj.data.vertices) for obj in meshes) == 272
+        assert character["object_type"] == "human_experimental"
+        assert len(meshes) == 1
+        assert meshes[0]["body_part"] == "human"
+        assert len(meshes[0].data.vertices) > 0
         bpy.context.view_layer.update()
         heights = [(obj.matrix_world @ vertex.co).z
                    for obj in meshes for vertex in obj.data.vertices]
