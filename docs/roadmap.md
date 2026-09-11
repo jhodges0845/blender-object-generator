@@ -100,7 +100,7 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 
 Avian is the next architecture proof. It tests another genuinely different body plan and, importantly, a different motion model after Quadruped proved the first non-Human deforming expansion.
 
-Avian now has a deterministic connected low-poly surface with integrated wings and tail, an Avian-specific spine/neck/head/wing/tail skeleton, normalized local skin weights, Blender rigging through the existing provider-driven workflow, focused deformation coverage, deterministic face-corner UVs, and portable textured plumage material intent through the generic Blender material pipeline. Animation remains intentionally disabled until Avian-specific idle/flight behavior exists.
+Avian now has a deterministic connected low-poly surface with integrated wings and tail, an Avian-specific spine/neck/head/wing/tail skeleton, normalized local skin weights, Blender rigging through the existing provider-driven workflow, focused deformation coverage, deterministic face-corner UVs, portable textured plumage material intent, and provider-specific Idle/Flight motion. Flight uses the existing editable action/export pipeline but keeps its own clip identity instead of masquerading as Walk; Human and Quadruped remain gated to their own supported motion types. Automated core and Blender coverage verify closed wingbeat motion, both wing segments, separate Idle/Flight actions, and Flight capability isolation. Visual animation-quality review remains a manual checkpoint.
 
 Implementation order:
 
@@ -109,7 +109,7 @@ Implementation order:
 3. [x] Add Avian-specific connected geometry, skeleton and skinning while keeping anatomy out of shared Blender code.
 4. [x] Add wing/tail deformation coverage driven by actual avian motion needs.
 5. [x] Add Avian surface/UV/material intent through existing portable contracts where they fit.
-6. [ ] Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider.
+6. [x] Add appropriate Avian Idle and locomotion/flight behavior; do not force quadruped or Human gait assumptions onto the provider. Automated coverage is complete; interactive visual quality remains to be reviewed.
 7. [ ] Exercise representative target export and run the same tests/docs/architecture closeout before release hardening.
 
 ### Shared follow-ups
