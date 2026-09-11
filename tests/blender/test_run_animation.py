@@ -49,8 +49,8 @@ class RunAnimationBlenderTests(unittest.TestCase):
         self.assertIs(generated_action(root, 'Run'), action)
         self.assertGreater(end, self.scene.frame_start)
 
-    def test_dog_run_creates_named_generated_action(self):
-        root = self._make('dog', 'RunDog')
+    def test_quadruped_run_creates_named_generated_action(self):
+        root = self._make('quadruped', 'RunQuadruped')
         action, end = add_run(root, self.scene, 0.64, 1.0)
         self.assertEqual(action.get('asset_assistant_clip'), 'Run')
         self.assertEqual(action.get('asset_assistant_export_name'), 'Run')
