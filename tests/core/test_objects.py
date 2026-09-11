@@ -32,7 +32,7 @@ class ObjectProviderTests(unittest.TestCase):
         skeleton = provider.skeleton(values)
         weights = provider.skin_weights(mesh, values)
         materials = provider.materials(values)
-        self.assertEqual(provider.label, 'Human 1.0 (Experimental)')
+        self.assertEqual(provider.label, 'Human')
         self.assertTrue(provider.supports_rig)
         self.assertTrue(provider.supports_idle)
         self.assertTrue(provider.supports_locomotion)
