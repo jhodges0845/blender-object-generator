@@ -4,7 +4,7 @@
 
 Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
 
-The project uses an independent Python core with a thin Blender adapter. **Human and Quadruped are completed deforming-provider foundations**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Bird is the next major provider milestone.
+The project uses an independent Python core with a thin Blender adapter. **Human and Quadruped are completed deforming-provider foundations**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Avian is the next major provider milestone.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
@@ -22,7 +22,7 @@ The 3D Viewport sidebar has five workflow tabs:
 
 Not every provider needs every stage. Shared workflow behavior follows explicit provider capabilities.
 
-The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. Historical provider keys remain internal where needed for saved-file compatibility; the legacy Humanoid generator is no longer offered for new assets.
+The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. The legacy Humanoid generator is retained only where required for saved-file compatibility and is no longer offered for new assets.
 
 ## Human status
 
@@ -38,9 +38,9 @@ It remains a generated blockout foundation rather than finished anatomy. Individ
 
 **Quadruped is complete as the current editable four-legged provider foundation.** It generates one connected deformable surface from host-independent dimensions, supplies a quadruped skeleton and localized skin weights, face-corner UVs, a portable textured PBR base coat, and separate generated Idle/Walk/Run clips.
 
-Quadruped deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Its current internal implementation remains dog-oriented and retains the `dog` compatibility key; no parallel provider-specific Blender workflow is required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated rig and animations play on the connected mesh.
+Quadruped deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Quadruped-specific anatomy remains in `object_core/providers`; no parallel provider-specific Blender workflow is required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated rig and animations play on the connected mesh.
 
-The current implementation is a low-poly editable dog-like starting point rather than a generic all-species quadruped generator, breed-specific finished anatomy, or fur. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Bird.
+The current implementation is a low-poly editable starting point rather than an exhaustive all-species generator, finished anatomy, or fur system. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Avian.
 
 ## Install from source
 
