@@ -3,14 +3,14 @@
 
 from .base import Parameter
 from .box import BoxProvider
-from .dog import DOG_PARAMETERS, DogProvider
 from .human import HUMAN_PARAMETERS, HumanExperimentalProvider, HumanoidProvider
+from .quadruped import QUADRUPED_PARAMETERS, QuadrupedProvider
 
 __all__ = [
     "Parameter",
     "BoxProvider",
-    "DOG_PARAMETERS",
-    "DogProvider",
+    "QUADRUPED_PARAMETERS",
+    "QuadrupedProvider",
     "HUMAN_PARAMETERS",
     "HumanoidProvider",
     "HumanExperimentalProvider",
