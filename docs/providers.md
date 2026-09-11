@@ -10,7 +10,8 @@ Call `validate_provider(provider)` before adding a new instance. Built-in provid
 - `parameters`: a tuple of `Parameter` definitions used to build the input UI.
 - `mesh(values)`: return an immutable `ObjectMesh` with named `MeshPart` entries. Validate input values in the provider. Geometry coordinates are centimetres; the Blender adapter converts them using scene unit scale.
 - Boolean `supports_rig`, `supports_idle`, and `uses_skin_weights` capability declarations.
-- `supports_locomotion` for providers that expose a walk/locomotion clip. For backward compatibility, providers that omit it are treated as `False`.
+- `supports_locomotion` for providers that expose a locomotion clip. For backward compatibility, providers that omit it are treated as `False`.
+- Optional `locomotion_label` for the artist-facing name of a locomotion clip. Shared behavior defaults to `Walk`; providers may use a more accurate name such as Avian `Flight` without changing the generic capability contract.
 - `supports_run` for providers that expose a Run clip. For backward compatibility, providers that omit it are treated as `False`.
 - `supports_materials` for providers that participate in generated surfacing. For backward compatibility, providers that omit it are treated as `False`.
 
@@ -24,15 +25,15 @@ When `supports_materials` is true, implement `materials(values)` returning porta
 
 The Blender adapter translates that intent into ordinary editable Principled materials and, when present, an editable Blender Image Texture node connected directly to Base Color. Existing artist assignments remain authoritative. Generated image data is intentionally simple foundation data; it is not destination certification or finished artwork.
 
-Human is the first public provider using the material and generated-texture path. Its small warm base texture exists to prove the full UV-to-image workflow and give artists a replaceable starting surface, not to synthesize final skin detail.
+Human, Quadruped, and Avian all exercise the portable provider model with distinct body plans. Avian additionally proves that the locomotion capability does not require a Walk-shaped motion model: its canonical locomotion action is `Flight`, while the shared Blender action/export path remains the same.
 
 ## Blender workflow and compatibility
 
 Mesh objects use `part_name` for shared binding/material assignment; `body_part` remains a fallback for older saved assets. Existing root tags, package names, and operator IDs are retained for saved-file/script compatibility, including the historical humanoid fallback when no `object_type` is stored. New generated assets must store their actual canonical provider key.
 
-The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. New provider code, generated metadata, tests, materials, and module names use those canonical identities. Earlier saved provider identifiers are accepted only through a narrow lookup compatibility map rather than preserved throughout the implementation.
+The artist-facing Generator currently exposes **Human**, **Quadruped**, **Avian**, and **Box**. New provider code, generated metadata, tests, materials, and module names use those canonical identities. Earlier saved provider identifiers are accepted only through a narrow lookup compatibility map rather than preserved throughout the implementation.
 
-Rig and animation operator polls inspect the selected asset's provider capabilities. Rigging requires no existing armature; generated animation requires exactly one. The Animations panel exposes Idle, Walk, and Run according to the selected provider's declared capabilities. Static assets cannot invoke these operators merely because a different Generator type is selected for future generation.
+Rig and animation operator polls inspect the selected asset's provider capabilities. Rigging requires no existing armature; generated animation requires exactly one. Human and Quadruped expose Idle/Walk/Run according to capabilities; Avian exposes Idle/Flight. Static assets cannot invoke these operators merely because a different Generator type is selected for future generation.
 
 Generated clips are separate editable Blender actions. Selecting an existing generated clip activates it rather than overwriting its keys. Artist actions, NLA tracks, drivers, constraints, and manual pose work remain authoritative and are not silently replaced by generated animation.
 
@@ -48,4 +49,4 @@ Provider capabilities do not certify current asset state. UVs, materials, textur
 4. For animated providers, test portable clip generation, actual evaluated Blender motion, generated-clip preservation/switching, validation, and scoped export.
 5. Confirm unsupported operations remain unavailable and legacy saved assets still work.
 
-`tests/blender/test_workflow.py` includes a test-only non-humanoid rotor that exercises shared rigid rig/animation behavior. Human separately exercises weighted deformation, UV, generated-material, generated-image-texture, Idle/Walk/Run selection, and active-clip export paths. Quadruped exercises a distinct four-legged geometry/rigging/animation implementation through the same shared Blender workflow. These tests protect shared architecture boundaries without claiming arbitrary providers are automatically production-ready.
+`tests/blender/test_workflow.py` includes a test-only non-humanoid rotor that exercises shared rigid rig/animation behavior. Human separately exercises weighted deformation, UV, generated-material, generated-image-texture, Idle/Walk/Run selection, and active-clip export paths. Quadruped exercises a distinct four-legged geometry/rigging/animation implementation through the same shared Blender workflow. Avian exercises a winged body plan, Flight naming, wing/tail deformation, surfacing, and representative Godot/Unity animation export through the same provider-neutral target adapters. These tests protect shared architecture boundaries without claiming arbitrary providers are automatically production-ready.
