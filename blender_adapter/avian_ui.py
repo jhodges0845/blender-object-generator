@@ -21,7 +21,7 @@ def prepare(ui):
 
     def animation_choice(settings):
         if settings.animation_clip == 'FLIGHT':
-            return 'Flight', 'supports_locomotion'
+            return 'Flight', 'supports_flight'
         return original_choice(settings)
 
     ui._animation_choice = animation_choice
