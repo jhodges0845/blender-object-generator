@@ -4,7 +4,7 @@
 
 Asset Assistant is **not intended to replace artists**. Its purpose is to remove repetitive and technical friction so artists can spend more time designing, sculpting, refining, and making creative decisions. Generated and prepared assets should remain editable, understandable, and practical to continue working on in Blender and downstream tools.
 
-The project uses an independent Python core with a thin Blender adapter. **Human 1.0 and Dog 1.0 are completed deforming providers**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Bird is the next major provider milestone.
+The project uses an independent Python core with a thin Blender adapter. **Human and Quadruped are completed deforming-provider foundations**, while Box and a small non-Human animated proof exercise additional shared capability shapes. Bird is the next major provider milestone.
 
 Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitted under [the license](LICENSE); see [notices](NOTICE). Generated models do not need to use the GPL merely because they were created with this program.
 
@@ -18,30 +18,29 @@ The 3D Viewport sidebar has five workflow tabs:
 
 | Generator | Rigging | Animations | Validation | Export |
 | --- | --- | --- | --- | --- |
-| Choose a provider and generate an editable asset | Add the provider-supported rig and enter Pose Mode | Generate/select supported motion such as Idle and Walk | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose a target, prepare as needed, and export when ready |
+| Choose a provider and generate an editable asset | Add the provider-supported rig and enter Pose Mode | Generate/select supported motion such as Idle, Walk, and Run | Inspect geometry, weights, clips, materials, UVs, and texture references | Choose a target, prepare as needed, and export when ready |
 
 Not every provider needs every stage. Shared workflow behavior follows explicit provider capabilities.
 
+The artist-facing Generator currently exposes **Human**, **Quadruped**, and **Box**. Historical provider keys remain internal where needed for saved-file compatibility; the legacy Humanoid generator is no longer offered for new assets.
+
 ## Human status
 
-Asset Assistant currently retains two Human paths:
+The public **Human** provider generates one connected skinned Human surface. The original 15-part rigid Humanoid path is retained internally for compatibility and focused pipeline coverage, not as a new-generation choice.
 
-- the original 15-part rigid blockout, kept for compatibility and pipeline smoke tests; and
-- the opt-in **Human 1.0 deforming path**, which generates one connected skinned Human surface.
+Human includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk/Run actions. Generated textures are packed for self-contained export. Godot and Unity can export the generated clip library together. Unreal writes one model/skeleton/material FBX plus one Interchange-recognizable FBX per generated clip; those sidecars retain the skinned hierarchy Unreal 5.8 needs to classify them and are imported as animation-only against the model skeleton.
 
-Human 1.0 includes the connected torso/limb surface and integrated feet, dedicated deforming skeleton, generated normalized skin weights, editable UVs, a portable Principled base material with generated image texture, improved blockout hands/feet, and separate editable Idle/Walk actions. Generated textures are packed for self-contained export. Godot and Unity can export the generated clip library together. Unreal writes one model/skeleton/material FBX plus one Interchange-recognizable FBX per generated clip; those sidecars retain the skinned hierarchy Unreal 5.8 needs to classify them and are imported as animation-only against the model skeleton.
-
-The Blender 5.2.1 visual/deformation milestone has passed at foundation quality. Human 1.0 has direct destination evidence in Godot, Unity, and Unreal, including working Idle/Walk playback.
+The Blender 5.2.1 visual/deformation milestone has passed at foundation quality. Human has direct destination evidence in Godot, Unity, and Unreal. The current Run is intentionally a first-pass game-animation foundation and remains open for motion-quality polish.
 
 It remains a generated blockout foundation rather than finished anatomy. Individual fingers/toes, facial detail and higher-fidelity joint deformation are future refinement; current low-poly shoulder/armpit and other joint transitions are intentionally angular. See [Human geometry](docs/geometry.md), [rigging](docs/rigging.md), [animation](docs/animation.md), [deformation quality](docs/deformation-quality.md), and [target verification](docs/target-verification.md).
 
-## Dog status
+## Quadruped status
 
-**Dog Provider 1.0 is complete as an editable quadruped foundation.** It generates one connected deformable surface from host-independent Dog parameters, supplies a quadruped skeleton and localized skin weights, face-corner UVs, a portable textured PBR base coat, and separate generated Idle/Walk clips.
+**Quadruped is complete as the current editable four-legged provider foundation.** It generates one connected deformable surface from host-independent dimensions, supplies a quadruped skeleton and localized skin weights, face-corner UVs, a portable textured PBR base coat, and separate generated Idle/Walk/Run clips.
 
-Dog deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Dog-specific anatomy remains in `object_core/providers`; no parallel Dog Blender workflow was required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated Dog rig and animations play on the connected mesh.
+Quadruped deliberately reuses the same provider-driven Blender generation, rigging, animation, material and export infrastructure as Human. Its current internal implementation remains dog-oriented and retains the `dog` compatibility key; no parallel provider-specific Blender workflow is required. Automated Blender tests cover generation, armature binding, deformation at major quadruped junctions, animation creation/playback behavior, UV/material translation and preservation of artist-authored material data. Interactive Blender 5.2.1 review confirmed the generated rig and animations play on the connected mesh.
 
-Dog 1.0 is a low-poly editable starting point rather than breed-specific finished anatomy or fur. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Bird.
+The current implementation is a low-poly editable dog-like starting point rather than a generic all-species quadruped generator, breed-specific finished anatomy, or fur. Broader destination-specific certification can continue as release hardening; the provider milestone itself is sufficient to move the architecture proof to Bird.
 
 ## Install from source
 
@@ -79,7 +78,7 @@ python -m unittest discover -s tests -v
 
 Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming providers, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
 
-Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Dog coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk generation, UV completeness, generated texture/material preparation and generic provider workflow integration.
+Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Quadruped coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk/Run generation, UV completeness, generated texture/material preparation and generic provider workflow integration.
 
 ## Structure
 
@@ -115,4 +114,4 @@ See [Architecture](docs/architecture.md), [providers](docs/providers.md), and [w
 | Unity | FBX with supported rig/animation/material data |
 | Unreal Engine | Model/skeleton FBX plus one FBX sidecar per generated clip, imported as animation-only against the model skeleton |
 
-Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human 1.0 has completed destination evidence for Godot, Unity, and Unreal; Dog 1.0 has completed its Blender provider checkpoint and reuses those generic target adapters. Destination checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).
+Initial smoke verification exists for Godot, Unity, Unreal, and Cura. Human has completed destination evidence for Godot, Unity, and Unreal; Quadruped has completed its Blender provider checkpoint and reuses those generic target adapters. Destination checks are scoped evidence rather than broad production certification. See [target verification](docs/target-verification.md) and [supported target scope](docs/targets.md).

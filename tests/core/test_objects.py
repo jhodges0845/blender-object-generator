@@ -16,10 +16,12 @@ class ObjectProviderTests(unittest.TestCase):
             self.assertIsInstance(provider.uses_skin_weights, bool)
             self.assertIsInstance(provider.supports_materials, bool)
             self.assertIsInstance(getattr(provider, 'supports_locomotion', False), bool)
+            self.assertIsInstance(getattr(provider, 'supports_run', False), bool)
         box = get_provider('box')
         self.assertFalse(box.supports_rig)
         self.assertFalse(box.supports_idle)
         self.assertFalse(getattr(box, 'supports_locomotion', False))
+        self.assertFalse(getattr(box, 'supports_run', False))
         self.assertFalse(box.uses_skin_weights)
         self.assertFalse(box.supports_materials)
         with self.assertRaisesRegex(ValueError, 'Unsupported'):
@@ -36,6 +38,7 @@ class ObjectProviderTests(unittest.TestCase):
         self.assertTrue(provider.supports_rig)
         self.assertTrue(provider.supports_idle)
         self.assertTrue(provider.supports_locomotion)
+        self.assertTrue(provider.supports_run)
         self.assertTrue(provider.uses_skin_weights)
         self.assertTrue(provider.supports_materials)
         self.assertEqual(len(mesh.parts), 1)
@@ -68,16 +71,26 @@ class ObjectProviderTests(unittest.TestCase):
                  dict(uses_skin_weights='yes'), dict(uses_skin_weights=True),
                  dict(supports_materials='yes'), dict(supports_materials=True),
                  dict(supports_locomotion='yes'), dict(supports_locomotion=True),
+                 dict(supports_run='yes'), dict(supports_run=True),
                  dict(supports_rig=True),
                  dict(supports_rig=True, skeleton=lambda values: None, supports_idle=True),
                  dict(supports_rig=True, skeleton=lambda values: None, uses_skin_weights=True),
                  dict(supports_rig=True, skeleton=lambda values: None, supports_locomotion=True),
+                 dict(supports_rig=True, skeleton=lambda values: None, supports_run=True),
                  dict(mesh=None), dict(key=''), dict(label='')]
         for changes in cases:
             with self.subTest(changes=changes):
                 provider = SimpleNamespace(**dict(baseline, **changes))
                 with self.assertRaises((TypeError, ValueError)):
                     validate_provider(provider)
+
+    def test_run_provider_contract_is_generic(self):
+        provider = SimpleNamespace(key='runner_test', label='Runner Test', parameters=(),
+                                   supports_rig=True, supports_idle=False, supports_run=True,
+                                   uses_skin_weights=False, supports_materials=False,
+                                   mesh=lambda values: None, skeleton=lambda values: None,
+                                   run=lambda duration, strength: None)
+        self.assertIs(validate_provider(provider), provider)
 
     def test_skin_weight_provider_contract_is_generic(self):
         provider = SimpleNamespace(key='deforming_test', label='Deforming Test', parameters=(),
