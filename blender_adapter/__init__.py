@@ -26,6 +26,7 @@ def register():
     # Keep stable class/operator IDs for compatibility while presenting the new
     # product name to artists in Blender.
     ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
+    run_ui.prepare(ui)
     ui_fastpath.install(ui)
     ui.register()
     animation_names_ui.register()

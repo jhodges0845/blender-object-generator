@@ -2,6 +2,7 @@
 import unittest
 
 from object_core.animation import generate_run
+from object_core.animation.walk import generate_walk
 from object_core.objects import get_provider
 from object_core.providers.dog_animation import generate_dog_run
 
@@ -18,6 +19,16 @@ class RunAnimationTests(unittest.TestCase):
         self.assertIn('upper_arm.right', names)
         for track in clip.tracks:
             self.assertEqual(track.keys[0][1], track.keys[-1][1])
+
+    def test_human_run_has_deeper_joint_flexion_than_walk(self):
+        run = {track.bone: track for track in generate_run().tracks}
+        walk = {track.bone: track for track in generate_walk().tracks}
+        for bone in ('lower_leg.left', 'lower_leg.right'):
+            self.assertGreater(max(abs(angle) for _, angle in run[bone].keys),
+                               max(abs(angle) for _, angle in walk[bone].keys))
+        for bone in ('forearm.left', 'forearm.right'):
+            self.assertIn(bone, run)
+            self.assertGreater(min(abs(angle) for _, angle in run[bone].keys), 0.5)
 
     def test_dog_run_is_closed_and_uses_all_four_limbs(self):
         clip = generate_dog_run()
