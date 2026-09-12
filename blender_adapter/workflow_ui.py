@@ -53,11 +53,12 @@ def _draw_component_actions(box, target, hair_component_ui, clothing_component_u
     imported.label(text="IMPORT COMPONENT", icon="IMPORT")
     row = imported.row(); row.enabled = target is not None; row.scale_y = 1.15
     row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected Mesh", icon="IMPORT")
-    imported.label(text="Geometry becomes managed; materials stay yours.")
+    imported.label(text="Adopted mesh geometry becomes Asset Assistant-managed.")
+    imported.label(text="Existing materials remain artist-owned.")
 
 
 def _draw_animation_adoption(box, target):
-    box.label(text="IMPORT ANIMATION", icon="IMPORT")
+    box.label(text="Bring Your Own Animation", icon="IMPORT")
     row = box.row(); row.enabled = target is not None and sum(obj.type == "ARMATURE" for obj in target.children) == 1
     row.scale_y = 1.15
     row.operator("asset_assistant.adopt_animation_action", text="Adopt Existing Action", icon="ACTION")
