@@ -73,6 +73,16 @@ def _draw_identity(layout, target):
 def install(workflow_ui):
     """Replace the stock summary with a clearer artist-facing identity card."""
     def draw_asset_summary(layout, context):
+        settings = getattr(context.scene, "humanoid_settings", None)
+        target = getattr(settings, "target", None) if settings else None
+        is_empty_create = (
+            settings is not None
+            and target is None
+            and getattr(settings, "asset_assistant_workspace", None) == "CREATE"
+            and getattr(settings, "asset_assistant_create_view", None) == "GENERATE"
+        )
+        if is_empty_create:
+            return
         target = _draw_summary(layout, context)
         if target is not None:
             _draw_identity(layout, target)
