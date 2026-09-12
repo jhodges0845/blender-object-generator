@@ -99,6 +99,29 @@ def _draw_animation_adoption(box, target):
     box.label(text="Asset Assistant adds identity and export metadata only.")
 
 
+def _wrap_confidence_panel(panel_type, heading, detail, icon):
+    """Add confidence-oriented context before existing validation/export controls."""
+    original_draw = panel_type.draw
+    if getattr(original_draw, "_asset_assistant_confidence_header", False):
+        return
+
+    def draw_with_confidence(panel, context):
+        layout = panel.layout
+        box = layout.box()
+        box.label(text=heading, icon=icon)
+        box.label(text=detail)
+        target = getattr(context.scene.humanoid_settings, "target", None)
+        if target is None:
+            box.label(text="Choose an asset before continuing.", icon="INFO")
+        else:
+            box.label(text="Current target: " + target.name, icon="OBJECT_DATA")
+        layout.separator()
+        original_draw(panel, context)
+
+    draw_with_confidence._asset_assistant_confidence_header = True
+    panel_type.draw = draw_with_confidence
+
+
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
             animation_adoption_ui=None, self_rigged_accessory=None):
@@ -185,6 +208,19 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                 box.label(text="Validates ownership/continuity before saving.")
             draw_export_with_checkpoint._asset_assistant_checkpoint_action = True
             ui.HUMANOID_PT_export.draw = draw_export_with_checkpoint
+
+    _wrap_confidence_panel(
+        ui.HUMANOID_PT_validation,
+        "Readiness Check",
+        "Review target requirements and resolve issues before export.",
+        "CHECKMARK",
+    )
+    _wrap_confidence_panel(
+        ui.HUMANOID_PT_export,
+        "Export Confidence",
+        "Export stays locked until the current target passes its readiness checks.",
+        "EXPORT",
+    )
 
     # Apply the visual shell last so it wraps all existing workflow extensions rather than
     # replacing them. This is intentionally presentation-only: every operator and property
