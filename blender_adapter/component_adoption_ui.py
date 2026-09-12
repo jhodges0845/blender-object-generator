@@ -7,7 +7,7 @@ import bpy
 
 from .components import _armature
 from .core import AttachmentMode, ComponentKind, ComponentRecord, RigBinding
-from .imported_components import adopt_rigid_component
+from .imported_components import adopt_rigid_component, adopt_skinned_component
 
 
 def _target(context):
@@ -54,9 +54,17 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
         items=(
             (ComponentKind.HAIR.value, "Hair", "Reusable hair component"),
             (ComponentKind.CLOTHING.value, "Clothing", "Reusable clothing component"),
-            (ComponentKind.ACCESSORY.value, "Accessory", "Reusable rigid accessory component"),
+            (ComponentKind.ACCESSORY.value, "Accessory", "Reusable accessory component"),
         ),
         default=ComponentKind.ACCESSORY.value,
+    )
+    attachment_mode: bpy.props.EnumProperty(
+        name="Binding",
+        items=(
+            (AttachmentMode.RIGID.value, "Rigid", "Follow the asset root or one generated bone"),
+            (AttachmentMode.SKINNED.value, "Skinned to Parent Rig", "Use existing vertex weights with the Asset Assistant armature"),
+        ),
+        default=AttachmentMode.RIGID.value,
     )
     attachment_target: bpy.props.EnumProperty(
         name="Attach To",
@@ -76,14 +84,25 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
         mesh_object = _selected_meshes(context)[0]
         self.component_id = "imported-" + uuid.uuid4().hex
         self.component_name = mesh_object.name
+        self.attachment_mode = (
+            AttachmentMode.SKINNED.value
+            if any(modifier.type == "ARMATURE" for modifier in mesh_object.modifiers)
+            else AttachmentMode.RIGID.value
+        )
         self.attachment_target = "asset_root"
-        return context.window_manager.invoke_props_dialog(self, width=420)
+        return context.window_manager.invoke_props_dialog(self, width=440)
 
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "component_name")
         layout.prop(self, "kind")
-        layout.prop(self, "attachment_target")
+        layout.prop(self, "attachment_mode")
+        if self.attachment_mode == AttachmentMode.RIGID.value:
+            layout.prop(self, "attachment_target")
+        else:
+            box = layout.box()
+            box.label(text="Binds to the active asset's generated armature.")
+            box.label(text="Existing vertex-group weights must use matching bone names.")
         layout.prop(self, "component_id")
         box = layout.box()
         box.label(text="Ownership transfer")
@@ -98,24 +117,33 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
             self.report({"ERROR"}, "Select exactly one external mesh to adopt.")
             return {"CANCELLED"}
         mesh_object = meshes[0]
+        mode = AttachmentMode(self.attachment_mode)
         try:
             record = ComponentRecord(
                 component_id=self.component_id.strip(),
                 kind=ComponentKind(self.kind),
                 provider_key="artist_authored",
-                attachment_target=self.attachment_target,
-                attachment_mode=AttachmentMode.RIGID,
+                attachment_target=("body" if mode == AttachmentMode.SKINNED else self.attachment_target),
+                attachment_mode=mode,
                 owns_geometry=True,
                 owns_materials=False,
                 owns_rig=False,
-                rig_binding=RigBinding.NONE,
+                rig_binding=(RigBinding.PARENT if mode == AttachmentMode.SKINNED else RigBinding.NONE),
             )
-            component_root = adopt_rigid_component(
-                root,
-                mesh_object,
-                record,
-                name=self.component_name,
-            )
+            if mode == AttachmentMode.SKINNED:
+                component_root = adopt_skinned_component(
+                    root,
+                    mesh_object,
+                    record,
+                    name=self.component_name,
+                )
+            else:
+                component_root = adopt_rigid_component(
+                    root,
+                    mesh_object,
+                    record,
+                    name=self.component_name,
+                )
         except (TypeError, ValueError, RuntimeError, AttributeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
