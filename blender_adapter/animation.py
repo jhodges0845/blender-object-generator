@@ -32,13 +32,7 @@ def _rig(root):
 
 
 def generated_actions(root):
-    """Return generated actions owned by this rig, or none when no single rig exists.
-
-    New rigs carry a persistent Asset Assistant identity so orphaned actions from a
-    deleted/recreated rig cannot be mistaken for clips on a different character just
-    because Blender later reused the same object name. Legacy rigs without the stable
-    identity retain the original name-based lookup for backwards compatibility.
-    """
+    """Return generated actions owned by this rig, or none when no single rig exists."""
     import bpy
     rigs = [obj for obj in root.children if obj.type == 'ARMATURE']
     if len(rigs) != 1:
@@ -58,13 +52,11 @@ def generated_action(root, clip_name):
 
 
 def clip_export_name(action):
-    """Return the artist-facing engine clip name, independent of Blender data-block names."""
     value = str(action.get(_EXPORT_NAME) or action.get(_GENERATED_CLIP) or action.name).strip()
     return value or str(action.get(_GENERATED_CLIP) or action.name)
 
 
 def set_clip_export_name(root, clip_name, export_name):
-    """Rename a generated clip for export without changing its stable internal identity."""
     action = generated_action(root, clip_name)
     if action is None:
         raise ValueError('Generate the ' + clip_name + ' clip first.')
@@ -80,7 +72,6 @@ def set_clip_export_name(root, clip_name, export_name):
 
 
 def activate_generated_action(root, clip_name):
-    """Activate an existing generated clip without changing or rebuilding it."""
     import bpy
 
     rig = _rig(root)
@@ -215,7 +206,6 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
 
 
 def locomotion_clip_name(provider):
-    """Return the provider's artist-facing locomotion clip name."""
     name = str(getattr(provider, 'locomotion_label', 'Walk')).strip()
     return name or 'Walk'
 
@@ -225,6 +215,13 @@ def add_locomotion(root, scene, duration=1.2, strength=1.0):
     if not getattr(provider, 'supports_locomotion', False):
         raise ValueError(provider.label + ' does not support locomotion animation.')
     return _add_clip(root, scene, provider.locomotion(duration, strength), locomotion_clip_name(provider))
+
+
+def add_flight(root, scene, duration=1.2, strength=1.0):
+    provider = provider_for(root)
+    if not getattr(provider, 'supports_flight', False):
+        raise ValueError(provider.label + ' does not support flight animation.')
+    return _add_clip(root, scene, provider.flight(duration, strength), 'Flight')
 
 
 def add_run(root, scene, duration=0.72, strength=1.0):
