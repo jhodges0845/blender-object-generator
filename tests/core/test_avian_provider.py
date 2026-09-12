@@ -26,11 +26,12 @@ class AvianProviderTests(unittest.TestCase):
         self.assertIsInstance(mesh, ObjectMesh)
         self.assertEqual(mesh, self.provider.mesh(self.defaults))
         self.assertEqual(tuple(part.name for part in mesh.parts), ("avian",))
-        self.assertGreater(mesh.vertex_count, 80)
-        self.assertGreater(mesh.face_count, 70)
+        self.assertGreater(mesh.vertex_count, 140)
+        self.assertGreater(mesh.face_count, 120)
         part = mesh.parts[0]
         referenced = {index for face in part.faces for index in face}
         self.assertEqual(referenced, set(range(len(part.vertices))))
+        self.assertLess(mesh.bounds_cm[0][2], self.defaults["body_height_cm"] * 0.1)
 
     def test_avian_surface_has_deterministic_unit_uvs(self):
         part = self.provider.mesh(self.defaults).parts[0]
@@ -77,13 +78,23 @@ class AvianProviderTests(unittest.TestCase):
         self.assertLess(long_tail.bounds_cm[0][1], short_tail.bounds_cm[0][1])
         self.assertGreater(tall.bounds_cm[1][2], low.bounds_cm[1][2])
 
-    def test_skeleton_contains_spine_wings_and_tail_chain(self):
+    def test_skeleton_contains_spine_wings_legs_feet_and_tail_chain(self):
         skeleton = self.provider.skeleton(self.defaults)
         names = {bone.name for bone in skeleton.bones}
-        self.assertTrue({"root", "spine", "neck", "head", "wing.upper.left", "wing.lower.left",
-                         "wing.upper.right", "wing.lower.right", "tail.1", "tail.2"}.issubset(names))
+        expected = {
+            "root", "spine", "neck", "head",
+            "wing.upper.left", "wing.lower.left", "wing.upper.right", "wing.lower.right",
+            "leg.upper.left", "leg.lower.left", "foot.left",
+            "leg.upper.right", "leg.lower.right", "foot.right",
+            "tail.1", "tail.2",
+        }
+        self.assertTrue(expected.issubset(names))
         self.assertEqual(next(b for b in skeleton.bones if b.name == "wing.lower.left").parent,
                          "wing.upper.left")
+        self.assertEqual(next(b for b in skeleton.bones if b.name == "leg.lower.left").parent,
+                         "leg.upper.left")
+        self.assertEqual(next(b for b in skeleton.bones if b.name == "foot.left").parent,
+                         "leg.lower.left")
         self.assertEqual(next(b for b in skeleton.bones if b.name == "tail.2").parent, "tail.1")
         self.assertEqual(skeleton, self.provider.skeleton(self.defaults))
 
@@ -92,11 +103,15 @@ class AvianProviderTests(unittest.TestCase):
         weights = self.provider.skin_weights(mesh, self.defaults)
         self.assertEqual(tuple(weight.part_name for weight in weights), ("avian",))
         self.assertEqual(len(weights[0].vertices), len(mesh.parts[0].vertices))
+        weighted_bones = set()
         for vertex, influences in zip(mesh.parts[0].vertices, weights[0].vertices):
             self.assertAlmostEqual(sum(influence.weight for influence in influences), 1.0)
             self.assertLessEqual(len(influences), 4)
             opposite = ".right" if vertex[0] < 0 else ".left"
             self.assertFalse(any(influence.bone_name.endswith(opposite) for influence in influences))
+            weighted_bones.update(influence.bone_name for influence in influences)
+        self.assertTrue({"leg.upper.left", "leg.lower.left", "foot.left",
+                         "leg.upper.right", "leg.lower.right", "foot.right"}.issubset(weighted_bones))
 
     def test_invalid_parameters_are_rejected(self):
         for field in self.provider.parameters:
