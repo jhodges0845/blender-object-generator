@@ -8,6 +8,7 @@ from ..proportions import generate_proportions
 from ..rigging import generate_deforming_skeleton, generate_skin_weights, generate_skeleton
 from .base import Parameter
 from .semantic import SemanticTarget
+from .human_semantic import apply_human_semantic_operations
 
 
 HUMAN_PARAMETERS = (
@@ -36,6 +37,16 @@ HUMAN_SEMANTIC_TARGETS = (
     SemanticTarget("hair", "Hair", "component", ("add_component", "remove_component", "shape", "surface")),
     SemanticTarget("clothing", "Clothing", "component", ("add_component", "remove_component", "shape", "surface")),
     SemanticTarget("accessories", "Accessories", "component", ("add_component", "remove_component", "shape", "surface")),
+)
+
+_HUMAN_GEOMETRY_TARGETS = (
+    "body", "torso", "shoulders", "head", "face",
+    "arm.left", "arm.right", "leg.left", "leg.right",
+)
+HUMAN_SEMANTIC_APPLY_CAPABILITIES = tuple(
+    (target, operation)
+    for target in _HUMAN_GEOMETRY_TARGETS
+    for operation in ("shape", "scale")
 )
 
 
@@ -78,12 +89,16 @@ class HumanExperimentalProvider:
     uses_skin_weights = True
     parameters = HUMAN_PARAMETERS
     semantic_targets = HUMAN_SEMANTIC_TARGETS
+    semantic_apply_capabilities = HUMAN_SEMANTIC_APPLY_CAPABILITIES
 
     def proportions(self, values):
         return _proportions(values)
 
     def mesh(self, values):
         return generate_deformable_mesh(self.proportions(values))
+
+    def semantic_mesh(self, mesh, values, operations):
+        return apply_human_semantic_operations(mesh, self.proportions(values), operations)
 
     def skeleton(self, values):
         return generate_deforming_skeleton(self.proportions(values))
