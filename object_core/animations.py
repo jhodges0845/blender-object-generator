@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from math import isfinite
 from typing import Mapping, Optional
 
 
@@ -44,6 +45,12 @@ def _text(value, field, *, optional=False):
     return value.strip()
 
 
+def _finite_number(value, field):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value):
+        raise ValueError(field + " must be a finite numeric value")
+    return value
+
+
 def validate_animation(record):
     """Validate one portable animation record without host-specific assumptions."""
     if not isinstance(record, AnimationRecord):
@@ -59,13 +66,12 @@ def validate_animation(record):
         raise ValueError("source must be an AnimationSource")
     if not isinstance(record.root_motion, RootMotionIntent):
         raise ValueError("root_motion must be a RootMotionIntent")
-    if isinstance(record.frame_start, bool) or not isinstance(record.frame_start, (int, float)):
-        raise ValueError("frame_start must be numeric")
-    if isinstance(record.frame_end, bool) or not isinstance(record.frame_end, (int, float)):
-        raise ValueError("frame_end must be numeric")
+    _finite_number(record.frame_start, "frame_start")
+    _finite_number(record.frame_end, "frame_end")
     if record.frame_end < record.frame_start:
         raise ValueError("frame_end must be greater than or equal to frame_start")
-    if isinstance(record.fps, bool) or not isinstance(record.fps, (int, float)) or record.fps <= 0:
+    _finite_number(record.fps, "fps")
+    if record.fps <= 0:
         raise ValueError("fps must be greater than zero")
     if not isinstance(record.looping, bool):
         raise ValueError("looping must be a boolean")
@@ -124,11 +130,11 @@ def animation_from_document(document):
     try:
         source = AnimationSource(document["source"])
     except (TypeError, ValueError):
-        raise ValueError("unknown animation source")
+        raise ValueError("unknown animation source") from None
     try:
         root_motion = RootMotionIntent(document["root_motion"])
     except (TypeError, ValueError):
-        raise ValueError("unknown root motion intent")
+        raise ValueError("unknown root motion intent") from None
     record = AnimationRecord(
         animation_id=document["animation_id"],
         display_name=document["display_name"],
