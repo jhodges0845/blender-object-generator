@@ -20,7 +20,7 @@ bl_info = {
 
 def register():
     from . import (
-        animation_modify_exchange, animation_names_ui, animation_tuning_ui, avian_ui,
+        animation_adoption_ui, animation_modify_exchange, animation_names_ui, animation_tuning_ui, avian_ui,
         clothing_component_ui, component_adoption_ui, component_modify_apply,
         component_modify_exchange, cura_scale_ui, hair_component_ui, modification,
         modify_fastpath, modify_ui, run_ui, ui, ui_fastpath, workflow_ui, working_asset_ui,
@@ -31,6 +31,7 @@ def register():
     workflow_ui.prepare(
         ui, modify_ui, animation_names_ui, working_asset_ui,
         component_adoption_ui, hair_component_ui, clothing_component_ui,
+        animation_adoption_ui,
     )
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
@@ -40,6 +41,7 @@ def register():
     ui.register()
     animation_names_ui.register()
     animation_tuning_ui.register()
+    animation_adoption_ui.register()
     run_ui.register(ui.HUMANOID_PG_settings)
     cura_scale_ui.register(ui.HUMANOID_PG_settings)
     modify_ui.register()
@@ -51,7 +53,7 @@ def register():
 
 def unregister():
     from . import (
-        animation_names_ui, animation_tuning_ui, clothing_component_ui,
+        animation_adoption_ui, animation_names_ui, animation_tuning_ui, clothing_component_ui,
         component_adoption_ui, cura_scale_ui, hair_component_ui, modify_ui,
         run_ui, ui, working_asset_ui,
     )
@@ -62,6 +64,7 @@ def unregister():
     modify_ui.unregister()
     cura_scale_ui.unregister(ui.HUMANOID_PG_settings)
     run_ui.unregister(ui.HUMANOID_PG_settings)
+    animation_adoption_ui.unregister()
     animation_tuning_ui.unregister()
     animation_names_ui.unregister()
     ui.unregister()
