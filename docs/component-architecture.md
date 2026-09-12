@@ -11,6 +11,7 @@ Hair, clothing, and accessories are first-class components rather than ordinary 
 - provider key;
 - attachment target;
 - rigid or skinned attachment mode;
+- rig binding: `none`, `parent`, or `owned`;
 - component parameters;
 - ownership flags for geometry, materials, and rig data;
 - optional physics intent expressed as portable metadata.
@@ -27,6 +28,18 @@ Portable rigid attachment targets currently use one of two forms:
 - `bone:<bone-name>` for an attachment that follows a named generated bone, for example `bone:hand.right`.
 
 The core stores the target but does not resolve host objects. Blender validates that the generated asset contains exactly one armature, verifies that the named bone exists, and then binds the component root to that bone. Other host/engine adapters may translate the same portable target into their native attachment mechanism.
+
+## Rig binding contract
+
+Skinned components separate rig ownership from deformation binding through `RigBinding`:
+
+- `none`: no rig binding; required for rigid components;
+- `parent`: the component deforms using the owning asset's rig and does not own rig data;
+- `owned`: the component deforms using rig data that belongs to the component itself.
+
+This distinction is important for clothing and many hair systems. A coat can be skinned to the Human rig with `rig_binding="parent"` and `owns_rig=False`; it should not claim ownership of the Human skeleton. A component that truly carries an independent rig uses `rig_binding="owned"` and must set `owns_rig=True`.
+
+Persisted documents written before this field existed remain readable. A legacy valid skinned record with `ownership.rig=true` is interpreted as `rig_binding="owned"`; rigid records remain `none`.
 
 ## Physics boundary
 
@@ -48,9 +61,9 @@ Components must remain preservation boundaries. The Blender execution slices now
 10. stable-id replacement that keeps the old component intact until the replacement has been created and re-inspected successfully;
 11. rollback to the previous component when replacement creation fails.
 
-Still required before broader component Modify is executable:
+The core contract now also distinguishes parent-rig binding from component-owned rig data. Still required before broader component Modify is executable:
 
-1. skinned component ownership and parent-rig binding semantics;
+1. Blender skinned component creation bound to the parent asset rig;
 2. skinned rig/weight inspection and preservation rules;
 3. Modify inspection/request transport for component state;
 4. adapter-specific physics preparation only after ownership is known;
@@ -66,7 +79,7 @@ For `attachment_target="asset_root"`, the component root is parented directly to
 
 `remove_component()` first requires a clean inspection result, then removes only the component-owned hierarchy and its registry entry. `replace_rigid_component()` preserves the stable component ID, temporarily keeps the previous component as the rollback source, creates and validates the replacement, and deletes the previous owned tree only after the new component is known-good.
 
-This slice intentionally supports only rigid generated components that own their geometry. It does not yet provide artist-facing Blender UI or a public accessory catalog/provider. Tests use a simple portable mesh only to prove persistence, attachment, and lifecycle behavior. Hair, clothing, skinned components, and dynamics remain later slices.
+The Blender executable slice still supports only rigid generated components that own their geometry. Skinned execution is deliberately deferred until parent-rig binding and weight ownership can be validated transactionally. It does not yet provide artist-facing Blender UI or a public accessory catalog/provider.
 
 ## Intended layering
 
