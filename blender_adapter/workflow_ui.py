@@ -87,6 +87,18 @@ def _draw_component_actions(box, target, hair_component_ui, clothing_component_u
     imported.label(text="Existing geometry and artist materials remain yours.")
 
 
+def _draw_animation_adoption(box, target):
+    """Present artist-owned animation adoption as a separate, explicit workflow."""
+    box.label(text="Bring Your Own Animation", icon="IMPORT")
+    box.label(text="Register an existing Blender action for game-engine export.")
+    row = box.row()
+    row.enabled = target is not None and sum(obj.type == "ARMATURE" for obj in target.children) == 1
+    row.scale_y = 1.1
+    row.operator("asset_assistant.adopt_animation_action", text="Adopt Existing Action", icon="ACTION")
+    box.label(text="Keeps the artist's curves, NLA, and drivers under artist ownership.")
+    box.label(text="Asset Assistant adds identity and export metadata only.")
+
+
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
             animation_adoption_ui=None, self_rigged_accessory=None):
@@ -119,12 +131,8 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                 layout = panel.layout
                 layout.separator()
                 box = layout.box()
-                box.label(text="Existing / imported animations")
-                row = box.row()
                 target = getattr(context.scene.humanoid_settings, "target", None)
-                row.enabled = target is not None and sum(obj.type == "ARMATURE" for obj in target.children) == 1
-                row.operator("asset_assistant.adopt_animation_action", text="Adopt Existing Action", icon="ACTION")
-                box.label(text="Registers identity/export metadata without claiming artist curves.")
+                _draw_animation_adoption(box, target)
             draw_animation_with_external_actions._asset_assistant_external_actions = True
             ui.HUMANOID_PT_animations.draw = draw_animation_with_external_actions
 
