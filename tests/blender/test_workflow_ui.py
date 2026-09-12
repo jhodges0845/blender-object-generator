@@ -51,6 +51,57 @@ class WorkflowSidebarTests(unittest.TestCase):
         ):
             self.assertIn("DEFAULT_CLOSED", panel.bl_options)
 
+    def test_component_hierarchy_keeps_existing_operator_contracts(self):
+        from blender_adapter import workflow_ui
+
+        class FakeRow:
+            def __init__(self, calls):
+                self.calls = calls
+                self.enabled = True
+
+            def operator(self, operator_id, text="", icon="NONE"):
+                self.calls.append((operator_id, text, icon, self.enabled))
+
+        class FakeBox:
+            def __init__(self, calls):
+                self.calls = calls
+
+            def box(self):
+                return FakeBox(self.calls)
+
+            def row(self):
+                return FakeRow(self.calls)
+
+            def label(self, **_kwargs):
+                return None
+
+        class HairUi:
+            pass
+
+        class ClothingUi:
+            @staticmethod
+            def _supports_shirt(_target):
+                return True
+
+        class AccessoryUi:
+            pass
+
+        calls = []
+        workflow_ui._draw_component_actions(
+            FakeBox(calls), object(), HairUi, ClothingUi, AccessoryUi)
+
+        self.assertEqual(
+            [operator_id for operator_id, _text, _icon, _enabled in calls],
+            [
+                "asset_assistant.generate_hair_shell",
+                "asset_assistant.generate_basic_shirt",
+                "asset_assistant.generate_ring_component",
+                "asset_assistant.generate_self_rigged_accessory",
+                "asset_assistant.adopt_selected_component",
+            ],
+        )
+        self.assertTrue(all(enabled for _operator_id, _text, _icon, enabled in calls))
+
 
 if __name__ == "__main__":
     unittest.main()
