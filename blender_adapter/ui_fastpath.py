@@ -64,6 +64,7 @@ def install(ui):
         if getattr(original_export_draw, marker, False):
             setattr(export_draw, marker, True)
     export_draw._asset_assistant_fastpath = True
+    export_draw._asset_assistant_wrapped_draw = original_export_draw
 
     ui.HUMANOID_OT_export.poll = export_poll
     ui._needs_attention = needs_attention
