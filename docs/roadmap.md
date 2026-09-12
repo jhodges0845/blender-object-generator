@@ -39,12 +39,15 @@ Main is protected and changes go through branches/PRs. Required CI covers Python
 - [x] External generated-animation refinement for duration/strength/export name.
 - [x] Godot/Unity/Unreal/Cura target adapters with automated Blender 5.2.1 coverage.
 - [x] Real `.blend` reopen smoke coverage for base asset identity, self-rigged component ownership and stable animation identity.
+- [x] Blender-native UI/UX pass across Create, Modify, Rig, Animate, Validate and Export, including current-asset context, component hierarchy, animation workspace, validation severity grouping and export-confidence framing.
+- [x] UI wrapper-composition compatibility coverage through full add-on registration and the export fast path.
+- [x] Blender 5.2.1 dynamic Hair behavior enum registration cleanup while preserving the visible `Rigid` default.
 
-## Current manual checkpoint — production character continuity
+## Current manual checkpoint — production character continuity and visual acceptance
 
 Automated implementation is now at the hands-on production checkpoint. Follow [production walkthrough](production-walkthrough.md) in Blender 5.2.1 before public alpha.
 
-Acceptance remains: identity survives, UI is understandable, artist-owned data is preserved, animation identity survives, components remain independently manageable, and destination exports contain expected state.
+Acceptance remains: identity survives, UI is understandable, artist-owned data is preserved, animation identity survives, components remain independently manageable, and destination exports contain expected state. The UI/UX code pass is complete; visual acceptance should now focus on spacing, density, wording and hierarchy in the live Blender sidebar.
 
 ## Production components and external adoption
 
@@ -100,10 +103,13 @@ Self-rigged components can own an independent animation/rig lifecycle without be
 - [x] Real Blender 5.2.1 `.blend` save/reopen smoke for component and animation identity.
 - [x] Blender 5.2.1 packaged add-on build and isolated package smoke test in CI.
 - [x] Python 3.9-3.12 core tests and Blender 5.2.1 integration suite green.
+- [x] Final UI/UX registration checkpoint verifies all six workflow panels retain the polished shell and Validate/Export confidence framing after registration.
+- [x] Hair behavior EnumProperty registers cleanly on Blender 5.2.1 without changing the artist-facing default.
 
 ## Manual / evidence-gated work remaining
 
 - [ ] Complete the installed-Blender production walkthrough in Blender 5.2.1.
+- [ ] Visually accept/reject the completed Asset Assistant sidebar UI/UX pass.
 - [ ] Visually accept/reject the bone-driven hair tier before any physics-hair work.
 - [ ] Perform representative Human Cura slicing/physical-print review.
 - [ ] Verify Godot, Unity and Unreal output from the current packaged build, including Idle/Walk/Run and a self-rigged component case.
