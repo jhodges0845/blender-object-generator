@@ -10,8 +10,9 @@ except ModuleNotFoundError:
 
 from blender_adapter.adapter import create_character
 from blender_adapter.components import component_records, inspect_component, remove_component
-from blender_adapter.imported_components import adopt_rigid_component
-from object_core.components import AttachmentMode, ComponentKind, ComponentRecord
+from blender_adapter.imported_components import adopt_rigid_component, adopt_skinned_component
+from blender_adapter.skinned_components import inspect_skinned_component, remove_skinned_component
+from object_core.components import AttachmentMode, ComponentKind, ComponentRecord, RigBinding
 from object_core.objects import get_provider
 
 
@@ -71,6 +72,28 @@ class ImportedComponentAdoptionTests(unittest.TestCase):
             owns_materials=owns_materials,
             owns_rig=False,
         )
+
+    def _skinned_record(self, *, component_id="imported-coat-001"):
+        return ComponentRecord(
+            component_id=component_id,
+            kind=ComponentKind.CLOTHING,
+            provider_key="artist_authored",
+            attachment_target="body",
+            attachment_mode=AttachmentMode.SKINNED,
+            owns_geometry=True,
+            owns_materials=False,
+            owns_rig=False,
+            rig_binding=RigBinding.PARENT,
+        )
+
+    def _weighted_external_mesh(self, root, *, add_modifier=False, modifier_target=None):
+        obj = self._external_mesh("Imported Coat")
+        group = obj.vertex_groups.new(name="torso")
+        group.add([0, 1, 2], 1.0, "REPLACE")
+        if add_modifier:
+            modifier = obj.modifiers.new(name="Imported Rig", type="ARMATURE")
+            modifier.object = modifier_target
+        return obj
 
     def test_external_mesh_can_be_adopted_without_copying_geometry(self):
         root = self._generated_human()
@@ -188,6 +211,100 @@ class ImportedComponentAdoptionTests(unittest.TestCase):
         self.assertIsNone(mesh_object.parent)
         self.assertEqual(world, mesh_object.matrix_world)
         self.assertEqual("artist-label", mesh_object["component_part_name"])
+        self.assertNotIn("asset_assistant_component_id", mesh_object)
+        self.assertEqual((), component_records(root))
+
+    def test_weighted_mesh_can_be_adopted_into_parent_rig_without_copying(self):
+        root = self._generated_human(rigged=True)
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        mesh_object = self._weighted_external_mesh(root)
+        mesh_data = mesh_object.data
+        world = mesh_object.matrix_world.copy()
+        record = self._skinned_record()
+
+        component_root = adopt_skinned_component(root, mesh_object, record)
+
+        self.assertEqual(root, component_root.parent)
+        self.assertEqual(component_root, mesh_object.parent)
+        self.assertEqual(mesh_data, mesh_object.data)
+        self.assertEqual(world, mesh_object.matrix_world)
+        modifiers = [modifier for modifier in mesh_object.modifiers if modifier.type == "ARMATURE"]
+        self.assertEqual(1, len(modifiers))
+        self.assertEqual(armature, modifiers[0].object)
+        self.assertEqual(record, inspect_skinned_component(root, record.component_id))
+
+    def test_skinned_adoption_retargets_existing_compatible_modifier(self):
+        root = self._generated_human(rigged=True)
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        external_data = bpy.data.armatures.new("External Rig Data")
+        external_armature = bpy.data.objects.new("External Rig", external_data)
+        bpy.context.scene.collection.objects.link(external_armature)
+        mesh_object = self._weighted_external_mesh(root, add_modifier=True, modifier_target=external_armature)
+        record = self._skinned_record()
+
+        adopt_skinned_component(root, mesh_object, record)
+
+        modifier = next(modifier for modifier in mesh_object.modifiers if modifier.type == "ARMATURE")
+        self.assertEqual(armature, modifier.object)
+        self.assertEqual(record, inspect_skinned_component(root, record.component_id))
+
+    def test_skinned_adoption_rejects_weights_for_unknown_bones(self):
+        root = self._generated_human(rigged=True)
+        mesh_object = self._external_mesh("Bad Coat")
+        group = mesh_object.vertex_groups.new(name="not-a-parent-bone")
+        group.add([0, 1, 2], 1.0, "REPLACE")
+
+        with self.assertRaisesRegex(ValueError, "map only to bones"):
+            adopt_skinned_component(root, mesh_object, self._skinned_record())
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual((), component_records(root))
+
+    def test_skinned_adoption_requires_every_vertex_to_be_weighted(self):
+        root = self._generated_human(rigged=True)
+        mesh_object = self._external_mesh("Partial Coat")
+        group = mesh_object.vertex_groups.new(name="torso")
+        group.add([0, 1], 1.0, "REPLACE")
+
+        with self.assertRaisesRegex(ValueError, "weight every vertex"):
+            adopt_skinned_component(root, mesh_object, self._skinned_record())
+
+        self.assertEqual((), component_records(root))
+
+    def test_adopted_skinned_mesh_uses_existing_remove_lifecycle_without_deleting_parent_rig(self):
+        root = self._generated_human(rigged=True)
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        armature_name = armature.name
+        mesh_object = self._weighted_external_mesh(root)
+        object_name = mesh_object.name
+        record = self._skinned_record()
+        adopt_skinned_component(root, mesh_object, record)
+
+        remove_skinned_component(root, record.component_id)
+
+        self.assertIsNone(bpy.data.objects.get(object_name))
+        self.assertIsNotNone(bpy.data.objects.get(armature_name))
+        self.assertEqual((), component_records(root))
+
+    def test_failed_skinned_post_inspection_restores_parent_and_modifier_target(self):
+        root = self._generated_human(rigged=True)
+        external_data = bpy.data.armatures.new("Rollback Rig Data")
+        external_armature = bpy.data.objects.new("Rollback Rig", external_data)
+        bpy.context.scene.collection.objects.link(external_armature)
+        mesh_object = self._weighted_external_mesh(root, add_modifier=True, modifier_target=external_armature)
+        modifier = next(modifier for modifier in mesh_object.modifiers if modifier.type == "ARMATURE")
+        world = mesh_object.matrix_world.copy()
+
+        with mock.patch(
+            "blender_adapter.imported_components.inspect_skinned_component",
+            side_effect=ValueError("inspection failed"),
+        ):
+            with self.assertRaisesRegex(ValueError, "inspection failed"):
+                adopt_skinned_component(root, mesh_object, self._skinned_record())
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual(world, mesh_object.matrix_world)
+        self.assertEqual(external_armature, modifier.object)
         self.assertNotIn("asset_assistant_component_id", mesh_object)
         self.assertEqual((), component_records(root))
 
