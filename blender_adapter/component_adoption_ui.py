@@ -5,10 +5,15 @@ import uuid
 
 import bpy
 
-from object_core.component_primitives import ring_mesh
-
 from .components import _armature, attach_rigid_component
-from .core import AttachmentMode, ComponentBehavior, ComponentKind, ComponentRecord, RigBinding
+from .core import (
+    AttachmentMode,
+    ComponentBehavior,
+    ComponentKind,
+    ComponentRecord,
+    RigBinding,
+    ring_mesh,
+)
 from .imported_components import adopt_rigid_component, adopt_skinned_component
 
 
@@ -120,7 +125,12 @@ class ASSET_ASSISTANT_OT_generate_ring_component(bpy.types.Operator):
                 behavior=behavior,
             )
             mesh = ring_mesh(self.major_radius_cm, self.thickness_cm)
-            component_root = attach_rigid_component(root, mesh, record, name=self.component_name.strip() or "Ring Accessory")
+            component_root = attach_rigid_component(
+                root,
+                mesh,
+                record,
+                name=self.component_name.strip() or "Ring Accessory",
+            )
         except (TypeError, ValueError, RuntimeError, AttributeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
@@ -214,9 +224,19 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
                 behavior=behavior,
             )
             if mode == AttachmentMode.SKINNED:
-                component_root = adopt_skinned_component(root, mesh_object, record, name=self.component_name)
+                component_root = adopt_skinned_component(
+                    root,
+                    mesh_object,
+                    record,
+                    name=self.component_name,
+                )
             else:
-                component_root = adopt_rigid_component(root, mesh_object, record, name=self.component_name)
+                component_root = adopt_rigid_component(
+                    root,
+                    mesh_object,
+                    record,
+                    name=self.component_name,
+                )
         except (TypeError, ValueError, RuntimeError, AttributeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
