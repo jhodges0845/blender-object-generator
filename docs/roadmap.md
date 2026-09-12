@@ -69,10 +69,10 @@ We are starting this work now rather than waiting for the manual checkpoint. Kee
 
 1. **Accessory proof implemented:** generated Ring/Bracelet is a separate lightweight component asset with editable radius/thickness, Static/Rigid behavior and root/bone attachment. Imported meshes use the same entry stage and lifecycle. Existing remove/replace, persistence and export paths apply; checkpoint save validates component ownership first.
 2. **Hair low-cost proof implemented:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length and Static/Rigid behavior. Rigged Humans default to the head bone; unrigged assets fall back to asset-root attachment. It requires no simulation or extra bones.
-3. **Hair bone-driven tier active:** rigged Humans can choose Parent-Skinned/Bone-Driven hair. The cap follows `head`; longer rear hair blends through `neck` and `torso`, producing real low-cost deformation during character motion without physics or an extra component rig. Static/Rigid remains available as the cheaper fallback.
-4. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
-5. **Physics hair tier:** optional later enhancement only after the bone-driven path is visually accepted; never required for older-hardware targets.
-6. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
+3. **Hair bone-driven tier implemented:** rigged Humans can choose Parent-Skinned/Bone-Driven hair. The cap follows `head`; longer rear hair blends through `neck` and `torso`, producing real low-cost deformation during character motion without physics or an extra component rig. Static/Rigid remains available as the cheaper fallback.
+4. **Clothing proof active:** generated Basic Shirt is a separate lightweight parent-rig-skinned Human component with fit ease/length controls and torso/neck weighting. It uses the same component lifecycle and validation/save/export path, requires no physics, and leaves materials independently editable.
+5. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
+6. **Physics hair tier:** optional later enhancement only after the bone-driven path is visually accepted; never required for older-hardware targets.
 7. Only after those proofs, generalize catalog/provider UX.
 
 ### Performance rule
