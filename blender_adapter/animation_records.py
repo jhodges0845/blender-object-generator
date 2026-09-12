@@ -22,6 +22,21 @@ def has_animation_record(action):
     return action.get(_ANIMATION_RECORD_KEY) is not None or action.get(_ANIMATION_ID_KEY) is not None
 
 
+def persist_animation_record(action, record):
+    """Persist one already-validated portable animation record on an Action."""
+    document = animation_document(record)
+    action[_ANIMATION_ID_KEY] = record.animation_id
+    action[_ANIMATION_RECORD_KEY] = json.dumps(document, sort_keys=True)
+    return record
+
+
+def clear_animation_record(action):
+    """Remove Asset Assistant portable identity without touching Action curves."""
+    for key in (_ANIMATION_RECORD_KEY, _ANIMATION_ID_KEY):
+        if key in action:
+            del action[key]
+
+
 def rig_signature(rig):
     """Return a deterministic compatibility signature for one Blender armature."""
     if rig is None or rig.type != "ARMATURE":
@@ -70,9 +85,7 @@ def persist_generated_animation(
         provider_key=provider_key,
         capability=capability,
     )
-    action[_ANIMATION_ID_KEY] = record.animation_id
-    action[_ANIMATION_RECORD_KEY] = json.dumps(animation_document(record), sort_keys=True)
-    return record
+    return persist_animation_record(action, record)
 
 
 def animation_record(action):
@@ -125,14 +138,15 @@ def update_animation_export_name(action, export_name):
         provider_key=record.provider_key,
         capability=record.capability,
     )
-    action[_ANIMATION_RECORD_KEY] = json.dumps(animation_document(updated), sort_keys=True)
-    return updated
+    return persist_animation_record(action, updated)
 
 
 __all__ = [
     "animation_record",
+    "clear_animation_record",
     "has_animation_record",
     "inspect_animation_record",
+    "persist_animation_record",
     "persist_generated_animation",
     "rig_signature",
     "update_animation_export_name",
