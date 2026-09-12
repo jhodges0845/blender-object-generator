@@ -67,17 +67,28 @@ Components must remain preservation boundaries. The Blender execution slices now
 14. transactional rollback when skinned binding validation fails;
 15. validated skinned removal that deletes only the owned component tree and registry entry while preserving the parent armature;
 16. stable-id skinned replacement that keeps the previous weighted component intact until the replacement is created and re-inspected;
-17. failed skinned replacement rollback that restores the previous registry/object metadata and leaves the original weighted component usable.
+17. failed skinned replacement rollback that restores the previous registry/object metadata and leaves the original weighted component usable;
+18. Modify inspection v3 exports validated attached component records;
+19. Modify request v3 parses portable add/remove/replace component operations;
+20. component requests validate identity/existence before planning and are explicitly blocked from execution until a dedicated component apply stage exists.
 
 Still required before broader component Modify is executable:
 
-1. component state in Modify inspection/request transport;
+1. executable Modify apply paths for validated component add/remove/replace requests;
 2. adapter-specific physics preparation only after ownership is known;
 3. artist-facing component creation/selection UI;
 4. real clothing/hair/accessory providers and visual-quality validation;
 5. component-owned rig execution for `rig_binding="owned"` if/when a provider requires it.
 
 Artist-created or artist-edited component data must not be overwritten unless ownership is explicit and the operation is safe.
+
+## Modify exchange
+
+Modify inspection and request schemas are now version 3. Inspection JSON includes `attached_components`, each serialized with the same portable `ComponentRecord` document used for Blender persistence. The request template includes `component_operations` for `add`, `remove`, and `replace` intent.
+
+Legacy request v1 and v2 payloads remain readable. Component operations are only accepted by v3, are validated against the inspected component identities, and currently produce an explicit planning blocker rather than mutating the Blender scene. This keeps external inspect → edit → re-import workflows forward-compatible without exposing an unsafe partial apply path.
+
+The artist-facing Blender Modify workflow enriches its base asset snapshot with revalidated rigid/skinned component state before exporting inspection JSON or validating an imported request. Invalid/tampered component state therefore blocks transport rather than being silently described as healthy.
 
 ## Current Blender execution slices
 
@@ -95,7 +106,7 @@ For `attachment_target="asset_root"`, the component root is parented directly to
 
 `replace_skinned_component()` preserves the stable component ID and uses the previous weighted component as the rollback source. The old tree remains intact while the replacement is created and fully re-inspected; only then is the old component deleted. If replacement creation or validation fails, the previous registry and component-root metadata are restored.
 
-These slices still do not provide artist-facing UI, a public clothing/hair catalog, component-owned rigs, or physics execution.
+These slices still do not provide artist-facing component creation UI, a public clothing/hair catalog, component-owned rigs, or physics execution.
 
 ## Intended layering
 
