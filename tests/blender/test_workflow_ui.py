@@ -72,6 +72,23 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
         self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
 
+    def test_repeated_registration_does_not_stack_export_fastpath(self):
+        from blender_adapter import ui
+
+        first_draw = ui.HUMANOID_PT_export.draw
+        self.assertTrue(getattr(first_draw, "_asset_assistant_fastpath", False))
+
+        self.addon.unregister()
+        self.addon.register()
+
+        second_draw = ui.HUMANOID_PT_export.draw
+        self.assertIs(first_draw, second_draw)
+        self.assertTrue(getattr(second_draw, "_asset_assistant_polished_shell", False))
+        self.assertTrue(getattr(second_draw, "_asset_assistant_confidence_header", False))
+
+    def test_supported_blender_metadata_matches_required_runtime(self):
+        self.assertEqual((5, 2, 1), self.addon.bl_info["blender"])
+
     def test_component_hierarchy_keeps_existing_operator_contracts(self):
         from blender_adapter import workflow_ui
 
