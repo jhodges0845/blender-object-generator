@@ -72,7 +72,7 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
         self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
 
-    def test_repeated_registration_does_not_stack_export_fastpath(self):
+    def test_repeated_registration_keeps_one_export_fastpath_layer(self):
         from blender_adapter import ui
 
         first_draw = ui.HUMANOID_PT_export.draw
@@ -82,7 +82,11 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.addon.register()
 
         second_draw = ui.HUMANOID_PT_export.draw
-        self.assertIs(first_draw, second_draw)
+        self.assertTrue(getattr(second_draw, "_asset_assistant_fastpath", False))
+        self.assertFalse(
+            getattr(getattr(second_draw, "_asset_assistant_wrapped_draw", None), "_asset_assistant_fastpath", False),
+            "Export fast path stacked on top of another fast path",
+        )
         self.assertTrue(getattr(second_draw, "_asset_assistant_polished_shell", False))
         self.assertTrue(getattr(second_draw, "_asset_assistant_confidence_header", False))
 
