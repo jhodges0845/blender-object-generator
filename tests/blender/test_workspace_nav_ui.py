@@ -35,16 +35,21 @@ class _Layout(_Node):
     pass
 
 
-def test_workspace_tabs_use_one_icon_and_label_button_each():
+def test_workspace_tabs_use_two_by_two_large_native_tiles():
     layout = _Layout()
     workspace_nav_ui._draw_workspace_nav(layout, _Settings())
 
-    row = layout.children[0]
-    assert row.scale_y == 1.65
-    assert row.children == []
-    assert row.calls == [
+    assert len(layout.children) == 2
+    top, bottom = layout.children
+    assert top.scale_y == 2.0
+    assert bottom.scale_y == 2.0
+    assert top.children == []
+    assert bottom.children == []
+    assert top.calls == [
         ("asset_assistant_workspace", "CREATE", {"text": "Create", "icon": "USER"}),
         ("asset_assistant_workspace", "ANIMATE", {"text": "Animate", "icon": "ACTION"}),
+    ]
+    assert bottom.calls == [
         ("asset_assistant_workspace", "COMPONENTS", {"text": "Components", "icon": "CUBE"}),
         ("asset_assistant_workspace", "EXPORT", {"text": "Export", "icon": "EXPORT"}),
     ]
