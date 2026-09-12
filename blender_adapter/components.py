@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Blender persistence and root attachment for first-class asset components."""
+"""Blender persistence and attachment for first-class asset components."""
 
 import json
 
@@ -16,6 +16,7 @@ from .core import (
 _COMPONENTS_KEY = "asset_assistant_components"
 _COMPONENT_ID_KEY = "asset_assistant_component_id"
 _COMPONENT_RECORD_KEY = "asset_assistant_component_record"
+_BONE_PREFIX = "bone:"
 
 
 def _require_asset_root(root):
@@ -48,11 +49,54 @@ def component_records(root):
     return records
 
 
+def _descendants(root):
+    pending = list(root.children)
+    while pending:
+        child = pending.pop()
+        yield child
+        pending.extend(child.children)
+
+
 def _component_root(root, component_id):
-    matches = [child for child in root.children if child.get(_COMPONENT_ID_KEY) == component_id]
+    matches = [obj for obj in _descendants(root) if obj.get(_COMPONENT_ID_KEY) == component_id]
+    matches = [obj for obj in matches if obj.get(_COMPONENT_RECORD_KEY) is not None]
     if len(matches) != 1:
         raise ValueError("persisted component root is missing or ambiguous: " + component_id)
     return matches[0]
+
+
+def _armature(root):
+    armatures = [child for child in root.children if child.type == "ARMATURE"]
+    if len(armatures) != 1:
+        raise ValueError("bone attachment requires exactly one generated armature")
+    return armatures[0]
+
+
+def _bone_name(target):
+    if not target.startswith(_BONE_PREFIX):
+        return None
+    name = target[len(_BONE_PREFIX):]
+    if not name:
+        raise ValueError("bone attachment target must include a bone name")
+    return name
+
+
+def _validate_attachment(root, component_root, record):
+    if record.attachment_target == "asset_root":
+        if component_root.parent != root:
+            raise ValueError("component is no longer attached to its owning asset root")
+        return
+
+    bone_name = _bone_name(record.attachment_target)
+    if bone_name is None:
+        raise ValueError("unsupported rigid attachment target: " + record.attachment_target)
+    armature = _armature(root)
+    if armature.data.bones.get(bone_name) is None:
+        raise ValueError("attachment bone does not exist: " + bone_name)
+    if component_root.parent != armature:
+        raise ValueError("component is no longer attached to the generated armature")
+    if component_root.parent_type != "BONE" or component_root.parent_bone != bone_name:
+        raise ValueError("component bone attachment no longer matches persisted metadata")
 
 
 def inspect_component(root, component_id):
@@ -70,20 +114,35 @@ def inspect_component(root, component_id):
         raise ValueError("component root metadata is invalid") from None
     if object_record != record:
         raise ValueError("component root metadata no longer matches the asset registry")
-    if component_root.parent != root:
-        raise ValueError("component is no longer attached to its owning asset root")
+    _validate_attachment(root, component_root, record)
     mesh_children = [child for child in component_root.children if child.type == "MESH"]
     if record.owns_geometry and not mesh_children:
         raise ValueError("owned component geometry is missing")
     return record
 
 
-def attach_rigid_component(root, mesh, record, *, name="Accessory"):
-    """Create and persist one rigid component attached to the generated asset root.
+def _attach_component_root(root, component_root, record):
+    if record.attachment_target == "asset_root":
+        component_root.parent = root
+        return
 
-    This first executable slice intentionally supports only ``asset_root``
-    attachment. Bone attachment, skinned components, replacement, and removal are
-    separate milestones because each adds a new preservation boundary.
+    bone_name = _bone_name(record.attachment_target)
+    if bone_name is None:
+        raise ValueError("unsupported rigid attachment target: " + record.attachment_target)
+    armature = _armature(root)
+    if armature.data.bones.get(bone_name) is None:
+        raise ValueError("attachment bone does not exist: " + bone_name)
+    component_root.parent = armature
+    component_root.parent_type = "BONE"
+    component_root.parent_bone = bone_name
+
+
+def attach_rigid_component(root, mesh, record, *, name="Accessory"):
+    """Create and persist one rigid component on the asset root or a named bone.
+
+    Portable targets currently supported by Blender are ``asset_root`` and
+    ``bone:<bone-name>``. Skinned components, replacement, removal, and physics
+    execution remain separate preservation milestones.
     """
     import bpy
 
@@ -93,10 +152,8 @@ def attach_rigid_component(root, mesh, record, *, name="Accessory"):
     validate_component(record)
     if record.attachment_mode != AttachmentMode.RIGID:
         raise ValueError("this Blender path only supports rigid components")
-    if record.attachment_target != "asset_root":
-        raise ValueError("this Blender path only supports attachment_target 'asset_root'")
     if record.owns_rig:
-        raise ValueError("rigid root-attached components must not own rig data")
+        raise ValueError("rigid components must not own rig data")
     if not record.owns_geometry:
         raise ValueError("generated rigid components must own their geometry")
     if any(item.component_id == record.component_id for item in component_records(root)):
@@ -117,7 +174,7 @@ def attach_rigid_component(root, mesh, record, *, name="Accessory"):
         component_root = bpy.data.objects.new(name, None)
         created_objects.append(component_root)
         collection.objects.link(component_root)
-        component_root.parent = root
+        _attach_component_root(root, component_root, record)
         component_root.empty_display_type = "PLAIN_AXES"
         component_root[_COMPONENT_ID_KEY] = record.component_id
         component_root[_COMPONENT_RECORD_KEY] = json.dumps(document, sort_keys=True)
