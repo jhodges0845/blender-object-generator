@@ -5,6 +5,7 @@ from math import isfinite
 
 from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
+from .semantic import SemanticTarget
 from .quadruped_animation import generate_quadruped_idle, generate_quadruped_run, generate_quadruped_walk
 from .quadruped_geometry import generate_quadruped_deformable_mesh
 from .quadruped_rigging import generate_quadruped_skeleton, generate_quadruped_skin_weights
@@ -16,6 +17,22 @@ QUADRUPED_PARAMETERS = (
     Parameter("body_width_cm", "Body Width (cm)", 24, 8, 55),
     Parameter("head_length_cm", "Head Length (cm)", 24, 8, 45),
     Parameter("tail_length_cm", "Tail Length (cm)", 35, 5, 80),
+)
+
+QUADRUPED_SEMANTIC_TARGETS = (
+    SemanticTarget("body", "Body", "region", ("shape", "scale", "surface")),
+    SemanticTarget("chest", "Chest", "region", ("shape", "scale")),
+    SemanticTarget("head", "Head", "region", ("shape", "scale", "surface")),
+    SemanticTarget("muzzle", "Muzzle", "region", ("shape", "scale", "surface")),
+    SemanticTarget("ear.left", "Left Ear", "region", ("shape", "scale")),
+    SemanticTarget("ear.right", "Right Ear", "region", ("shape", "scale")),
+    SemanticTarget("leg.front.left", "Front Left Leg", "region", ("shape", "scale")),
+    SemanticTarget("leg.front.right", "Front Right Leg", "region", ("shape", "scale")),
+    SemanticTarget("leg.hind.left", "Hind Left Leg", "region", ("shape", "scale")),
+    SemanticTarget("leg.hind.right", "Hind Right Leg", "region", ("shape", "scale")),
+    SemanticTarget("tail", "Tail", "region", ("shape", "scale", "surface")),
+    SemanticTarget("coat", "Coat", "component", ("surface", "add_detail")),
+    SemanticTarget("accessories", "Accessories", "component", ("add_component", "remove_component", "shape", "surface")),
 )
 
 
@@ -38,6 +55,7 @@ class QuadrupedProvider:
     supports_rig = supports_idle = supports_locomotion = supports_run = supports_materials = True
     uses_skin_weights = True
     parameters = QUADRUPED_PARAMETERS
+    semantic_targets = QUADRUPED_SEMANTIC_TARGETS
 
     def dimensions(self, values):
         return _dimensions(self.parameters, values)
