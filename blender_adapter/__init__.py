@@ -20,10 +20,10 @@ bl_info = {
 
 def register():
     from . import (
-        animation_adoption_ui, animation_modify_exchange, animation_names_ui, animation_tuning_ui, avian_ui,
+        animation_adoption_ui, animation_modify_exchange, animation_names_ui, animation_tuning_ui, asset_identity_ui, avian_ui,
         clothing_component_ui, component_adoption_ui, component_modify_apply,
         component_modify_exchange, cura_scale_ui, hair_component_ui, modification,
-        modify_fastpath, modify_ui, nav_widget_lab, run_ui, self_rigged_accessory, ui, ui_fastpath,
+        modify_fastpath, modify_ui, run_ui, self_rigged_accessory, ui, ui_fastpath,
         workflow_ui, workspace_create_ui, workspace_nav_ui, working_asset_ui,
     )
     run_ui.prepare(ui)
@@ -31,6 +31,7 @@ def register():
     animation_tuning_ui.prepare(ui)
     workspace_nav_ui.install(workflow_ui)
     workspace_create_ui.install(workflow_ui, ui)
+    asset_identity_ui.install(workflow_ui)
     workflow_ui.prepare(
         ui, modify_ui, animation_names_ui, working_asset_ui,
         component_adoption_ui, hair_component_ui, clothing_component_ui,
@@ -53,16 +54,14 @@ def register():
     hair_component_ui.register()
     clothing_component_ui.register()
     self_rigged_accessory.register()
-    nav_widget_lab.register()
 
 
 def unregister():
     from . import (
         animation_adoption_ui, animation_names_ui, animation_tuning_ui, clothing_component_ui,
-        component_adoption_ui, cura_scale_ui, hair_component_ui, modify_ui, nav_widget_lab,
+        component_adoption_ui, cura_scale_ui, hair_component_ui, modify_ui,
         run_ui, self_rigged_accessory, ui, working_asset_ui,
     )
-    nav_widget_lab.unregister()
     self_rigged_accessory.unregister()
     clothing_component_ui.unregister()
     hair_component_ui.unregister()
