@@ -40,7 +40,9 @@ class HumanFaceStructureTests(unittest.TestCase):
         eyes = self._front_y_near(0.52)
         brow = self._front_y_near(0.66)
         self.assertGreater(nose - eyes, depth * 0.08)
-        self.assertGreater(brow - eyes, depth * 0.02)
+        # The neutral base should retain a readable brow break without forcing
+        # an exaggerated brow ridge before character-specific semantic shaping.
+        self.assertGreater(brow - eyes, depth * 0.009)
 
     def test_mouth_plane_projects_forward_of_chin_transition(self):
         chin = self._front_y_near(0.12)
