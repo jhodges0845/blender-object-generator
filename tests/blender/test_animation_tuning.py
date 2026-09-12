@@ -98,6 +98,7 @@ class BlenderAnimationTuningTests(unittest.TestCase):
         root = self._human()
         idle, _ = add_idle(root, bpy.context.scene, duration=2.0, strength=0.8)
         walk, _ = add_locomotion(root, bpy.context.scene, duration=1.2, strength=1.0)
+        old_idle_name = idle.name
         idle_id = animation_record(idle).animation_id
         walk_id = animation_record(walk).animation_id
 
@@ -123,7 +124,8 @@ class BlenderAnimationTuningTests(unittest.TestCase):
         self.assertEqual("Maxine Idle", tuned["asset_assistant_export_name"])
         self.assertAlmostEqual(1.4, tuned["asset_assistant_animation_strength"])
         self.assertAlmostEqual(1.5, (result.frame_end - result.frame_start) / result.fps)
-        self.assertNotIn(idle.name, bpy.data.actions)
+        self.assertEqual(old_idle_name, tuned.name)
+        self.assertEqual(2, len([action for action in bpy.data.actions if action.get("asset_assistant_generated")]))
 
     def test_invalid_request_is_rejected_before_mutation(self):
         root = self._human()
