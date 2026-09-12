@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Tuple
 
+from .components import ComponentRecord, validate_component
 from .objects import get_provider
 
 
@@ -27,6 +28,15 @@ class SemanticOperation:
 
 
 @dataclass(frozen=True)
+class ComponentOperation:
+    """Portable requested component mutation; execution is intentionally separate."""
+
+    operation: str
+    component_id: str
+    component: ComponentRecord = None
+
+
+@dataclass(frozen=True)
 class AssetSnapshot:
     asset_id: str
     provider_key: str
@@ -34,6 +44,7 @@ class AssetSnapshot:
     parameters: Tuple[Tuple[str, object], ...]
     animations: Tuple[AnimationSnapshot, ...] = ()
     semantic_operations: Tuple[SemanticOperation, ...] = ()
+    components: Tuple[ComponentRecord, ...] = ()
     has_rig: bool = False
     has_materials: bool = False
     has_animations: bool = False
@@ -54,6 +65,7 @@ class ModificationRequest:
     parameter_changes: Tuple[Tuple[str, object], ...] = ()
     animation_export_names: Tuple[Tuple[str, str], ...] = ()
     semantic_operations: Tuple[SemanticOperation, ...] = ()
+    component_operations: Tuple[ComponentOperation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,6 +75,7 @@ class ModificationPlan:
     requested_parameter_changes: Tuple[Tuple[str, object], ...]
     requested_animation_renames: Tuple[Tuple[str, str], ...]
     requested_semantic_operations: Tuple[SemanticOperation, ...]
+    requested_component_operations: Tuple[ComponentOperation, ...]
     rebuild_components: Tuple[str, ...]
     blockers: Tuple[str, ...]
 
@@ -123,6 +136,39 @@ def _normalize_semantic_operations(provider, operations):
         args = _as_unique_dict(operation.arguments, "semantic argument")
         normalized_args = tuple(sorted((key, _validate_json_value(value, key)) for key, value in args.items()))
         normalized.append(SemanticOperation(operation.operation, operation.target, normalized_args))
+    return tuple(normalized)
+
+
+def _normalize_component_operations(snapshot, operations):
+    known = {record.component_id: record for record in snapshot.components}
+    normalized = []
+    seen = set()
+    for operation in operations:
+        if not isinstance(operation, ComponentOperation):
+            raise TypeError("component_operations must contain ComponentOperation values")
+        action = operation.operation.strip() if isinstance(operation.operation, str) else ""
+        component_id = operation.component_id.strip() if isinstance(operation.component_id, str) else ""
+        if action not in ("add", "remove", "replace"):
+            raise ValueError("Unsupported component operation: " + action)
+        if not component_id:
+            raise ValueError("component operation id must be a nonempty string")
+        if component_id in seen:
+            raise ValueError("Duplicate component operation id: " + component_id)
+        seen.add(component_id)
+        if action == "add" and component_id in known:
+            raise ValueError("Cannot add an already attached component: " + component_id)
+        if action in ("remove", "replace") and component_id not in known:
+            raise ValueError("Unknown attached component: " + component_id)
+        component = operation.component
+        if action in ("add", "replace"):
+            if component is None:
+                raise ValueError(action + " component operation requires component metadata")
+            validate_component(component)
+            if component.component_id != component_id:
+                raise ValueError("component operation id does not match component metadata")
+        elif component is not None:
+            raise ValueError("remove component operation must not include replacement metadata")
+        normalized.append(ComponentOperation(action, component_id, component))
     return tuple(normalized)
 
 
@@ -190,6 +236,7 @@ def plan_modification(snapshot, request):
             normalized_renames.append((clip_id, cleaned))
 
     semantic = _normalize_semantic_operations(provider, request.semantic_operations)
+    component_operations = _normalize_component_operations(snapshot, request.component_operations)
     if normalized_changes:
         rebuild = _conservative_parameter_impact(provider, snapshot)
     elif semantic:
@@ -205,6 +252,8 @@ def plan_modification(snapshot, request):
     if normalized_renames and not snapshot.owns_animations:
         blockers.append("Cannot safely rename unowned or ambiguous animations")
     blockers.extend(_semantic_apply_blockers(provider, semantic))
+    if component_operations:
+        blockers.append("Component mutations are validated for transport but are not executable through Modify yet")
 
     return ModificationPlan(
         asset_id=snapshot.asset_id,
@@ -212,6 +261,7 @@ def plan_modification(snapshot, request):
         requested_parameter_changes=tuple(normalized_changes),
         requested_animation_renames=tuple(normalized_renames),
         requested_semantic_operations=semantic,
+        requested_component_operations=component_operations,
         rebuild_components=tuple(rebuild),
         blockers=tuple(blockers),
     )
