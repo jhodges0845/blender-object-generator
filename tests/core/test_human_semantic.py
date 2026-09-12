@@ -17,6 +17,8 @@ class HumanSemanticTests(unittest.TestCase):
     def test_human_region_shape_and_scale_are_executable(self):
         capabilities = set(self.provider.semantic_apply_capabilities)
         self.assertIn(("face", "shape"), capabilities)
+        self.assertIn(("jaw", "shape"), capabilities)
+        self.assertIn(("cheeks", "scale"), capabilities)
         self.assertIn(("shoulders", "scale"), capabilities)
         self.assertNotIn(("hair", "add_component"), capabilities)
 
@@ -26,6 +28,21 @@ class HumanSemanticTests(unittest.TestCase):
             mesh,
             self.values,
             (self._operation("shape", "face", profile="narrow", amount=0.8),),
+        )
+        self.assertEqual(mesh.parts[0].faces, changed.parts[0].faces)
+        self.assertEqual(mesh.parts[0].uvs, changed.parts[0].uvs)
+        self.assertEqual(len(mesh.parts[0].vertices), len(changed.parts[0].vertices))
+        self.assertNotEqual(mesh.parts[0].vertices, changed.parts[0].vertices)
+
+    def test_jaw_and_cheek_profiles_preserve_topology(self):
+        mesh = self.provider.mesh(self.values)
+        changed = self.provider.semantic_mesh(
+            mesh,
+            self.values,
+            (
+                self._operation("shape", "jaw", profile="tapered", amount=0.65),
+                self._operation("shape", "cheeks", profile="high", amount=0.45),
+            ),
         )
         self.assertEqual(mesh.parts[0].faces, changed.parts[0].faces)
         self.assertEqual(mesh.parts[0].uvs, changed.parts[0].uvs)
@@ -53,6 +70,8 @@ class HumanSemanticTests(unittest.TestCase):
             self._operation("shape", "head", profile="oval", amount=0.5),
             self._operation("shape", "face", profile="defined", amount=0.6),
             self._operation("shape", "face", profile="narrow", amount=0.35),
+            self._operation("shape", "jaw", profile="tapered", amount=0.5),
+            self._operation("shape", "cheeks", profile="high", amount=0.35),
         )
         changed = self.provider.semantic_mesh(mesh, self.values, operations)
         self.assertEqual(mesh.parts[0].faces, changed.parts[0].faces)
@@ -68,7 +87,7 @@ class HumanSemanticTests(unittest.TestCase):
         )
         shape_plan = plan_modification(
             snapshot,
-            ModificationRequest(semantic_operations=(self._operation("shape", "face", profile="defined"),)),
+            ModificationRequest(semantic_operations=(self._operation("shape", "jaw", profile="tapered"),)),
         )
         self.assertTrue(shape_plan.safe_to_apply)
         self.assertEqual(("geometry",), shape_plan.rebuild_components)

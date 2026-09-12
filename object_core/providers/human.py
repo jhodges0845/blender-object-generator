@@ -30,6 +30,8 @@ HUMAN_SEMANTIC_TARGETS = (
     SemanticTarget("shoulders", "Shoulders", "region", ("shape", "scale")),
     SemanticTarget("head", "Head", "region", ("shape", "scale", "surface")),
     SemanticTarget("face", "Face", "region", ("shape", "surface", "add_detail")),
+    SemanticTarget("jaw", "Jaw", "region", ("shape", "scale")),
+    SemanticTarget("cheeks", "Cheeks", "region", ("shape", "scale")),
     SemanticTarget("arm.left", "Left Arm", "region", ("shape", "scale")),
     SemanticTarget("arm.right", "Right Arm", "region", ("shape", "scale")),
     SemanticTarget("leg.left", "Left Leg", "region", ("shape", "scale")),
@@ -40,7 +42,7 @@ HUMAN_SEMANTIC_TARGETS = (
 )
 
 _HUMAN_GEOMETRY_TARGETS = (
-    "body", "torso", "shoulders", "head", "face",
+    "body", "torso", "shoulders", "head", "face", "jaw", "cheeks",
     "arm.left", "arm.right", "leg.left", "leg.right",
 )
 HUMAN_SEMANTIC_APPLY_CAPABILITIES = tuple(
