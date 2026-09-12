@@ -2,7 +2,10 @@
 
 import unittest
 
-import bpy
+try:
+    import bpy
+except ModuleNotFoundError:
+    bpy = None
 
 from blender_adapter.adapter import create_character
 from blender_adapter.animation import add_idle
@@ -12,6 +15,7 @@ from object_core.modification import ModificationRequest, plan_modification
 from object_core.objects import get_provider
 
 
+@unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
 class BlenderModificationInspectionTests(unittest.TestCase):
     def setUp(self):
         if bpy.context.mode != "OBJECT":
