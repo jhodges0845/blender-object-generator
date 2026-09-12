@@ -189,9 +189,14 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
             (shoulder_z + neck_length * 0.62, p.neck_width_cm * 0.96, p.neck_width_cm * 0.96),
             (shoulder_z + neck_length * 0.82, p.neck_width_cm * 0.92, p.neck_width_cm * 0.92),
             (chin_z, p.neck_width_cm * 0.9, p.neck_width_cm * 0.9),
-            (chin_z + p.head_height_cm * 0.3, p.head_width_cm, p.head_depth_cm),
-            (chin_z + p.head_height_cm * 0.8, p.head_width_cm, p.head_depth_cm),
-            (crown_z, p.head_width_cm * 0.7, p.head_depth_cm * 0.7),
+            (chin_z + p.head_height_cm * 0.12, p.head_width_cm * 0.78, p.head_depth_cm * 0.76),
+            (chin_z + p.head_height_cm * 0.24, p.head_width_cm * 0.92, p.head_depth_cm * 0.90),
+            (chin_z + p.head_height_cm * 0.38, p.head_width_cm, p.head_depth_cm),
+            (chin_z + p.head_height_cm * 0.52, p.head_width_cm * 1.02, p.head_depth_cm),
+            (chin_z + p.head_height_cm * 0.66, p.head_width_cm, p.head_depth_cm * 0.98),
+            (chin_z + p.head_height_cm * 0.80, p.head_width_cm * 0.94, p.head_depth_cm * 0.92),
+            (chin_z + p.head_height_cm * 0.92, p.head_width_cm * 0.82, p.head_depth_cm * 0.82),
+            (crown_z, p.head_width_cm * 0.62, p.head_depth_cm * 0.68),
         ),
     )
 
