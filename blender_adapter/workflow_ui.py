@@ -27,13 +27,3 @@ def prepare(ui, modify_ui, animation_names_ui):
     # This remains a child of Animate, but keep its declared category aligned so
     # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
-
-    # Keep the visible generation stage terminology consistent with the six-step
-    # workflow even though the saved enum identifiers remain legacy-compatible.
-    ui.HUMANOID_PG_settings.__annotations__["workflow_tab"].keywords["items"] = [
-        ("MODEL", "Generate", "Create a new asset"),
-        ("RIGGING", "Rig", "Rig an existing generated asset"),
-        ("ANIMATION", "Animate", "Create or select generated animation clips"),
-        ("VALIDATION", "Validate", "Check the selected asset"),
-        ("EXPORT", "Export", "Export the selected asset"),
-    ]
