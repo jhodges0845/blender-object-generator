@@ -6,15 +6,19 @@ The goal is persistent character development, not one-shot generation. A charact
 
 ## Character/body refinement
 
-1. Generate a Human and add the required rig/material preparation.
+1. Generate a Human. A checkpoint can be saved immediately; major body/proportion refinement is best completed before spending time polishing animation.
 2. Save the complete editable working asset with **Save Editable Checkpoint (.blend)** in the Export section.
-3. Open that checkpoint with **Open Editable Checkpoint (.blend)**. Reopen validation must recognize exactly one Asset Assistant character and restore it as the active target.
+3. Reopen that checkpoint with **Open Editable Checkpoint (.blend)** or Blender's normal File/Open/Recent workflow. Marked Asset Assistant checkpoints auto-validate after load and restore the active target when unambiguous.
 4. In Modify, inspect the character and export the portable model inspection JSON.
 5. Send that inspection to an external editor/assistant. The returned Modify request may use the supported Human parameters and executable semantic targets (body, torso, shoulders, head, face, jaw, cheeks, arms, and legs) to establish the desired character body while preserving unsupported artist work.
 6. Import the returned Modify request.
 7. Preview/validate the plan without mutating the model.
-8. Apply the approved changes and re-inspect the character.
-9. Save another editable `.blend` checkpoint. This becomes the refined body checkpoint and is the base for later hair, clothing, accessories, and animation work.
+8. **Visually review the Preview in Blender.** The JSON inspection describes procedural state and ownership; it is not a rendered visual inspection. For aesthetic character work, send a viewport screenshot alongside the JSON/result when another external refinement pass is needed.
+9. Apply the approved changes and re-inspect the character.
+10. Add/confirm the rig and material preparation needed for later animation/export once the major body shape is accepted.
+11. Save another editable `.blend` checkpoint. This becomes the refined body checkpoint and is the base for later hair, clothing, accessories, and animation work.
+
+Export a fresh inspection before each new external refinement round. Returned requests are intentionally state-sensitive and may become stale after another approved Modify operation changes the asset.
 
 ## Animation refinement
 
@@ -25,9 +29,10 @@ The goal is persistent character development, not one-shot generation. A charact
 5. Import the returned animation request with **Import Animation Changes**.
 6. Use **Preview Animation Changes**. Preview validates identity, provider, ownership, supported tuning range, and export-name uniqueness without changing keyframes.
 7. Use **Apply / Save Animation Changes** only after preview. Initial executable tuning is intentionally narrow and reproducible: cycle duration/speed, generated motion strength, and export name for one Asset Assistant-owned generated clip per request.
-8. Play the clip in Blender to visually review the regenerated animation.
+8. Play the clip in Blender to visually review the regenerated animation. If more refinement is needed, export a fresh animation inspection rather than reusing an older request.
 9. Save another editable `.blend` checkpoint.
-10. Export the finished character to the desired destination format (Godot GLB, Unity FBX, Unreal FBX, or Cura STL where appropriate).
+10. Reopen the saved checkpoint once more before the final delivery pass when validating full continuity.
+11. Export the finished character to the desired destination format (Godot GLB, Unity FBX, Unreal FBX, or Cura STL where appropriate).
 
 ## Preservation rules
 
@@ -38,11 +43,14 @@ The goal is persistent character development, not one-shot generation. A charact
 - Other generated clips must remain unchanged when one clip is refined.
 - Invalid or stale returned requests must fail before mutating the current asset.
 - Saving a checkpoint never changes the path of the currently open Blender session because the checkpoint operation writes a copy.
+- A machine-readable inspection validates structure/state; a viewport review validates appearance.
 
 ## End-to-end checkpoint
 
 Before this phase is considered complete, validate this sequence on a Human:
 
-`Generate -> save .blend -> reopen -> export model inspection -> import returned body request -> preview -> apply -> save .blend -> reopen -> generate/select animation -> export animation inspection -> import returned animation request -> preview -> apply -> play -> save .blend -> reopen -> export to a game engine`
+`Generate -> save .blend -> reopen -> export model inspection -> import returned body request -> preview -> visual review -> apply -> save .blend -> reopen -> generate/select animation -> export animation inspection -> import returned animation request -> preview -> apply -> play -> save .blend -> reopen -> export to a game engine`
 
 This is the minimum production-character continuity workflow intended for building and repeatedly refining a real game character such as Maxine without starting over between sessions.
+
+See `docs/editable-continuity-audit.md` for the current independent risk/omission review and deferred follow-up items.
