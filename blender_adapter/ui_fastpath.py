@@ -37,7 +37,15 @@ def install(ui):
         return any(issue.status in ('ERROR', 'WARN') and (codes is None or issue.code in codes)
                    for issue in issues)
 
+    # register()/unregister() can run repeatedly in the same Blender process.
+    # The UI class functions survive class unregistration, so do not stack a new
+    # redraw wrapper on top of the previous fast path every time the add-on is
+    # re-enabled.
     original_export_draw = ui.HUMANOID_PT_export.draw
+    if getattr(original_export_draw, '_asset_assistant_fastpath', False):
+        ui.HUMANOID_OT_export.poll = export_poll
+        ui._needs_attention = needs_attention
+        return
 
     def export_draw(self, context):
         # Reuse the established panel layout while substituting the explicit
@@ -55,6 +63,7 @@ def install(ui):
     for marker in ('_asset_assistant_polished_shell', '_asset_assistant_confidence_header'):
         if getattr(original_export_draw, marker, False):
             setattr(export_draw, marker, True)
+    export_draw._asset_assistant_fastpath = True
 
     ui.HUMANOID_OT_export.poll = export_poll
     ui._needs_attention = needs_attention
