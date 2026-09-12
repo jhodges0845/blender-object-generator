@@ -1,15 +1,29 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Artist-facing Modify workflow built on the portable inspect/plan/apply contract."""
 
-import bpy
+from pathlib import Path
 
-from .core import ModificationRequest, plan_modification
-from .modification import apply_parameter_modification, inspect_generated_asset
+import bpy
+from bpy_extras.io_utils import ExportHelper, ImportHelper
+
+from .core import (
+    ModificationRequest,
+    inspection_json,
+    plan_modification,
+    request_from_json,
+)
+from .modification import (
+    apply_metadata_modification,
+    apply_parameter_modification,
+    inspect_generated_asset,
+)
 from .workflow import find_character, provider_for
 
 
 _SUMMARY_KEY = "asset_assistant_modify_summary"
 _STATUS_KEY = "asset_assistant_modify_status"
+_IMPORTED_REQUEST_KEY = "asset_assistant_modify_imported_request"
+_IMPORTED_PATH_KEY = "asset_assistant_modify_imported_path"
 
 
 def _character(context):
@@ -69,6 +83,48 @@ def _refresh_validation(context):
         row.code, row.status, row.message = issue.code, issue.status, issue.message
 
 
+def _request_summary(plan):
+    changed = [key for key, _ in plan.requested_parameter_changes]
+    renamed = [clip for clip, _ in plan.requested_animation_renames]
+    lines = []
+    if changed:
+        lines.append("Parameter changes: " + ", ".join(changed))
+    if renamed:
+        lines.append("Animation renames: " + ", ".join(renamed))
+    if plan.rebuild_components:
+        lines.append("Rebuild: " + ", ".join(plan.rebuild_components))
+    if not lines:
+        lines.append("No supported changes detected in request file.")
+    return lines
+
+
+def _apply_external_request(context, root, request):
+    """Apply a prevalidated external request through the same safe Modify paths."""
+    snapshot = inspect_generated_asset(root)
+    plan = plan_modification(snapshot, request)
+    if plan.blockers:
+        raise ValueError("Modify is blocked: " + "; ".join(plan.blockers))
+    if not plan.requested_parameter_changes and not plan.requested_animation_renames:
+        raise ValueError("Imported request contains no changes to apply.")
+
+    if plan.requested_parameter_changes:
+        parameter_request = ModificationRequest(
+            parameter_changes=plan.requested_parameter_changes,
+        )
+        parameter_plan = plan_modification(snapshot, parameter_request)
+        apply_parameter_modification(root, parameter_plan)
+
+    if plan.requested_animation_renames:
+        refreshed = inspect_generated_asset(root)
+        rename_request = ModificationRequest(
+            animation_export_names=plan.requested_animation_renames,
+        )
+        rename_plan = plan_modification(refreshed, rename_request)
+        apply_metadata_modification(root, rename_plan)
+
+    return inspect_generated_asset(root)
+
+
 class ASSET_ASSISTANT_OT_modify_inspect(bpy.types.Operator):
     bl_idname = "asset_assistant.modify_inspect"
     bl_label = "Inspect Asset"
@@ -90,6 +146,111 @@ class ASSET_ASSISTANT_OT_modify_inspect(bpy.types.Operator):
         lines.extend(snapshot.warnings or ("No preservation warnings detected.",))
         _store_report(context.scene, "INSPECTED", lines)
         self.report({"INFO"}, provider.label + " loaded for Modify.")
+        return {"FINISHED"}
+
+
+class ASSET_ASSISTANT_OT_modify_export_inspection(bpy.types.Operator, ExportHelper):
+    bl_idname = "asset_assistant.modify_export_inspection"
+    bl_label = "Export Inspection File"
+    bl_description = "Save a portable inspection file that can be sent out for preparing a Modify request"
+    filename_ext = ".json"
+    filter_glob: bpy.props.StringProperty(default="*.json", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and context.mode == "OBJECT" and _character(context) is not None
+
+    def invoke(self, context, event):
+        root = _character(context)
+        safe_name = "".join(character if character.isalnum() or character in "-_" else "_"
+                            for character in root.name)
+        self.filepath = safe_name + ".asset-assistant-inspection.json"
+        return ExportHelper.invoke(self, context, event)
+
+    def execute(self, context):
+        root = _character(context)
+        try:
+            snapshot = inspect_generated_asset(root)
+            Path(self.filepath).write_text(inspection_json(snapshot), encoding="utf-8")
+        except (OSError, ValueError, TypeError, RuntimeError, AttributeError) as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        _store_report(
+            context.scene,
+            "EXPORTED",
+            ["Inspection exported.", "Send the JSON file out, then import the returned Modify request."],
+        )
+        self.report({"INFO"}, "Inspection file exported.")
+        return {"FINISHED"}
+
+
+class ASSET_ASSISTANT_OT_modify_import_request(bpy.types.Operator, ImportHelper):
+    bl_idname = "asset_assistant.modify_import_request"
+    bl_label = "Import Change File"
+    bl_description = "Load and preview a returned Asset Assistant Modify request without applying it"
+    filename_ext = ".json"
+    filter_glob: bpy.props.StringProperty(default="*.json", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and context.mode == "OBJECT" and _character(context) is not None
+
+    def execute(self, context):
+        root = _character(context)
+        try:
+            payload = Path(self.filepath).read_text(encoding="utf-8")
+            snapshot = inspect_generated_asset(root)
+            request = request_from_json(payload, snapshot)
+            plan = plan_modification(snapshot, request)
+        except (OSError, ValueError, TypeError, RuntimeError, AttributeError) as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+
+        lines = _request_summary(plan)
+        if plan.blockers:
+            lines.extend("Blocked: " + blocker for blocker in plan.blockers)
+            status = "IMPORTED_BLOCKED"
+        else:
+            lines.append("Imported request is ready for review and apply.")
+            status = "IMPORTED_READY"
+        context.scene[_IMPORTED_REQUEST_KEY] = payload
+        context.scene[_IMPORTED_PATH_KEY] = self.filepath
+        _store_report(context.scene, status, lines)
+        self.report({"INFO"}, "Modify request imported and previewed.")
+        return {"FINISHED"}
+
+
+class ASSET_ASSISTANT_OT_modify_apply_imported(bpy.types.Operator):
+    bl_idname = "asset_assistant.modify_apply_imported"
+    bl_label = "Apply Imported Changes"
+    bl_description = "Re-inspect the selected asset and safely apply the imported Modify request"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return (
+            context.scene is not None
+            and context.mode == "OBJECT"
+            and _character(context) is not None
+            and bool(context.scene.get(_IMPORTED_REQUEST_KEY))
+        )
+
+    def execute(self, context):
+        root = _character(context)
+        try:
+            snapshot = inspect_generated_asset(root)
+            request = request_from_json(context.scene[_IMPORTED_REQUEST_KEY], snapshot)
+            result = _apply_external_request(context, root, request)
+            _sync_settings_from_asset(context, root)
+            _refresh_validation(context)
+        except (ValueError, TypeError, RuntimeError, AttributeError) as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+
+        lines = ["Imported changes applied successfully.", "Validation refreshed after Modify."]
+        lines.extend(result.warnings)
+        _store_report(context.scene, "IMPORTED_APPLIED", lines)
+        self.report({"INFO"}, "Imported changes applied and validation refreshed.")
         return {"FINISHED"}
 
 
@@ -195,17 +356,23 @@ class ASSET_ASSISTANT_PT_modify(bpy.types.Panel):
         header.label(text="Provider: " + provider.label)
         header.operator("asset_assistant.modify_inspect", text="Inspect / Load Current Values", icon="VIEWZOOM")
 
+        exchange = layout.box()
+        exchange.label(text="External Modify Handoff")
+        exchange.operator("asset_assistant.modify_export_inspection", text="Export Inspection File", icon="EXPORT")
+        exchange.operator("asset_assistant.modify_import_request", text="Import Change File", icon="IMPORT")
+        exchange.operator("asset_assistant.modify_apply_imported", text="Apply Imported Changes", icon="CHECKMARK")
+        if context.scene.get(_IMPORTED_PATH_KEY):
+            exchange.label(text="Loaded: " + Path(context.scene[_IMPORTED_PATH_KEY]).name)
+
         params = layout.box()
-        params.label(text="Supported Parameters")
+        params.label(text="Manual Parameter Changes")
         for field in provider.parameters:
             params.prop(settings, _field_name(ui, provider, field))
 
         actions = layout.box()
-        actions.operator("asset_assistant.modify_preview", text="Preview Changes", icon="PREVIEW_RANGE")
-        actions.operator("asset_assistant.modify_apply", text="Apply Changes", icon="CHECKMARK")
-        actions.label(text="Apply re-checks ownership before changing anything.")
-        if getattr(provider, "supports_idle", False) or getattr(provider, "supports_locomotion", False):
-            actions.label(text="Animation export names remain editable in Animations.")
+        actions.operator("asset_assistant.modify_preview", text="Preview Manual Changes", icon="PREVIEW_RANGE")
+        actions.operator("asset_assistant.modify_apply", text="Apply Manual Changes", icon="CHECKMARK")
+        actions.label(text="Apply always re-checks ownership before changing anything.")
 
         status = context.scene.get(_STATUS_KEY)
         summary = context.scene.get(_SUMMARY_KEY, "")
@@ -218,6 +385,9 @@ class ASSET_ASSISTANT_PT_modify(bpy.types.Panel):
 
 _CLASSES = (
     ASSET_ASSISTANT_OT_modify_inspect,
+    ASSET_ASSISTANT_OT_modify_export_inspection,
+    ASSET_ASSISTANT_OT_modify_import_request,
+    ASSET_ASSISTANT_OT_modify_apply_imported,
     ASSET_ASSISTANT_OT_modify_preview,
     ASSET_ASSISTANT_OT_modify_apply,
     ASSET_ASSISTANT_PT_modify,
