@@ -14,6 +14,7 @@ from .core import (
     RigBinding,
     ring_mesh,
 )
+from .external_inspection import BLOCKED, REDUCED, inspect_external_object
 from .imported_components import adopt_rigid_component, adopt_skinned_component
 
 
@@ -142,7 +143,7 @@ class ASSET_ASSISTANT_OT_generate_ring_component(bpy.types.Operator):
 class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
     bl_idname = "asset_assistant.adopt_selected_component"
     bl_label = "Adopt Selected Component"
-    bl_description = "Register one selected external mesh as an Asset Assistant component without copying it"
+    bl_description = "Inspect and register one selected external mesh without copying it"
     bl_options = {"REGISTER", "UNDO"}
 
     component_id: bpy.props.StringProperty(name="Component ID")
@@ -156,11 +157,7 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
         ),
         default=ComponentKind.ACCESSORY.value,
     )
-    behavior: bpy.props.EnumProperty(
-        name="Behavior",
-        items=_behavior_items(True),
-        default=ComponentBehavior.RIGID.value,
-    )
+    behavior: bpy.props.EnumProperty(name="Behavior", items=_behavior_items(True), default=ComponentBehavior.RIGID.value)
     attachment_target: bpy.props.EnumProperty(name="Attach To", items=_attachment_items)
 
     @classmethod
@@ -172,20 +169,41 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
             and len(_selected_meshes(context)) == 1
         )
 
+    def _inspection(self, context):
+        meshes = _selected_meshes(context)
+        root = _target(context)
+        if root is None or len(meshes) != 1:
+            return None
+        return inspect_external_object(root, meshes[0])
+
     def invoke(self, context, event):
         mesh_object = _selected_meshes(context)[0]
+        inspection = inspect_external_object(_target(context), mesh_object)
         self.component_id = "imported-" + uuid.uuid4().hex
         self.component_name = mesh_object.name
         self.behavior = (
             ComponentBehavior.PARENT_SKINNED.value
-            if any(modifier.type == "ARMATURE" for modifier in mesh_object.modifiers)
+            if inspection.suggested_behavior == "parent_skinned"
             else ComponentBehavior.RIGID.value
         )
         self.attachment_target = "asset_root"
-        return context.window_manager.invoke_props_dialog(self, width=440)
+        return context.window_manager.invoke_props_dialog(self, width=500)
 
     def draw(self, context):
         layout = self.layout
+        inspection = self._inspection(context)
+        if inspection is not None:
+            box = layout.box()
+            if inspection.status == BLOCKED:
+                box.label(text="Adoption status: BLOCKED", icon="ERROR")
+            elif inspection.status == REDUCED:
+                box.label(text="Adoption status: REDUCED CAPABILITY", icon="INFO")
+            else:
+                box.label(text="Adoption status: SUPPORTED", icon="CHECKMARK")
+            box.label(text="Suggested behavior: " + inspection.suggested_behavior.replace("_", " ").title())
+            for reason in inspection.reasons:
+                box.label(text=reason)
+
         layout.prop(self, "component_name")
         layout.prop(self, "kind")
         layout.prop(self, "behavior")
@@ -210,6 +228,11 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
             return {"CANCELLED"}
         mesh_object = meshes[0]
         try:
+            inspection = inspect_external_object(root, mesh_object)
+            if inspection.status == BLOCKED:
+                raise ValueError("Adoption blocked: " + " ".join(inspection.reasons))
+            if inspection.status == REDUCED:
+                raise ValueError("Adoption needs artist cleanup first: " + " ".join(inspection.reasons))
             behavior, mode, rig_binding = _mode_for_behavior(self.behavior)
             record = ComponentRecord(
                 component_id=self.component_id.strip(),
@@ -224,19 +247,9 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
                 behavior=behavior,
             )
             if mode == AttachmentMode.SKINNED:
-                component_root = adopt_skinned_component(
-                    root,
-                    mesh_object,
-                    record,
-                    name=self.component_name,
-                )
+                component_root = adopt_skinned_component(root, mesh_object, record, name=self.component_name)
             else:
-                component_root = adopt_rigid_component(
-                    root,
-                    mesh_object,
-                    record,
-                    name=self.component_name,
-                )
+                component_root = adopt_rigid_component(root, mesh_object, record, name=self.component_name)
         except (TypeError, ValueError, RuntimeError, AttributeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
