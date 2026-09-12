@@ -26,3 +26,11 @@ AnimationSnapshot = _modification.AnimationSnapshot
 ModificationRequest = _modification.ModificationRequest
 ModificationPlan = _modification.ModificationPlan
 plan_modification = _modification.plan_modification
+
+_modify_exchange = import_module(_core_name + '.modify_exchange')
+INSPECTION_SCHEMA = _modify_exchange.INSPECTION_SCHEMA
+REQUEST_SCHEMA = _modify_exchange.REQUEST_SCHEMA
+inspection_document = _modify_exchange.inspection_document
+inspection_json = _modify_exchange.inspection_json
+request_from_document = _modify_exchange.request_from_document
+request_from_json = _modify_exchange.request_from_json
