@@ -20,6 +20,15 @@ _targets = import_module(_core_name + '.targets')
 get_target = _targets.get_target
 validate_for_target = _targets.validate_for_target
 
+_components = import_module(_core_name + '.components')
+AttachmentMode = _components.AttachmentMode
+ComponentKind = _components.ComponentKind
+ComponentRecord = _components.ComponentRecord
+PhysicsIntent = _components.PhysicsIntent
+component_document = _components.component_document
+component_from_document = _components.component_from_document
+validate_component = _components.validate_component
+
 _modification = import_module(_core_name + '.modification')
 ModifyAssetSnapshot = _modification.AssetSnapshot
 AnimationSnapshot = _modification.AnimationSnapshot

@@ -108,11 +108,60 @@ def component_document(record):
     }
 
 
+def component_from_document(document):
+    """Parse and validate a portable component persistence document."""
+    if not isinstance(document, dict):
+        raise TypeError("component document must be a mapping")
+    parameters = document.get("parameters", {})
+    ownership = document.get("ownership", {})
+    physics_document = document.get("physics")
+    if not isinstance(parameters, dict):
+        raise TypeError("component parameters must be a mapping")
+    if not isinstance(ownership, dict):
+        raise TypeError("component ownership must be a mapping")
+    if physics_document is not None and not isinstance(physics_document, dict):
+        raise TypeError("component physics must be a mapping or null")
+
+    physics = None
+    if physics_document is not None:
+        physics_parameters = physics_document.get("parameters", {})
+        if not isinstance(physics_parameters, dict):
+            raise TypeError("physics parameters must be a mapping")
+        physics = PhysicsIntent(
+            mode=physics_document.get("mode", ""),
+            parameters=tuple(physics_parameters.items()),
+        )
+
+    try:
+        kind = ComponentKind(document.get("kind"))
+    except (TypeError, ValueError):
+        raise ValueError("unsupported component kind") from None
+    try:
+        attachment_mode = AttachmentMode(document.get("attachment_mode"))
+    except (TypeError, ValueError):
+        raise ValueError("unsupported component attachment mode") from None
+
+    record = ComponentRecord(
+        component_id=document.get("component_id", ""),
+        kind=kind,
+        provider_key=document.get("provider_key", ""),
+        attachment_target=document.get("attachment_target", ""),
+        attachment_mode=attachment_mode,
+        parameters=tuple(parameters.items()),
+        physics=physics,
+        owns_geometry=ownership.get("geometry", True),
+        owns_materials=ownership.get("materials", True),
+        owns_rig=ownership.get("rig", False),
+    )
+    return validate_component(record)
+
+
 __all__ = [
     "AttachmentMode",
     "ComponentKind",
     "ComponentRecord",
     "PhysicsIntent",
     "component_document",
+    "component_from_document",
     "validate_component",
 ]
