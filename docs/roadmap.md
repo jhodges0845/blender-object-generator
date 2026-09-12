@@ -64,8 +64,9 @@ Recent Human quality work:
 - [x] Human semantic profiles for torso, shoulders, head, face, jaw, cheeks, arms, and legs;
 - [x] increased generated head profile resolution;
 - [x] neutral facial planes for chin, mouth, nose, eye recess, brow, and forehead;
-- [x] front/side Blender review confirming the head and face foundation is improving;
-- [ ] strengthen reusable facial landmarks enough for recognizable character shaping without hard-coding a named character;
+- [x] strengthened neutral facial landmarks for nose bridge/tip, mouth/lips, eye recess, brow, chin, jaw taper, and cheek breadth;
+- [x] front/side Blender review confirming the earlier head and face passes improved the base;
+- [ ] visually review the strengthened landmark pass before deciding whether further base-face geometry is justified;
 - [ ] continue body/hand silhouette refinement where visual review shows a real limitation.
 
 ## Quadruped provider — foundation complete
@@ -120,6 +121,22 @@ Still required for the richer product goal:
 - [ ] add provider/component persistence, ownership, inspection, and safe apply rules before making those component operations executable;
 - [ ] validate generic Avian -> specific bird and generic Human -> specific character workflows end-to-end at useful visual quality.
 
+## Performance and test-health checkpoint
+
+A dedicated performance/test audit was opened after the recent rich-Modify and Human geometry growth. See `docs/performance-test-audit.md`.
+
+Current findings/actions:
+
+- [x] identified duplicated CI discovery/execution: Python jobs were discovering Blender tests and Blender jobs were re-running the complete core suite;
+- [x] scope standalone Python jobs to `tests/core` and Blender jobs to `tests/blender` while retaining all six required matrix checks;
+- [x] add an `object_core` line-coverage report on Python 3.12 to establish a quantitative baseline without imposing an arbitrary threshold;
+- [x] confirm rich Modify inspection remains operator-triggered rather than Blender panel redraw-triggered;
+- [ ] compare CI durations across several PRs after the suite split;
+- [ ] profile representative Human/Avian generation and Modify inspection/apply latency before changing preservation checks;
+- [ ] add informational performance instrumentation only where measurements are stable enough to avoid flaky CI.
+
+The audit found no evidence that tracked repository size or committed binaries are the main slowdown. The verified immediate issue is redundant CI work; richer geometry/inspection cost is the next profiling target.
+
 ## Hair, clothing, accessories, and physics direction
 
 Hair and clothing are not ordinary Human body-geometry edits. They should be separate attachable components because they can have their own geometry, materials, rigging/weights, collision, and optional dynamics.
@@ -162,10 +179,10 @@ Current order:
 2. [x] Complete preservation-aware Modify transport, external file handoff, and persistent semantic patch architecture.
 3. [x] Complete structural Asset Assistant UI organization.
 4. [x] Implement Avian semantic geometry apply and Human semantic geometry apply.
-5. [ ] Finish the current Human reusable facial/base-geometry refinement checkpoint.
+5. [ ] Finish the current Human reusable facial/base-geometry refinement checkpoint with visual confirmation of the strengthened landmark pass.
 6. [ ] Define and implement first-class component architecture for hair/clothing/accessories without baking physics into Human body semantics.
 7. [ ] Re-run end-to-end Avian and Human external Modify proofs at the intended visual-quality bar.
-8. [ ] Run full cross-provider regression, preservation, architecture, docs, and test-coverage audit.
+8. [ ] Run full cross-provider regression, preservation, architecture, docs, and final test-coverage audit, using the new coverage baseline and CI timing evidence.
 9. [ ] Resume final release hardening and clean packaged-install smoke test in Blender 5.2.1.
 10. [ ] Make an explicit version/tag decision and publish a public alpha only when approved.
 
