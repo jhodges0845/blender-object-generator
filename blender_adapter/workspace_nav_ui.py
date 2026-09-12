@@ -3,9 +3,9 @@
 
 Blender's standard UI API deliberately uses the active theme color for selected
 buttons, so add-ons cannot safely assign an arbitrary background color per tab.
-We keep the navigation Blender-native while giving every workspace a distinct
-icon and a stronger selected state. This preserves theme compatibility and all
-existing workflow behavior.
+We keep the navigation Blender-native while making each workspace read like a
+larger two-line card: centered icon above centered label, with a stronger active
+state and more breathing room.
 """
 
 _WORKSPACES = (
@@ -17,18 +17,31 @@ _WORKSPACES = (
 
 
 def _draw_workspace_nav(layout, settings):
-    """Draw the four workflow tabs with stable, recognizable iconography."""
-    row = layout.row(align=True)
-    row.scale_y = 1.55
-    active = settings.asset_assistant_workspace
+    """Draw four large workspace cards with icons centered above their labels."""
+    cards = layout.row(align=True)
+    cards.scale_y = 1.0
+
     for key, label, icon in _WORKSPACES:
-        text = label if active != key else "  " + label
-        row.prop_enum(
+        card = cards.column(align=True)
+        card.scale_x = 1.12
+
+        icon_button = card.row(align=True)
+        icon_button.scale_y = 1.9
+        icon_button.prop_enum(
             settings,
             "asset_assistant_workspace",
             key,
-            text=text,
+            text="",
             icon=icon,
+        )
+
+        label_button = card.row(align=True)
+        label_button.scale_y = 1.2
+        label_button.prop_enum(
+            settings,
+            "asset_assistant_workspace",
+            key,
+            text=label,
         )
 
 
