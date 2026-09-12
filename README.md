@@ -12,7 +12,7 @@ Licensed under **GPL-3.0-or-later**. Redistribution and modification are permitt
 
 ## Blender workflow
 
-Blender 5.2.1 LTS is the primary modern test target; Blender 2.92.0 remains a tested legacy runtime. CI covers both, plus standalone Python 3.9-3.12.
+Blender 5.2.1 is the supported Blender runtime and the required integration-test target. Blender 2.92.0 is no longer a supported runtime; current development is allowed to use modern Blender behavior without carrying legacy 2.92 compatibility constraints. Standalone CI continues to cover Python 3.9-3.12.
 
 The 3D Viewport sidebar has five workflow tabs:
 
@@ -84,7 +84,7 @@ Presets are slim, average, muscular, overweight, and obese. They are artistic co
 python -m unittest discover -s tests -v
 ```
 
-Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 2.92.0 and 5.2.1, including deforming providers, workflow, validation, export, and isolated packaged-add-on coverage. Blender runtimes are cached between CI runs.
+Ordinary Python discovery runs core tests and skips Blender-only integration tests. CI additionally runs the suite inside Blender 5.2.1, including deforming providers, workflow, validation, export, and isolated packaged-add-on coverage. The Blender runtime is cached between CI runs.
 
 Human coverage verifies deformable topology across presets and height extremes, representative joint deformation, generated surface/texture preparation, animation coexistence/switching and target export behavior. Quadruped coverage verifies deterministic connected geometry, quadruped rig/weights, parent-child deformation blends, real Blender surface deformation, Idle/Walk/Run generation, UV completeness, generated texture/material preparation and generic provider workflow integration. Avian coverage verifies deterministic connected geometry, rigging/skinning, wing/tail deformation, UV/material preparation, Idle/Flight generation, capability isolation, and representative Godot/Unity export packaging.
 
