@@ -3,15 +3,27 @@
 
 import json
 
-from .modification import ModificationRequest
+from .modification import ModificationRequest, SemanticOperation
+from .objects import get_provider
 
 
-INSPECTION_SCHEMA = "asset-assistant.modify-inspection/v1"
-REQUEST_SCHEMA = "asset-assistant.modify-request/v1"
+INSPECTION_SCHEMA = "asset-assistant.modify-inspection/v2"
+REQUEST_SCHEMA = "asset-assistant.modify-request/v2"
+LEGACY_REQUEST_SCHEMA = "asset-assistant.modify-request/v1"
 
 
 def inspection_document(snapshot):
     """Return a JSON-serializable inspection document for an Asset Assistant snapshot."""
+    provider = get_provider(snapshot.provider_key)
+    targets = [
+        {
+            "key": target.key,
+            "label": target.label,
+            "kind": target.kind,
+            "operations": list(target.operations),
+        }
+        for target in getattr(provider, "semantic_targets", ())
+    ]
     return {
         "schema": INSPECTION_SCHEMA,
         "asset": {
@@ -23,6 +35,7 @@ def inspection_document(snapshot):
                 {"clip_id": clip.clip_id, "export_name": clip.export_name}
                 for clip in snapshot.animations
             ],
+            "semantic_targets": targets,
             "components": {
                 "has_rig": snapshot.has_rig,
                 "has_materials": snapshot.has_materials,
@@ -40,6 +53,7 @@ def inspection_document(snapshot):
             "provider_key": snapshot.provider_key,
             "parameter_changes": {},
             "animation_export_names": {},
+            "semantic_operations": [],
             "notes": "Describe intended changes here if useful; Asset Assistant ignores notes during apply.",
         },
     }
@@ -49,11 +63,33 @@ def inspection_json(snapshot):
     return json.dumps(inspection_document(snapshot), indent=2, sort_keys=True) + "\n"
 
 
+def _semantic_operations(document):
+    raw = document.get("semantic_operations", [])
+    if not isinstance(raw, list):
+        raise TypeError("semantic_operations must be a JSON array")
+    result = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            raise TypeError("semantic_operations[" + str(index) + "] must be a JSON object")
+        operation = item.get("operation")
+        target = item.get("target")
+        arguments = item.get("arguments", {})
+        if not isinstance(operation, str) or not operation.strip():
+            raise ValueError("semantic operation name must be a nonempty string")
+        if not isinstance(target, str) or not target.strip():
+            raise ValueError("semantic operation target must be a nonempty string")
+        if not isinstance(arguments, dict):
+            raise TypeError("semantic operation arguments must be a JSON object")
+        result.append(SemanticOperation(operation.strip(), target.strip(), tuple(arguments.items())))
+    return tuple(result)
+
+
 def request_from_document(document, snapshot):
     """Validate a returned request document against the currently inspected asset."""
     if not isinstance(document, dict):
         raise TypeError("Modify request file must contain a JSON object")
-    if document.get("schema") != REQUEST_SCHEMA:
+    schema = document.get("schema")
+    if schema not in (REQUEST_SCHEMA, LEGACY_REQUEST_SCHEMA):
         raise ValueError("Unsupported Modify request schema")
     if document.get("asset_id") != snapshot.asset_id:
         raise ValueError("Modify request targets a different Asset Assistant asset")
@@ -67,9 +103,11 @@ def request_from_document(document, snapshot):
     if not isinstance(animation_names, dict):
         raise TypeError("animation_export_names must be a JSON object")
 
+    semantic = () if schema == LEGACY_REQUEST_SCHEMA else _semantic_operations(document)
     return ModificationRequest(
         parameter_changes=tuple(parameter_changes.items()),
         animation_export_names=tuple(animation_names.items()),
+        semantic_operations=semantic,
     )
 
 
