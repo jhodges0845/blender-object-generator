@@ -16,9 +16,19 @@ from .components import (
     component_from_document,
     validate_component,
 )
+from .animations import (
+    AnimationRecord,
+    AnimationSource,
+    RootMotionIntent,
+    animation_document,
+    animation_from_document,
+    validate_animation,
+)
 
 __all__ = ["BodyType", "HumanoidSpec", "HumanoidProportions", "ObjectMesh",
            "MeshPart", "Bone", "Skeleton", "generate_proportions", "generate_mesh",
            "generate_skeleton", "OBJECT_TYPES", "get_provider", "AttachmentMode",
            "ComponentKind", "ComponentRecord", "PhysicsIntent", "RigBinding",
-           "component_document", "component_from_document", "validate_component"]
+           "component_document", "component_from_document", "validate_component",
+           "AnimationRecord", "AnimationSource", "RootMotionIntent",
+           "animation_document", "animation_from_document", "validate_animation"]
