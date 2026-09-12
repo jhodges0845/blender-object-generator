@@ -55,6 +55,38 @@ def _decorate_panel(panel_type, stage_label, stage_icon):
     panel_type.draw = draw_with_shell
 
 
+def _draw_component_actions(box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory):
+    """Group existing component operators by artist intent without changing their behavior."""
+    generated = box.box()
+    generated.label(text="Add Generated Component", icon="ADD")
+    if target is None:
+        generated.label(text="Choose or create a base asset first.", icon="INFO")
+
+    if hair_component_ui is not None:
+        row = generated.row()
+        row.enabled = target is not None
+        row.operator("asset_assistant.generate_hair_shell", text="Hair", icon="OUTLINER_OB_MESH")
+    if clothing_component_ui is not None:
+        row = generated.row()
+        row.enabled = target is not None and clothing_component_ui._supports_shirt(target)
+        row.operator("asset_assistant.generate_basic_shirt", text="Shirt", icon="MOD_CLOTH")
+    row = generated.row()
+    row.enabled = target is not None
+    row.operator("asset_assistant.generate_ring_component", text="Ring / Bracelet", icon="MESH_TORUS")
+    if self_rigged_accessory is not None:
+        row = generated.row()
+        row.enabled = target is not None
+        row.operator("asset_assistant.generate_self_rigged_accessory", text="Self-Rigged Accessory", icon="ARMATURE_DATA")
+
+    imported = box.box()
+    imported.label(text="Bring Your Own Component", icon="IMPORT")
+    row = imported.row()
+    row.enabled = target is not None
+    row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected Mesh", icon="IMPORT")
+    imported.label(text="Choose attachment and behavior in the adoption dialog.")
+    imported.label(text="Existing geometry and artist materials remain yours.")
+
+
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
             animation_adoption_ui=None, self_rigged_accessory=None):
@@ -104,25 +136,11 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                 layout = panel.layout
                 layout.separator()
                 box = layout.box()
-                box.label(text="Reusable components")
+                box.label(text="Components", icon="OUTLINER_COLLECTION")
+                box.label(text="Build the asset in separate editable pieces.")
                 target = getattr(context.scene.humanoid_settings, "target", None)
-                if target is None:
-                    box.label(text="Choose or generate a base asset first.")
-                if hair_component_ui is not None:
-                    row = box.row(); row.enabled = target is not None
-                    row.operator("asset_assistant.generate_hair_shell", text="Generate Hair Shell", icon="OUTLINER_OB_MESH")
-                if clothing_component_ui is not None:
-                    row = box.row(); row.enabled = target is not None and clothing_component_ui._supports_shirt(target)
-                    row.operator("asset_assistant.generate_basic_shirt", text="Generate Basic Shirt", icon="MOD_CLOTH")
-                row = box.row(); row.enabled = target is not None
-                row.operator("asset_assistant.generate_ring_component", text="Generate Ring / Bracelet", icon="MESH_TORUS")
-                if self_rigged_accessory is not None:
-                    row = box.row(); row.enabled = target is not None
-                    row.operator("asset_assistant.generate_self_rigged_accessory", text="Generate Self-Rigged Accessory", icon="ARMATURE_DATA")
-                row = box.row(); row.enabled = target is not None
-                row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected External Mesh", icon="IMPORT")
-                box.label(text="Pick behavior and attachment in the dialog.")
-                box.label(text="Hair, clothing and accessories stay separate from the body.")
+                _draw_component_actions(
+                    box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory)
 
             draw_generate_with_components._asset_assistant_components = True
             ui.HUMANOID_PT_panel.draw = draw_generate_with_components
@@ -135,8 +153,11 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                 layout = panel.layout
                 layout.separator()
                 box = layout.box()
-                box.label(text="Continue existing work")
-                box.operator("asset_assistant.open_editable_checkpoint", text="Open Editable Checkpoint (.blend)", icon="FILE_FOLDER")
+                box.label(text="Continue Existing Work", icon="FILE_FOLDER")
+                box.label(text="Resume an Asset Assistant working file without rebuilding it.")
+                action = box.row()
+                action.scale_y = 1.15
+                action.operator("asset_assistant.open_editable_checkpoint", text="Open Editable Checkpoint (.blend)", icon="FILE_FOLDER")
                 status = context.scene.get("asset_assistant_working_state_status")
                 message = context.scene.get("asset_assistant_working_state_message")
                 if status and message:
