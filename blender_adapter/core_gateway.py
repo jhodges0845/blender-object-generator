@@ -23,6 +23,7 @@ validate_for_target = _targets.validate_for_target
 _modification = import_module(_core_name + '.modification')
 ModifyAssetSnapshot = _modification.AssetSnapshot
 AnimationSnapshot = _modification.AnimationSnapshot
+SemanticOperation = _modification.SemanticOperation
 ModificationRequest = _modification.ModificationRequest
 ModificationPlan = _modification.ModificationPlan
 plan_modification = _modification.plan_modification
