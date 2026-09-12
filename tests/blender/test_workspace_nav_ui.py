@@ -35,24 +35,16 @@ class _Layout(_Node):
     pass
 
 
-def test_workspace_tabs_are_large_stacked_cards_with_distinct_icons():
+def test_workspace_tabs_use_one_icon_and_label_button_each():
     layout = _Layout()
     workspace_nav_ui._draw_workspace_nav(layout, _Settings())
 
-    cards = layout.children[0]
-    assert len(cards.children) == 4
-
-    expected = [
-        ("CREATE", "Create", "USER"),
-        ("ANIMATE", "Animate", "ACTION"),
-        ("COMPONENTS", "Components", "CUBE"),
-        ("EXPORT", "Export", "EXPORT"),
+    row = layout.children[0]
+    assert row.scale_y == 1.65
+    assert row.children == []
+    assert row.calls == [
+        ("asset_assistant_workspace", "CREATE", {"text": "Create", "icon": "USER"}),
+        ("asset_assistant_workspace", "ANIMATE", {"text": "Animate", "icon": "ACTION"}),
+        ("asset_assistant_workspace", "COMPONENTS", {"text": "Components", "icon": "CUBE"}),
+        ("asset_assistant_workspace", "EXPORT", {"text": "Export", "icon": "EXPORT"}),
     ]
-
-    for card, (key, label, icon) in zip(cards.children, expected):
-        assert card.scale_x == 1.12
-        icon_row, label_row = card.children
-        assert icon_row.scale_y == 1.9
-        assert label_row.scale_y == 1.2
-        assert icon_row.calls == [("asset_assistant_workspace", key, {"text": "", "icon": icon})]
-        assert label_row.calls == [("asset_assistant_workspace", key, {"text": label})]
