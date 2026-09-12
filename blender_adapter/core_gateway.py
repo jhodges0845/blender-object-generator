@@ -34,6 +34,8 @@ validate_component = _components.validate_component
 _component_primitives = import_module(_core_name + '.component_primitives')
 hair_shell_mesh = _component_primitives.hair_shell_mesh
 ring_mesh = _component_primitives.ring_mesh
+_human_hair = import_module(_core_name + '.providers.human_hair')
+fit_parent_skinned_hair = _human_hair.fit_parent_skinned_hair
 
 _animations = import_module(_core_name + '.animations')
 AnimationRecord = _animations.AnimationRecord

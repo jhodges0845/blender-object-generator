@@ -68,11 +68,12 @@ We are starting this work now rather than waiting for the manual checkpoint. Kee
 ### First production proofs
 
 1. **Accessory proof implemented:** generated Ring/Bracelet is a separate lightweight component asset with editable radius/thickness, Static/Rigid behavior and root/bone attachment. Imported meshes use the same entry stage and lifecycle. Existing remove/replace, persistence and export paths apply; checkpoint save validates component ownership first.
-2. **Hair low-cost proof active:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length and Static/Rigid behavior. Rigged Humans default to the head bone; unrigged assets fall back to asset-root attachment. It intentionally requires no simulation or extra bones and remains replaceable by richer hair later.
-3. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
-4. **Hair motion tier:** add bone-driven/parent-skinned motion to the same hair component workflow. Physics remains optional and layered later.
-5. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
-6. Only after those proofs, generalize catalog/provider UX.
+2. **Hair low-cost proof implemented:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length and Static/Rigid behavior. Rigged Humans default to the head bone; unrigged assets fall back to asset-root attachment. It requires no simulation or extra bones.
+3. **Hair bone-driven tier active:** rigged Humans can choose Parent-Skinned/Bone-Driven hair. The cap follows `head`; longer rear hair blends through `neck` and `torso`, producing real low-cost deformation during character motion without physics or an extra component rig. Static/Rigid remains available as the cheaper fallback.
+4. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
+5. **Physics hair tier:** optional later enhancement only after the bone-driven path is visually accepted; never required for older-hardware targets.
+6. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
+7. Only after those proofs, generalize catalog/provider UX.
 
 ### Performance rule
 
