@@ -14,12 +14,6 @@ from .animation_records import (
 )
 
 _EXPORT_NAME = "asset_assistant_export_name"
-_GENERATED_KEYS = (
-    "asset_assistant_generated",
-    "asset_assistant_rig",
-    "asset_assistant_rig_id",
-    "asset_assistant_clip",
-)
 
 
 def _rig(root):
@@ -90,19 +84,20 @@ def _record_for_action(
     looping,
     root_motion,
     source_reference,
+    ignored_action=None,
 ):
     rig = _rig(root)
     start, end = action.frame_range
     return AnimationRecord(
         animation_id=animation_id,
         display_name=str(display_name).strip(),
-        export_name=_unique_export_name(root, export_name),
+        export_name=_unique_export_name(root, export_name, ignored_action=ignored_action),
         source=_source(source),
         rig_signature=rig_signature(rig),
         frame_start=float(start),
         frame_end=float(end),
         fps=fps,
-        looping=bool(looping),
+        looping=looping,
         root_motion=_root_motion(root_motion),
         owns_curves=False,
         source_reference=source_reference,
@@ -159,7 +154,7 @@ def managed_actions(root):
 
 
 def exportable_actions(root):
-    """Return first-class Actions plus legacy generated Actions for engine export."""
+    """Return first-class Actions plus legacy generated Actions for later engine export staging."""
     from .animation import generated_actions
 
     managed = list(managed_actions(root))
@@ -234,6 +229,7 @@ def replace_animation_action(
         looping=looping,
         root_motion=root_motion,
         source_reference=source_reference,
+        ignored_action=current,
     )
     # Validate the replacement fully before changing the current clip.
     persist_animation_record(replacement, record)
