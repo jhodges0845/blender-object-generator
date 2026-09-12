@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Editable Asset Assistant working-state checkpoint workflow."""
+"""Editable Asset Assistant working-state checkpoint operator."""
 
 from pathlib import Path
 
@@ -12,7 +12,7 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
     bl_label = "Save Editable Checkpoint"
     bl_description = (
         "Save a complete editable .blend copy without changing the current working file; "
-        "engine export remains a separate workflow"
+        "game and print exports remain separate"
     )
     filename_ext = ".blend"
     filter_glob: bpy.props.StringProperty(default="*.blend", options={"HIDDEN"})
@@ -42,30 +42,7 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
         return {"FINISHED"}
 
 
-class ASSET_ASSISTANT_PT_working_asset(bpy.types.Panel):
-    bl_label = "Working Asset"
-    bl_idname = "ASSET_ASSISTANT_PT_working_asset"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Asset Assistant"
-    bl_order = 5
-    bl_options = {"DEFAULT_CLOSED"}
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="Editable working state")
-        layout.operator(
-            "asset_assistant.save_editable_checkpoint",
-            text="Save Editable Checkpoint (.blend)",
-            icon="FILE_TICK",
-        )
-        layout.label(text="Game/print files belong in Export.")
-
-
-_CLASSES = (
-    ASSET_ASSISTANT_OT_save_editable_checkpoint,
-    ASSET_ASSISTANT_PT_working_asset,
-)
+_CLASSES = (ASSET_ASSISTANT_OT_save_editable_checkpoint,)
 
 
 def register():
@@ -78,9 +55,4 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
-__all__ = [
-    "ASSET_ASSISTANT_OT_save_editable_checkpoint",
-    "ASSET_ASSISTANT_PT_working_asset",
-    "register",
-    "unregister",
-]
+__all__ = ["ASSET_ASSISTANT_OT_save_editable_checkpoint", "register", "unregister"]
