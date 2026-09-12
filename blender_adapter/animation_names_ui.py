@@ -48,7 +48,7 @@ class ASSET_ASSISTANT_OT_rename_animation_clip(bpy.types.Operator):
 
 
 class ASSET_ASSISTANT_PT_animation_names(bpy.types.Panel):
-    bl_label = 'Clip Export Names'
+    bl_label = 'Clip Library'
     bl_idname = 'ASSET_ASSISTANT_PT_animation_names'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -65,13 +65,24 @@ class ASSET_ASSISTANT_PT_animation_names(bpy.types.Panel):
         root = _character(context)
         actions = sorted(generated_actions(root),
                          key=lambda action: str(action.get('asset_assistant_clip') or action.name))
-        layout.label(text='Engine clips use simple names by default.')
+
+        intro = layout.box()
+        intro.label(text='Generated Clips', icon='ACTION')
+        intro.label(text='Each clip stays editable and exports with its own engine name.')
+
         for action in actions:
             clip_name = str(action.get('asset_assistant_clip') or action.name)
-            row = layout.row(align=True)
-            row.label(text=clip_name + ' → ' + clip_export_name(action))
-            button = row.operator('asset_assistant.rename_animation_clip', text='Rename')
+            box = layout.box()
+            title = box.row(align=True)
+            title.label(text=clip_name, icon='ACTION')
+            title.label(text='Ready', icon='CHECKMARK')
+            box.label(text='Export Name: ' + clip_export_name(action))
+            rename = box.row()
+            rename.scale_y = 1.05
+            button = rename.operator('asset_assistant.rename_animation_clip', text='Rename for Export')
             button.clip_name = clip_name
+
+        layout.label(text='Generated curves remain editable in Blender.')
 
 
 _CLASSES = (ASSET_ASSISTANT_OT_rename_animation_clip, ASSET_ASSISTANT_PT_animation_names)
