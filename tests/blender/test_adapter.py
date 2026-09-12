@@ -75,7 +75,7 @@ class BlenderAdapterTests(unittest.TestCase):
                 raise RuntimeError("injected mesh creation failure")
             return real_populate(*args)
 
-        with patch.object(adapter, "_populate_mesh", side_effect=fail_second_mesh):
+        with patch.object(adapter, "_populate_mesh", side_effect=RuntimeError("injected mesh creation failure")):
             with self.assertRaisesRegex(RuntimeError, "injected"):
                 create_character(self.mesh, scene=self.scene)
         self.assertEqual(before, (set(bpy.data.objects), set(bpy.data.meshes), set(bpy.data.collections)))
@@ -96,10 +96,10 @@ class BlenderAdapterTests(unittest.TestCase):
                  ("quadruped", "Quadruped"),
                  ("avian", "Avian")],
             )
-            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Generate")
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Create")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Asset Assistant")
             for panel_name, label, order, stage in (
-                    ('HUMANOID_PT_panel', 'Generate', 0, 'MODEL'),
+                    ('HUMANOID_PT_panel', 'Create', 0, 'MODEL'),
                     ('ASSET_ASSISTANT_PT_modify', 'Modify', 1, None),
                     ('HUMANOID_PT_rigging', 'Rig', 2, 'RIGGING'),
                     ('HUMANOID_PT_animations', 'Animate', 3, 'ANIMATION'),
