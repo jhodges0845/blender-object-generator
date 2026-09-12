@@ -1,15 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Inspect Blender data into the host-independent Modify snapshot contract."""
+"""Inspect Blender data and safely apply approved Modify operations."""
 
 from math import isclose
 
 from .animation import clip_export_name, generated_actions
-from .core import AnimationSnapshot, ModifyAssetSnapshot, canonical_provider_key, get_provider
+from .core import AnimationSnapshot, ModificationPlan, ModifyAssetSnapshot, canonical_provider_key, get_provider
 from .workflow import is_generated
 
 
 _ASSET_ID = "asset_assistant_asset_id"
 _RIG_ID = "asset_assistant_rig_id"
+_EXPORT_NAME = "asset_assistant_export_name"
+_GENERATED_CLIP = "asset_assistant_clip"
 
 
 def _identity_matrix(matrix):
@@ -115,7 +117,7 @@ def _animation_state(root, warnings):
     clips = []
     seen = set()
     for action in actions:
-        clip_id = str(action.get("asset_assistant_clip") or action.name)
+        clip_id = str(action.get(_GENERATED_CLIP) or action.name)
         if clip_id in seen:
             warnings.append("Duplicate generated animation clip identity: " + clip_id)
             return (), True, False
@@ -161,3 +163,56 @@ def inspect_generated_asset(root):
         owns_animations=owns_animations,
         warnings=tuple(warnings),
     )
+
+
+def apply_metadata_modification(root, plan):
+    """Apply an approved metadata-only plan transactionally.
+
+    Destructive provider-parameter regeneration is intentionally not handled here;
+    callers must not silently turn a metadata apply into scene replacement.
+    """
+    if not isinstance(plan, ModificationPlan):
+        raise TypeError("plan must be a ModificationPlan")
+    if plan.blockers:
+        raise ValueError("Modification plan has blockers: " + "; ".join(plan.blockers))
+    if plan.rebuild_components or plan.requested_parameter_changes:
+        raise ValueError("This apply path only supports metadata-only modifications.")
+
+    snapshot = inspect_generated_asset(root)
+    if snapshot.asset_id != plan.asset_id:
+        raise ValueError("Modification plan no longer matches the selected asset.")
+    if snapshot.provider_key != plan.provider_key:
+        raise ValueError("Modification plan provider no longer matches the selected asset.")
+    if plan.requested_animation_renames and not snapshot.owns_animations:
+        raise ValueError("Generated animation ownership is ambiguous; nothing was changed.")
+
+    actions = {str(action.get(_GENERATED_CLIP) or action.name): action
+               for action in generated_actions(root)}
+    requested = dict(plan.requested_animation_renames)
+    missing = [clip_id for clip_id in requested if clip_id not in actions]
+    if missing:
+        raise ValueError("Modification plan references missing generated animation: " + missing[0])
+
+    final_names = {}
+    for clip_id, action in actions.items():
+        final_names[clip_id] = requested.get(clip_id, clip_export_name(action)).strip()
+    if any(not name for name in final_names.values()):
+        raise ValueError("Animation export name cannot be empty.")
+    if len(set(final_names.values())) != len(final_names):
+        raise ValueError("Animation export names must remain unique; nothing was changed.")
+
+    previous = {clip_id: action.get(_EXPORT_NAME) for clip_id, action in actions.items()
+                if clip_id in requested}
+    try:
+        for clip_id, export_name in requested.items():
+            actions[clip_id][_EXPORT_NAME] = export_name
+    except Exception:
+        for clip_id, old_value in previous.items():
+            action = actions[clip_id]
+            if old_value is None:
+                if _EXPORT_NAME in action:
+                    del action[_EXPORT_NAME]
+            else:
+                action[_EXPORT_NAME] = old_value
+        raise
+    return inspect_generated_asset(root)
