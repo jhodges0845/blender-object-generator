@@ -16,21 +16,25 @@ from .components import (
 )
 from .core import AttachmentMode, ComponentRecord, component_document, validate_component
 
+_PART_NAME_KEY = "component_part_name"
 
-def _belongs_to_asset(obj, root):
+
+def _asset_owner(obj):
     current = obj
     while current is not None:
-        if current == root:
-            return True
+        if current.get("generator") == "object_generator":
+            return current
         current = current.parent
-    return False
+    return None
 
 
 def adopt_rigid_component(root, mesh_object, record, *, name=None):
     """Transfer one existing Blender mesh into an owned rigid component.
 
-    Adoption is explicit ownership transfer: the mesh is not copied. Once adopted,
-    the normal component remove/replace lifecycle may delete or replace it.
+    Adoption is an explicit ownership transfer: the mesh object and mesh datablock
+    are not copied. Once adopted, normal component remove/replace operations may
+    delete them. Materials remain artist-owned in this first adoption path so a
+    shared material cannot be deleted merely because one component was removed.
     """
     import bpy
 
@@ -42,10 +46,17 @@ def adopt_rigid_component(root, mesh_object, record, *, name=None):
         raise ValueError("rigid components must not own rig data")
     if not record.owns_geometry:
         raise ValueError("adopted rigid components must own their geometry")
+    if record.owns_materials:
+        raise ValueError("imported rigid adoption does not claim material ownership")
     if mesh_object is None or mesh_object.type != "MESH":
         raise ValueError("adoption requires one Blender mesh object")
-    if mesh_object == root or _belongs_to_asset(mesh_object, root):
-        raise ValueError("mesh is already part of the owning Asset Assistant asset")
+    owner = _asset_owner(mesh_object)
+    if owner is not None:
+        raise ValueError("mesh is already part of an Asset Assistant asset")
+    if mesh_object.children:
+        raise ValueError("adoption currently requires a mesh with no child objects")
+    if any(modifier.type == "ARMATURE" for modifier in mesh_object.modifiers):
+        raise ValueError("mesh uses an armature modifier; use skinned component adoption instead")
     if mesh_object.get(_COMPONENT_ID_KEY):
         raise ValueError("mesh is already registered as an Asset Assistant component")
     if any(item.component_id == record.component_id for item in component_records(root)):
@@ -61,6 +72,10 @@ def adopt_rigid_component(root, mesh_object, record, *, name=None):
     previous_parent_type = mesh_object.parent_type
     previous_parent_bone = mesh_object.parent_bone
     previous_world = mesh_object.matrix_world.copy()
+    had_component_id = _COMPONENT_ID_KEY in mesh_object
+    previous_component_id = mesh_object.get(_COMPONENT_ID_KEY)
+    had_part_name = _PART_NAME_KEY in mesh_object
+    previous_part_name = mesh_object.get(_PART_NAME_KEY)
     document = component_document(record)
     component_root = None
     try:
@@ -76,7 +91,7 @@ def adopt_rigid_component(root, mesh_object, record, *, name=None):
         mesh_object.parent_bone = ""
         mesh_object.matrix_world = previous_world
         mesh_object[_COMPONENT_ID_KEY] = record.component_id
-        mesh_object["component_part_name"] = mesh_object.name
+        mesh_object[_PART_NAME_KEY] = mesh_object.name
 
         documents = _documents(root)
         documents.append(document)
@@ -89,10 +104,16 @@ def adopt_rigid_component(root, mesh_object, record, *, name=None):
                 del root[_COMPONENTS_KEY]
         else:
             root[_COMPONENTS_KEY] = previous_registry
-        if _COMPONENT_ID_KEY in mesh_object:
+
+        if had_component_id:
+            mesh_object[_COMPONENT_ID_KEY] = previous_component_id
+        elif _COMPONENT_ID_KEY in mesh_object:
             del mesh_object[_COMPONENT_ID_KEY]
-        if "component_part_name" in mesh_object:
-            del mesh_object["component_part_name"]
+        if had_part_name:
+            mesh_object[_PART_NAME_KEY] = previous_part_name
+        elif _PART_NAME_KEY in mesh_object:
+            del mesh_object[_PART_NAME_KEY]
+
         mesh_object.parent = previous_parent
         mesh_object.parent_type = previous_parent_type
         mesh_object.parent_bone = previous_parent_bone
