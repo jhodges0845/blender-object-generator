@@ -89,22 +89,19 @@ def _walk(node):
         yield from _walk(child)
 
 
-def test_create_generate_uses_four_tall_asset_tiles_and_primary_action():
+def test_create_generate_uses_four_unified_asset_buttons_and_primary_action():
     panel = _Panel()
     workspace_create_ui._draw_generate(panel, _Context(), _UI(), working_asset_ui=object())
 
     nodes = list(_walk(panel.layout))
-    enums = [call for node in nodes for call in node.enums]
-    asset_enums = [call for call in enums if call[0] == "object_type"]
-    assert [call[1] for call in asset_enums] == [
-        "human_experimental", "human_experimental",
-        "quadruped", "quadruped",
-        "avian", "avian",
-        "box", "box",
+    asset_rows = [node for node in nodes if node.scale_y == 2.25 and node.enums]
+    assert len(asset_rows) == 1
+    assert asset_rows[0].enums == [
+        ("object_type", "human_experimental", {"text": "Human", "icon": "USER"}),
+        ("object_type", "quadruped", {"text": "Human", "icon": "ARMATURE_DATA"}),
+        ("object_type", "avian", {"text": "Human", "icon": "OUTLINER_OB_MESH"}),
+        ("object_type", "box", {"text": "Human", "icon": "CUBE"}),
     ]
-
-    icon_rows = [node for node in nodes if node.scale_y == 2.4 and node.enums]
-    assert len(icon_rows) == 4
 
     action_rows = [node for node in nodes if node.scale_y == 2.0 and node.operators]
     assert len(action_rows) == 1
