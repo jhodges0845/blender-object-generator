@@ -95,6 +95,12 @@ jobs:
             --background --factory-startup --python-exit-code 1 \
             --python scripts/test_blender.py
 
+      - name: Test real component save/reopen
+        run: |
+          "$HOME/.cache/asset-assistant/blender/${{ matrix.directory }}/blender" \
+            --background --factory-startup --python-exit-code 1 \
+            --python scripts/test_component_reopen.py
+
       - name: Build Asset Assistant release ZIP
         run: python -m scripts.build_blender_addon
 
