@@ -31,6 +31,14 @@ def asset_objects(root):
     return tuple(result)
 
 
+def base_asset_rig(root):
+    """Return the base asset armature without confusing component-owned rigs for it."""
+    rigs = [child for child in root.children if child.type == 'ARMATURE'] if root is not None else []
+    if len(rigs) != 1:
+        return None
+    return rigs[0]
+
+
 def _is_generated_texture(image):
     """Recognize owned generated images without depending on Blender source state."""
     return image.source == 'GENERATED' or bool(image.get(_GENERATED_TEXTURE_MARKER, False))
@@ -47,8 +55,8 @@ def _stage_generated_animation_tracks(root):
     """
     from .animation import clip_export_name, generated_actions
 
-    rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
-    if len(rigs) != 1:
+    rig = base_asset_rig(root)
+    if rig is None:
         yield False
         return
     actions = generated_actions(root)
@@ -56,7 +64,6 @@ def _stage_generated_animation_tracks(root):
         yield False
         return
 
-    rig = rigs[0]
     data = rig.animation_data_create()
     if data.nla_tracks or data.drivers:
         raise RuntimeError('Existing NLA tracks or drivers are preserved; prepare them manually before multi-clip export.')
@@ -85,15 +92,9 @@ def _export_gltf(options, root):
     import bpy
     options = dict(options)
     properties = bpy.ops.export_scene.gltf.get_rna_type().properties
-    # Blender 2.92 scopes selected objects without this newer scene option.
     if 'use_active_scene' not in properties:
         options.pop('use_active_scene', None)
     with _stage_generated_animation_tracks(root) as staged:
-        # Current Blender can name exported animations from the temporary NLA
-        # tracks, which lets engine-facing names stay simple/editable even though
-        # Blender action data-block names must remain globally unique. Blender
-        # 2.92 has no animation-mode option; export_nla_strips handles the same
-        # temporary one-strip-per-track organization there.
         if 'export_animation_mode' in properties:
             options['export_animation_mode'] = 'NLA_TRACKS' if staged else 'ACTIONS'
         return bpy.ops.export_scene.gltf(**options)
@@ -396,20 +397,15 @@ class UnrealAdapter(FBXAdapter):
             return bpy.ops.export_scene.fbx(**options)
         if mode == 'clip':
             objects = [obj for obj in asset_objects(root) if obj.type in ('MESH', 'ARMATURE')]
-            rigs = [obj for obj in objects if obj.type == 'ARMATURE']
-            if len(rigs) != 1:
-                raise RuntimeError('Unreal animation export requires exactly one armature.')
-            rig = rigs[0]
+            rig = base_asset_rig(root)
+            if rig is None:
+                raise RuntimeError('Unreal animation export requires exactly one base asset armature.')
             for obj in tuple(context.selected_objects):
                 obj.select_set(False)
             for obj in objects:
                 obj.select_set(True)
             context.view_layer.objects.active = rig
             options = dict(options)
-            # Unreal 5.8 Interchange currently treats Blender armature-only FBXs
-            # as empty in animation-only mode. Keep the same skinned mesh/skeleton
-            # hierarchy as the successful model FBX so the importer can classify
-            # the source, while the user still imports only the AnimationSequence.
             options['object_types'] = {'MESH', 'ARMATURE'}
             options['path_mode'] = 'AUTO'
             options['embed_textures'] = False
@@ -417,14 +413,7 @@ class UnrealAdapter(FBXAdapter):
         return super().write(options, root, context)
 
     def export(self, root, context, filepath):
-        """Write an Unreal skeletal mesh FBX plus one FBX per generated clip.
-
-        Unity can consume multiple FBX takes from one file, but Unreal's standard
-        skeletal-animation workflow expects one animation per FBX. Each generated
-        clip sidecar carries the same skinned mesh/skeleton hierarchy as the model
-        plus one active action; Unreal imports it with Import Only Animations
-        against the skeleton created from the model FBX.
-        """
+        """Write an Unreal skeletal mesh FBX plus one FBX per generated clip."""
         from .animation import clip_export_name, generated_actions
 
         actions = tuple(sorted(generated_actions(root), key=clip_export_name))
@@ -443,10 +432,9 @@ class UnrealAdapter(FBXAdapter):
             return ExportResult(False, str(model_path), (ValidationIssue(
                 'export_path', 'ERROR', 'Choose a new Unreal output name; model or animation bundle files already exist.'),))
 
-        rigs = [obj for obj in asset_objects(root) if obj.type == 'ARMATURE']
-        if len(rigs) != 1:
+        rig = base_asset_rig(root)
+        if rig is None:
             return super().export(root, context, filepath)
-        rig = rigs[0]
         data = rig.animation_data_create()
         previous_action = data.action
         previous_slot = getattr(data, 'action_slot', None)

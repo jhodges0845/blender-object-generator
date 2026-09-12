@@ -24,7 +24,8 @@ from blender_adapter.animation import (
     set_clip_export_name,
 )
 from blender_adapter.materials import prepare_materials
-from blender_adapter.targets import asset_objects, get_adapter
+from blender_adapter.self_rigged_accessory import create_self_rigged_gauntlet
+from blender_adapter.targets import _stage_generated_animation_tracks, asset_objects, get_adapter
 from blender_adapter.workflow import add_basic_rig
 from object_core.objects import get_provider
 
@@ -116,6 +117,25 @@ class AnimationExportTests(unittest.TestCase):
 
         self.assertNotIn(stale, owned)
         self.assertEqual({action.get('asset_assistant_clip') for action in owned}, {'Idle', 'Walk'})
+
+    def test_component_owned_rig_does_not_disable_base_clip_staging(self):
+        active = self._generate_library()
+        component_root, _record = create_self_rigged_gauntlet(self.root)
+        component_rig = next(child for child in component_root.children if child.type == 'ARMATURE')
+        component_action = component_rig.animation_data.action
+        self.assertIsNotNone(component_action)
+        self.assertTrue(component_action.get('asset_assistant_component_animation'))
+        self.assertEqual(2, len([obj for obj in asset_objects(self.root) if obj.type == 'ARMATURE']))
+
+        with _stage_generated_animation_tracks(self.root) as staged:
+            self.assertTrue(staged)
+            self.assertEqual({'Idle', 'Walk'}, {track.name for track in self.rig.animation_data.nla_tracks})
+            self.assertIs(component_rig.animation_data.action, component_action)
+            self.assertEqual(0, len(component_rig.animation_data.nla_tracks))
+
+        self.assertIs(self.rig.animation_data.action, active)
+        self.assertEqual(0, len(self.rig.animation_data.nla_tracks))
+        self.assertIs(component_rig.animation_data.action, component_action)
 
     def test_all_generated_clips_are_exported_to_glb(self):
         active = self._generate_library()
