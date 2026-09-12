@@ -9,7 +9,7 @@ operator identifiers remain untouched for saved files and scripts.
 _CATEGORY = "Asset Assistant"
 
 
-def prepare(ui, modify_ui, animation_names_ui):
+def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None):
     """Place workflow panels under one ordered Asset Assistant sidebar tab."""
     panels = (
         (ui.HUMANOID_PT_panel, "Generate", 0),
@@ -37,3 +37,25 @@ def prepare(ui, modify_ui, animation_names_ui):
     # This remains a child of Animate, but keep its declared category aligned so
     # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
+
+    # Editable working-state checkpoints belong in Export, but are not engine
+    # destination targets. Append one independent .blend action to the existing
+    # Export panel instead of adding another sidebar section or target adapter.
+    if working_asset_ui is not None:
+        original_draw = ui.HUMANOID_PT_export.draw
+        if not getattr(original_draw, "_asset_assistant_checkpoint_action", False):
+            def draw_with_checkpoint(panel, context):
+                original_draw(panel, context)
+                layout = panel.layout
+                layout.separator()
+                box = layout.box()
+                box.label(text="Editable working state")
+                box.operator(
+                    "asset_assistant.save_editable_checkpoint",
+                    text="Save Editable Checkpoint (.blend)",
+                    icon="FILE_TICK",
+                )
+                box.label(text="Preserves the full Blender editing state.")
+
+            draw_with_checkpoint._asset_assistant_checkpoint_action = True
+            ui.HUMANOID_PT_export.draw = draw_with_checkpoint
