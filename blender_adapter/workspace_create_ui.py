@@ -20,6 +20,7 @@ _CREATE_MODES = (
 
 _WORKFLOW_UI = None
 _ORIGINAL_ASSET_SUMMARY = None
+_ASSET_INSPECTION_UI = None
 
 
 def _draw_create_mode_nav(layout, settings):
@@ -51,20 +52,28 @@ def _draw_asset_tiles(layout, settings, ui):
         )
 
 
-def _draw_start_options(layout, working_asset_ui):
-    """Show the continue-existing path before asking the artist to generate anything."""
-    if working_asset_ui is None:
+def _draw_start_options(layout, context, working_asset_ui):
+    """Show artist-owned and saved-asset paths before generation."""
+    if working_asset_ui is None and _ASSET_INSPECTION_UI is None:
         return
     start = layout.box()
     start.label(text="START WITH", icon="FILE_FOLDER")
-    start.label(text="Continue an existing asset, or build a new one below")
+    start.label(text="Continue existing work, inspect a selected asset, or build new")
     row = start.row(align=True)
     row.scale_y = 1.45
-    row.operator(
-        "asset_assistant.open_editable_checkpoint",
-        text="Open Existing Asset",
-        icon="FILE_FOLDER",
-    )
+    if working_asset_ui is not None:
+        row.operator(
+            "asset_assistant.open_editable_checkpoint",
+            text="Open Existing Asset",
+            icon="FILE_FOLDER",
+        )
+    if _ASSET_INSPECTION_UI is not None:
+        row.operator(
+            "asset_assistant.inspect_selected_asset",
+            text="Inspect Selected",
+            icon="VIEWZOOM",
+        )
+        _ASSET_INSPECTION_UI.draw_inspection_report(start, context.scene)
 
 
 def _draw_generate(panel, context, ui, working_asset_ui):
@@ -73,8 +82,8 @@ def _draw_generate(panel, context, ui, working_asset_ui):
     provider = ui.get_provider(settings.object_type)
     fields = tuple(provider.parameters)
 
-    _draw_start_options(layout, working_asset_ui)
-    if working_asset_ui is not None:
+    _draw_start_options(layout, context, working_asset_ui)
+    if working_asset_ui is not None or _ASSET_INSPECTION_UI is not None:
         layout.separator(factor=0.6)
 
     # One dominant card instead of a stack of equally weighted boxes.
@@ -171,10 +180,11 @@ def _draw_contextual_asset_summary(layout, context):
     _ORIGINAL_ASSET_SUMMARY(layout, context)
 
 
-def install(workflow_ui, ui):
+def install(workflow_ui, ui, asset_inspection_ui=None):
     """Install the Create renderer before Blender registers the settings class."""
-    global _WORKFLOW_UI, _ORIGINAL_ASSET_SUMMARY
+    global _WORKFLOW_UI, _ORIGINAL_ASSET_SUMMARY, _ASSET_INSPECTION_UI
     _WORKFLOW_UI = workflow_ui
+    _ASSET_INSPECTION_UI = asset_inspection_ui
 
     annotations = ui.HUMANOID_PG_settings.__annotations__
     if "asset_assistant_create_advanced" not in annotations:
