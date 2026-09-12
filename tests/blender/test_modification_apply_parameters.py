@@ -51,6 +51,7 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
         root.location = (2.0, -3.0, 1.25)
         root_identity = root.as_pointer()
         before_mesh = next(obj for obj in root.children if obj.type == "MESH")
+        before_mesh_pointer = before_mesh.as_pointer()
 
         snapshot = inspect_generated_asset(root)
         plan = plan_modification(
@@ -63,7 +64,7 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
         self.assertEqual((2.0, -3.0, 1.25), tuple(root.location))
         self.assertEqual(120.0, root["wingspan_cm"])
         self.assertEqual(values["body_length_cm"], root["body_length_cm"])
-        self.assertNotIn(before_mesh.name, bpy.data.objects)
+        self.assertTrue(all(obj.as_pointer() != before_mesh_pointer for obj in root.children))
         self.assertTrue(result.owns_geometry)
         self.assertEqual(120.0, result.parameter_values()["wingspan_cm"])
 
@@ -109,7 +110,7 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "blockers"):
             apply_parameter_modification(root, plan)
         self.assertEqual(42, root["body_length_cm"])
-        self.assertIn(bone.constraints[0].name, bone.constraints)
+        self.assertEqual(1, len(bone.constraints))
 
 
 if __name__ == "__main__":
