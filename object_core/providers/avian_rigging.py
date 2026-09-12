@@ -41,6 +41,25 @@ def generate_avian_skeleton(dimensions):
             Bone("wing.lower." + side, elbow, tip, "wing.upper." + side),
         ))
 
+    # Birds need a ground-contact chain as well as wings. Keep the leg anatomy
+    # provider-specific so shared Blender rigging stays body-plan agnostic.
+    hip_x = width * 0.24
+    hip_y = -length * 0.04
+    hip_z = body_z - height * 0.28
+    knee_z = height * 0.28
+    ankle_z = height * 0.08
+    toe_y = hip_y + length * 0.16
+    for side, sign in (("left", -1.0), ("right", 1.0)):
+        hip = (sign * hip_x, hip_y, hip_z)
+        knee = (sign * hip_x * 1.08, hip_y + length * 0.025, knee_z)
+        ankle = (sign * hip_x * 1.02, hip_y + length * 0.055, ankle_z)
+        toe = (sign * hip_x, toe_y, ankle_z * 0.72)
+        bones.extend((
+            Bone("leg.upper." + side, hip, knee, "spine"),
+            Bone("leg.lower." + side, knee, ankle, "leg.upper." + side),
+            Bone("foot." + side, ankle, toe, "leg.lower." + side),
+        ))
+
     tail_segment = max(tail_length / 2.0, 1.0)
     start = (0, tail_base_y, body_z)
     mid = (0, tail_base_y - tail_segment, body_z + height * 0.04)
