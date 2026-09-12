@@ -23,12 +23,14 @@ bl_info = {
 
 def register():
     from . import (
+        animation_modify_exchange,
         animation_names_ui,
         avian_ui,
         component_adoption_ui,
         component_modify_apply,
         component_modify_exchange,
         cura_scale_ui,
+        modification,
         modify_fastpath,
         modify_ui,
         run_ui,
@@ -43,6 +45,7 @@ def register():
     avian_ui.prepare(ui)
     workflow_ui.prepare(ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui)
     ui_fastpath.install(ui)
+    animation_modify_exchange.install(modification, modify_ui)
     modify_fastpath.install(modify_ui)
     component_modify_exchange.install(modify_ui)
     component_modify_apply.install(modify_ui)

@@ -14,6 +14,7 @@ from .animation_records import (
 )
 
 _EXPORT_NAME = "asset_assistant_export_name"
+_RIG_ID = "asset_assistant_rig_id"
 
 
 def _rig(root):
@@ -104,6 +105,14 @@ def _record_for_action(
     )
 
 
+def _persist_rig_scope(root, action):
+    rig = _rig(root)
+    rig_id = rig.get(_RIG_ID)
+    if not rig_id:
+        raise ValueError("animation lifecycle requires a stable Asset Assistant rig id")
+    action[_RIG_ID] = str(rig_id)
+
+
 def register_animation_action(
     root,
     action,
@@ -133,20 +142,32 @@ def register_animation_action(
         source_reference=source_reference,
     )
     persist_animation_record(action, record)
+    _persist_rig_scope(root, action)
     action[_EXPORT_NAME] = record.export_name
     return record
 
 
 def managed_actions(root):
-    """Return first-class Actions compatible with this Asset Assistant rig."""
+    """Return first-class Actions explicitly associated with this Asset Assistant rig."""
     import bpy
-    signature = rig_signature(_rig(root))
+
+    rig = _rig(root)
+    signature = rig_signature(rig)
+    rig_id = str(rig.get(_RIG_ID) or "").strip()
     result = []
     for action in bpy.data.actions:
         if not has_animation_record(action):
             continue
         record = animation_record(action)
         if record.rig_signature != signature:
+            continue
+        action_rig_id = str(action.get(_RIG_ID) or "").strip()
+        if rig_id:
+            if action_rig_id != rig_id:
+                continue
+        elif action_rig_id:
+            continue
+        elif rig not in _assigned_objects(action):
             continue
         inspect_animation_record(root, action)
         result.append(action)
@@ -190,6 +211,8 @@ def remove_animation(root, animation_id):
         clear_animation_record(action)
         if _EXPORT_NAME in action:
             del action[_EXPORT_NAME]
+        if _RIG_ID in action:
+            del action[_RIG_ID]
     return record
 
 
@@ -233,6 +256,7 @@ def replace_animation_action(
     )
     # Validate the replacement fully before changing the current clip.
     persist_animation_record(replacement, record)
+    _persist_rig_scope(root, replacement)
     replacement[_EXPORT_NAME] = record.export_name
     rig = _rig(root)
     was_active = rig.animation_data is not None and rig.animation_data.action == current
@@ -245,10 +269,14 @@ def replace_animation_action(
             clear_animation_record(current)
             if _EXPORT_NAME in current:
                 del current[_EXPORT_NAME]
+            if _RIG_ID in current:
+                del current[_RIG_ID]
     except Exception:
         clear_animation_record(replacement)
         if _EXPORT_NAME in replacement:
             del replacement[_EXPORT_NAME]
+        if _RIG_ID in replacement:
+            del replacement[_RIG_ID]
         if was_active and current.name in bpy.data.actions:
             rig.animation_data.action = current
         raise
