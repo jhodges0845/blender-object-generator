@@ -25,6 +25,7 @@ def register():
     from . import (
         animation_names_ui,
         avian_ui,
+        component_adoption_ui,
         component_modify_apply,
         component_modify_exchange,
         cura_scale_ui,
@@ -40,7 +41,7 @@ def register():
     # ordered Asset Assistant workflow to artists.
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
-    workflow_ui.prepare(ui, modify_ui, animation_names_ui, working_asset_ui)
+    workflow_ui.prepare(ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui)
     ui_fastpath.install(ui)
     modify_fastpath.install(modify_ui)
     component_modify_exchange.install(modify_ui)
@@ -51,10 +52,20 @@ def register():
     cura_scale_ui.register(ui.HUMANOID_PG_settings)
     modify_ui.register()
     working_asset_ui.register()
+    component_adoption_ui.register()
 
 
 def unregister():
-    from . import animation_names_ui, cura_scale_ui, modify_ui, run_ui, ui, working_asset_ui
+    from . import (
+        animation_names_ui,
+        component_adoption_ui,
+        cura_scale_ui,
+        modify_ui,
+        run_ui,
+        ui,
+        working_asset_ui,
+    )
+    component_adoption_ui.unregister()
     working_asset_ui.unregister()
     modify_ui.unregister()
     cura_scale_ui.unregister(ui.HUMANOID_PG_settings)

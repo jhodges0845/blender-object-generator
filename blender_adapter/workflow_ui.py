@@ -9,7 +9,7 @@ operator identifiers remain untouched for saved files and scripts.
 _CATEGORY = "Asset Assistant"
 
 
-def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None):
+def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_adoption_ui=None):
     """Place workflow panels under one ordered Asset Assistant sidebar tab."""
     panels = (
         (ui.HUMANOID_PT_panel, "Generate", 0),
@@ -37,6 +37,25 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None):
     # This remains a child of Animate, but keep its declared category aligned so
     # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
+
+    if component_adoption_ui is not None:
+        original_modify_draw = modify_ui.ASSET_ASSISTANT_PT_modify.draw
+        if not getattr(original_modify_draw, "_asset_assistant_component_adoption", False):
+            def draw_modify_with_component_adoption(panel, context):
+                original_modify_draw(panel, context)
+                layout = panel.layout
+                layout.separator()
+                box = layout.box()
+                box.label(text="Reusable components")
+                box.operator(
+                    "asset_assistant.adopt_selected_component",
+                    text="Adopt Selected Component",
+                    icon="IMPORT",
+                )
+                box.label(text="Transfers one external mesh into Asset Assistant ownership.")
+
+            draw_modify_with_component_adoption._asset_assistant_component_adoption = True
+            modify_ui.ASSET_ASSISTANT_PT_modify.draw = draw_modify_with_component_adoption
 
     if working_asset_ui is not None:
         # Reopening an editable checkpoint is the alternative entry path to
