@@ -27,7 +27,9 @@ Portable rigid attachment targets currently use one of two forms:
 - `asset_root` for an attachment that follows the generated asset as a whole;
 - `bone:<bone-name>` for an attachment that follows a named generated bone, for example `bone:hand.right`.
 
-The core stores the target but does not resolve host objects. Blender validates that the generated asset contains exactly one armature, verifies that the named bone exists, and then binds the component root to that bone. Other host/engine adapters may translate the same portable target into their native attachment mechanism.
+The first skinned parent-rig execution path uses `attachment_target="body"`. The component root remains owned by the generated asset while its mesh objects deform through the owning asset armature.
+
+The core stores the target but does not resolve host objects. Blender resolves and validates host attachment/rig state. Other host/engine adapters may translate the same portable intent into their native attachment mechanism.
 
 ## Rig binding contract
 
@@ -57,29 +59,35 @@ Components must remain preservation boundaries. The Blender execution slices now
 6. transactional creation rollback when attachment fails;
 7. rigid `asset_root` and `bone:<bone-name>` attachment validation;
 8. inspection that detects missing bones, armature detachment, or bone retargeting;
-9. validated removal of owned component trees and registry entries;
-10. stable-id replacement that keeps the old component intact until the replacement has been created and re-inspected successfully;
-11. rollback to the previous component when replacement creation fails.
+9. validated removal of owned rigid component trees and registry entries;
+10. stable-id rigid replacement with rollback;
+11. parent-rig skinned component creation for generated owned geometry;
+12. exact persisted skin-weight validation against Blender vertex groups;
+13. armature-modifier validation against the owning generated rig;
+14. transactional rollback when skinned binding validation fails.
 
-The core contract now also distinguishes parent-rig binding from component-owned rig data. Still required before broader component Modify is executable:
+Still required before broader component Modify is executable:
 
-1. Blender skinned component creation bound to the parent asset rig;
-2. skinned rig/weight inspection and preservation rules;
-3. Modify inspection/request transport for component state;
-4. adapter-specific physics preparation only after ownership is known;
-5. artist-facing component creation/selection UI and real component providers.
+1. skinned remove/replace lifecycle integration;
+2. component state in Modify inspection/request transport;
+3. adapter-specific physics preparation only after ownership is known;
+4. artist-facing component creation/selection UI;
+5. real clothing/hair/accessory providers and visual-quality validation;
+6. component-owned rig execution for `rig_binding="owned"` if/when a provider requires it.
 
 Artist-created or artist-edited component data must not be overwritten unless ownership is explicit and the operation is safe.
 
-## Current Blender execution slice
+## Current Blender execution slices
 
 `blender_adapter.components.attach_rigid_component()` accepts a portable `ObjectMesh` and validated `ComponentRecord`, creates a dedicated component root, creates owned mesh-part children, persists the portable record, and immediately re-inspects the result.
 
 For `attachment_target="asset_root"`, the component root is parented directly to the generated asset root. For `attachment_target="bone:<bone-name>"`, the component root is parented to the generated armature using Blender bone parenting after the target bone is validated.
 
-`remove_component()` first requires a clean inspection result, then removes only the component-owned hierarchy and its registry entry. `replace_rigid_component()` preserves the stable component ID, temporarily keeps the previous component as the rollback source, creates and validates the replacement, and deletes the previous owned tree only after the new component is known-good.
+`remove_component()` first requires a clean rigid inspection result, then removes only the component-owned hierarchy and its registry entry. `replace_rigid_component()` preserves the stable component ID, temporarily keeps the previous component as the rollback source, creates and validates the replacement, and deletes the previous owned tree only after the new component is known-good.
 
-The Blender executable slice still supports only rigid generated components that own their geometry. Skinned execution is deliberately deferred until parent-rig binding and weight ownership can be validated transactionally. It does not yet provide artist-facing Blender UI or a public accessory catalog/provider.
+`blender_adapter.skinned_components.attach_skinned_component()` is the first executable skinned path. It requires `AttachmentMode.SKINNED`, `RigBinding.PARENT`, `owns_rig=False`, and `attachment_target="body"`. The caller supplies portable component geometry plus portable `SkinWeights`; Blender validates every referenced bone against the owning armature, creates exact vertex groups, adds an armature modifier targeting that armature, persists generated weight metadata, and re-inspects the component before committing the registry entry.
+
+`inspect_skinned_component()` detects modifier retargeting, missing or changed mesh parts, vertex-count drift, and exact generated weight changes. This first slice deliberately does not add skinned lifecycle mutation, artist-facing UI, a public clothing/hair catalog, or physics execution.
 
 ## Intended layering
 
