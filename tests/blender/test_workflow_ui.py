@@ -22,7 +22,7 @@ class WorkflowSidebarTests(unittest.TestCase):
         from blender_adapter import animation_names_ui, modify_ui, ui
 
         panels = (
-            (ui.HUMANOID_PT_panel, "Generate", 0),
+            (ui.HUMANOID_PT_panel, "Create", 0),
             (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
             (ui.HUMANOID_PT_rigging, "Rig", 2),
             (ui.HUMANOID_PT_animations, "Animate", 3),
@@ -38,7 +38,7 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.assertEqual("Asset Assistant", names.bl_category)
         self.assertEqual("HUMANOID_PT_animations", names.bl_parent_id)
 
-    def test_only_generate_starts_expanded(self):
+    def test_only_create_starts_expanded(self):
         from blender_adapter import modify_ui, ui
 
         self.assertNotIn("DEFAULT_CLOSED", ui.HUMANOID_PT_panel.bl_options)
