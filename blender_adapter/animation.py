@@ -16,6 +16,7 @@ _GENERATED_RIG = 'asset_assistant_rig'
 _RIG_ID = 'asset_assistant_rig_id'
 _GENERATED_CLIP = 'asset_assistant_clip'
 _EXPORT_NAME = 'asset_assistant_export_name'
+_STRENGTH = 'asset_assistant_animation_strength'
 
 
 def action_curves(action, slot=None):
@@ -107,7 +108,7 @@ def activate_generated_action(root, clip_name):
     return action
 
 
-def _add_clip(root, scene, clip, suffix, capability):
+def _add_clip(root, scene, clip, suffix, capability, strength):
     import bpy
     from mathutils import Vector, Quaternion, Matrix
 
@@ -148,6 +149,7 @@ def _add_clip(root, scene, clip, suffix, capability):
             action[_RIG_ID] = rig[_RIG_ID]
         action[_GENERATED_CLIP] = suffix
         action[_EXPORT_NAME] = suffix
+        action[_STRENGTH] = float(strength)
         modes = {bone.name: bone.rotation_mode for bone in rig.pose.bones}
         had_data = data is not None
         try:
@@ -223,7 +225,7 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
     provider = provider_for(root)
     if not provider.supports_idle:
         raise ValueError(provider.label + ' does not support idle animation.')
-    return _add_clip(root, scene, provider.idle(duration, strength), 'Idle', 'idle')
+    return _add_clip(root, scene, provider.idle(duration, strength), 'Idle', 'idle', strength)
 
 
 def locomotion_clip_name(provider):
@@ -241,6 +243,7 @@ def add_locomotion(root, scene, duration=1.2, strength=1.0):
         provider.locomotion(duration, strength),
         locomotion_clip_name(provider),
         'locomotion',
+        strength,
     )
 
 
@@ -248,11 +251,11 @@ def add_flight(root, scene, duration=1.2, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_flight', False):
         raise ValueError(provider.label + ' does not support flight animation.')
-    return _add_clip(root, scene, provider.flight(duration, strength), 'Flight', 'flight')
+    return _add_clip(root, scene, provider.flight(duration, strength), 'Flight', 'flight', strength)
 
 
 def add_run(root, scene, duration=0.72, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_run', False):
         raise ValueError(provider.label + ' does not support run animation.')
-    return _add_clip(root, scene, provider.run(duration, strength), 'Run', 'run')
+    return _add_clip(root, scene, provider.run(duration, strength), 'Run', 'run', strength)
