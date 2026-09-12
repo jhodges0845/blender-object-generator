@@ -18,7 +18,7 @@ Animations are first-class reusable assets in Asset Assistant. Their portable id
 
 The record intentionally contains no Blender Action name, slot, FCurve, NLA, object pointer, or engine-specific field.
 
-Generated records must own their generated curves. Imported or artist-authored records may remain unowned so later lifecycle/Modify work cannot silently overwrite artist animation.
+Generated records must own their generated curves. Imported or artist-authored records remain unowned so lifecycle and later Modify work cannot silently overwrite artist animation.
 
 ## Serialization boundary
 
@@ -34,8 +34,24 @@ The existing animation export-name workflow updates the portable record and the 
 
 Current generated Idle/Walk-or-locomotion/Flight/Run clips are recorded as looping, in-place animations because the current provider generators create cyclic rotational motion without root translation.
 
+## Action registration and lifecycle
+
+Existing Blender Actions can now be explicitly registered as `artist` or `imported` animation assets for one Asset Assistant rig. Registration adds stable portable identity, current-rig compatibility, frame/FPS metadata, loop/root-motion intent, and an engine-facing export name without changing the Action's curves or claiming curve ownership.
+
+Registration refuses generated Actions, Actions already carrying Asset Assistant animation identity, and Actions actively assigned to another Blender object. This keeps adoption explicit and prevents a shared or unrelated Action from being silently claimed.
+
+Lifecycle operations preserve ownership:
+
+- removing an artist/imported registration removes Asset Assistant identity but leaves the Action and its curves intact;
+- removing a generated record may delete the generated Action because Asset Assistant owns those curves;
+- replacing a managed animation preserves its stable `animation_id` while moving that identity to the replacement Action;
+- replacing an artist/imported clip leaves the prior Action intact and merely stops managing it;
+- an active replaced clip moves the rig's active Action to the validated replacement.
+
+`managed_actions()` discovers first-class records compatible with the current rig. `exportable_actions()` additionally retains legacy generated Actions so old editable checkpoints remain discoverable while export staging is migrated to the first-class lifecycle.
+
 ## Next adapter slice
 
-With generated Action persistence/inspection established, the next lifecycle slice can register imported/artist-authored Actions and add preservation-aware add/remove/replace operations without regenerating the base asset.
+With registration/add/remove/replace semantics established, the next slice should connect managed animation state to the Modify exchange and expose narrowly scoped animation operations without weakening artist ownership boundaries.
 
-After lifecycle work is proven, animation inspection/request transport can expose preservation-aware Modify planning and narrowly scoped executable tuning semantics.
+After Modify transport is proven, the first executable tuning semantics can be added for generated clips, followed by the save -> reopen -> component edit -> animation edit -> save -> engine export checkpoint.
