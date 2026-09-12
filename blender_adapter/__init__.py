@@ -23,7 +23,8 @@ def register():
         animation_adoption_ui, animation_modify_exchange, animation_names_ui, animation_tuning_ui, avian_ui,
         clothing_component_ui, component_adoption_ui, component_modify_apply,
         component_modify_exchange, cura_scale_ui, hair_component_ui, modification,
-        modify_fastpath, modify_ui, run_ui, ui, ui_fastpath, workflow_ui, working_asset_ui,
+        modify_fastpath, modify_ui, run_ui, self_rigged_accessory, ui, ui_fastpath,
+        workflow_ui, working_asset_ui,
     )
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
@@ -31,7 +32,7 @@ def register():
     workflow_ui.prepare(
         ui, modify_ui, animation_names_ui, working_asset_ui,
         component_adoption_ui, hair_component_ui, clothing_component_ui,
-        animation_adoption_ui,
+        animation_adoption_ui, self_rigged_accessory,
     )
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
@@ -49,14 +50,16 @@ def register():
     component_adoption_ui.register()
     hair_component_ui.register()
     clothing_component_ui.register()
+    self_rigged_accessory.register()
 
 
 def unregister():
     from . import (
         animation_adoption_ui, animation_names_ui, animation_tuning_ui, clothing_component_ui,
         component_adoption_ui, cura_scale_ui, hair_component_ui, modify_ui,
-        run_ui, ui, working_asset_ui,
+        run_ui, self_rigged_accessory, ui, working_asset_ui,
     )
+    self_rigged_accessory.unregister()
     clothing_component_ui.unregister()
     hair_component_ui.unregister()
     component_adoption_ui.unregister()
