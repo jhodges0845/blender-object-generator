@@ -49,6 +49,13 @@ def install(ui):
         finally:
             ui._export_issues = original_export_issues
 
+    # This redraw fast path wraps the already-composed Export UI. Preserve the
+    # presentation contract markers so registration-time compatibility tests can
+    # verify that the shell/confidence wrappers are still present after install().
+    for marker in ('_asset_assistant_polished_shell', '_asset_assistant_confidence_header'):
+        if getattr(original_export_draw, marker, False):
+            setattr(export_draw, marker, True)
+
     ui.HUMANOID_OT_export.poll = export_poll
     ui._needs_attention = needs_attention
     ui.HUMANOID_PT_export.draw = export_draw
