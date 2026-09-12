@@ -32,8 +32,19 @@ jobs:
       - name: Install package
         run: python -m pip install --upgrade pip && python -m pip install -e .
 
-      - name: Run tests
-        run: python -m unittest discover -s tests -v
+      - name: Install coverage tooling
+        if: matrix.python-version == '3.12'
+        run: python -m pip install coverage
+
+      - name: Run core tests
+        if: matrix.python-version != '3.12'
+        run: python -m unittest discover -s tests/core -v
+
+      - name: Run core tests with coverage
+        if: matrix.python-version == '3.12'
+        run: |
+          python -m coverage run --source=object_core -m unittest discover -s tests/core -v
+          python -m coverage report --show-missing
 
   blender-tests:
     name: Blender integration tests (${{ matrix.version }})
@@ -81,7 +92,7 @@ jobs:
           tar -xf "$archive" -C "$cache_root"
           test -x "$cache_root/${{ matrix.directory }}/blender"
 
-      - name: Run tests inside Blender
+      - name: Run Blender integration tests
         run: |
           "$HOME/.cache/asset-assistant/blender/${{ matrix.directory }}/blender" \
             --background --factory-startup --python-exit-code 1 \
