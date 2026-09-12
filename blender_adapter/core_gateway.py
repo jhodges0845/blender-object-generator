@@ -22,13 +22,17 @@ validate_for_target = _targets.validate_for_target
 
 _components = import_module(_core_name + '.components')
 AttachmentMode = _components.AttachmentMode
+ComponentBehavior = _components.ComponentBehavior
 ComponentKind = _components.ComponentKind
 ComponentRecord = _components.ComponentRecord
 PhysicsIntent = _components.PhysicsIntent
 RigBinding = _components.RigBinding
 component_document = _components.component_document
 component_from_document = _components.component_from_document
+effective_behavior = _components.effective_behavior
 validate_component = _components.validate_component
+_component_primitives = import_module(_core_name + '.component_primitives')
+ring_mesh = _component_primitives.ring_mesh
 
 _animations = import_module(_core_name + '.animations')
 AnimationRecord = _animations.AnimationRecord
