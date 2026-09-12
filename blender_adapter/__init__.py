@@ -22,7 +22,7 @@ bl_info = {
 
 
 def register():
-    from . import animation_names_ui, avian_ui, cura_scale_ui, modify_fastpath, modify_ui, run_ui, ui, ui_fastpath, workflow_ui
+    from . import animation_names_ui, avian_ui, component_modify_exchange, cura_scale_ui, modify_fastpath, modify_ui, run_ui, ui, ui_fastpath, workflow_ui
     # Keep stable class/operator IDs for compatibility while presenting one
     # ordered Asset Assistant workflow to artists.
     run_ui.prepare(ui)
@@ -30,6 +30,7 @@ def register():
     workflow_ui.prepare(ui, modify_ui, animation_names_ui)
     ui_fastpath.install(ui)
     modify_fastpath.install(modify_ui)
+    component_modify_exchange.install(modify_ui)
     ui.register()
     animation_names_ui.register()
     run_ui.register(ui.HUMANOID_PG_settings)
