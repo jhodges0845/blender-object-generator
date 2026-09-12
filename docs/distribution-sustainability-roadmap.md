@@ -18,12 +18,12 @@ This document extends the main Asset Assistant roadmap with the work required to
 
 Official Blender extension distribution depends on a modern Blender-compatible package. This work should align with the main roadmap's modern-Blender verification rather than becoming a separate compatibility effort.
 
-- [ ] Select and document the primary supported modern Blender version.
-- [ ] Verify the complete Generate -> Rig -> Animate -> Validate -> Export workflow on that version.
+- [x] Select and document the primary supported modern Blender version: Blender 5.2.1.
+- [x] Verify the complete Create -> Modify -> Rig -> Animate -> Validate -> Export UI workflow registers and packages on Blender 5.2.1 through CI.
 - [ ] Add the metadata/manifest required for modern Blender extension packaging.
 - [ ] Ensure the packaged extension installs cleanly through Blender's supported extension/add-on installation workflow.
 - [ ] Validate the extension package with Blender's extension tooling where applicable.
-- [ ] Decide and document the support policy for older Blender versions, including Blender 2.92.
+- [x] Decide and document the support policy for older Blender versions: Blender 2.92.0 is no longer a supported or required runtime.
 - [ ] Ensure licensing, source availability, documentation, and extension behavior remain compatible with official Blender distribution requirements.
 
 Definition of done: Asset Assistant can be built as a reproducible modern Blender extension package and installed into the documented supported Blender version without repository-specific/manual setup.
@@ -33,13 +33,13 @@ Definition of done: Asset Assistant can be built as a reproducible modern Blende
 Deployment should become part of the repository rather than a manual checklist that must be rediscovered for every release.
 
 - [ ] Define semantic/versioned releases for Asset Assistant.
-- [ ] Add automated extension/package build steps to CI.
-- [ ] Run core tests and Blender integration tests before producing a release artifact.
+- [x] Build the packaged add-on ZIP in CI.
+- [x] Run core tests and Blender integration tests before producing the packaged artifact.
 - [ ] Run extension/package validation before release where supported.
-- [ ] Produce a deterministic distributable ZIP/artifact from the release pipeline.
+- [x] Produce a repeatable distributable ZIP/artifact from CI and validate it with an isolated packaged-add-on smoke test.
 - [ ] Create a GitHub Release workflow for tagged versions, including the installable artifact and release notes.
 - [ ] Document the release procedure and rollback/fix-forward procedure.
-- [ ] Keep signing, credentials, tokens, or publishing secrets out of source control.
+- [x] Keep signing, credentials, tokens, or publishing secrets out of source control.
 
 Definition of done: a maintainer can create a tested, validated Asset Assistant release without manually assembling the package.
 
@@ -74,7 +74,7 @@ Definition of done: users who voluntarily want to support continued Asset Assist
 
 Do not require a recurring video/content-production schedule. Create a small reusable set of assets when the product is visually ready to show.
 
-- [ ] Capture 3-5 strong screenshots demonstrating the real workflow and output.
+- [ ] Capture 3-5 strong screenshots demonstrating the real workflow and output after the current visual UI acceptance checkpoint.
 - [ ] Include at least one generated asset, the Asset Assistant Blender UI, validation/readiness, and a successful downstream-engine result when available.
 - [ ] Add a concise visual introduction to the GitHub README so the repository can initially serve as the project website.
 - [ ] Reuse the same approved screenshots and product description for GitHub, Blender listings, documentation, release notes, and community posts.
@@ -138,13 +138,13 @@ Paid advertising is intentionally not a prerequisite and should not be added to 
 
 ## Suggested rollout
 
-1. Continue core Asset Assistant development and target verification.
-2. Move the supported Blender baseline to a modern version.
+1. Finish the current hands-on production walkthrough and visual UI acceptance checkpoint.
+2. Keep Blender 5.2.1 as the documented supported baseline while packaging is hardened.
 3. Make Asset Assistant a valid modern Blender extension package.
-4. Automate testing, validation, packaging, and GitHub release creation.
+4. Complete release validation and GitHub release automation around the already-tested package build.
 5. Reach a useful alpha quality bar before seeking broad attention.
 6. Set up GitHub Sponsors and a restrained repository support message.
-7. Capture a small reusable screenshot set from the real product.
+7. Capture a small reusable screenshot set from the visually accepted real product.
 8. Release to a small group of early testers and fix installation/workflow friction.
 9. Submit to the official Blender extension ecosystem when requirements and quality are satisfied.
 10. Make a small number of targeted community announcements and ask for feedback.
@@ -152,7 +152,7 @@ Paid advertising is intentionally not a prerequisite and should not be added to 
 
 ## Relationship to the main roadmap
 
-Distribution work should not replace the immediate engineering priorities in `docs/roadmap.md`. Modern Blender compatibility is the bridge between the two roadmaps and should be coordinated as one workstream. Human Provider 1.0 remains the near-term product milestone; distribution work should make that milestone easy to install and discover once it is genuinely useful.
+Distribution work should not replace the immediate engineering priorities in `docs/roadmap.md`. Blender 5.2.1 is now the supported compatibility baseline; the remaining bridge to distribution is extension-format packaging, installation validation, and release automation rather than runtime-version selection. Human Provider 1.0 remains the near-term product milestone; distribution work should make that milestone easy to install and discover once it is genuinely useful.
 
 The project should avoid a common failure mode: spending significant time marketing an impressive promise while the actual artist workflow remains immature. The preferred loop is:
 
