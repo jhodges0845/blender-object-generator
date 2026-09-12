@@ -1,0 +1,91 @@
+# Editable asset persistence and animation workflow
+
+Asset Assistant generation is one entry path, not a requirement for every editing session. Artists must be able to create or import a base asset, attach reusable component assets later, work on animations independently, save an editable checkpoint, reopen it, and continue without regenerating the character.
+
+## Working asset versus destination export
+
+Asset Assistant separates an editable working asset from destination delivery formats.
+
+- `.blend` is the first canonical editable save/checkpoint format because it can preserve Blender objects, armatures, Actions, modifiers, vertex groups, materials, Asset Assistant ownership metadata, component records, and future physics configuration.
+- GLB/glTF, FBX, STL, 3MF, and future target-specific packages remain destination/export formats. They are not assumed to preserve every Asset Assistant editing contract required to resume work.
+
+A successful engine export must never replace or destroy the editable working state.
+
+## Base asset entry paths
+
+The artist-facing workflow should offer two explicit ways to obtain the base asset:
+
+1. Generate a supported provider asset such as Human, Quadruped, or Avian.
+2. Import/reopen an editable Asset Assistant working asset and reconstruct its known provider identity, ownership, component registry, rig/animation state, and Modify context.
+
+The import path must validate metadata rather than guessing ownership. External Blender assets that do not yet carry Asset Assistant metadata require an explicit adoption/registration workflow before destructive Modify operations can claim ownership.
+
+## Reusable component assets
+
+Hair, clothing, and accessories are independent assets that are attached to a base model. They are not required to be generated as part of the Human or other body provider.
+
+A component may originate from generated geometry or imported artist-authored geometry. Once registered, the existing component contract supplies stable identity, kind, provider/source key, attachment target, rigid/skinned mode, parent-rig binding, ownership, parameters, and optional physics intent.
+
+This enables workflows such as:
+
+`Open Maxine base -> import hair asset -> import jacket asset -> attach accessory -> save editable checkpoint`
+
+and later:
+
+`Open saved checkpoint -> replace jacket -> remove accessory -> add animations -> save -> export to game engine`
+
+Component import must preserve the same transactional inspection/removal/replacement boundaries already established by the component foundation.
+
+## Animation assets
+
+Animations should become first-class editable assets rather than only generated clips embedded in the initial character workflow.
+
+A portable animation identity should eventually describe at least:
+
+- stable animation/clip ID;
+- artist-facing and export name;
+- source/import provenance;
+- rig compatibility/signature;
+- frame range and FPS;
+- loop intent;
+- root-motion intent;
+- ownership of generated/imported keyframe or curve data;
+- provider/capability requirements where relevant.
+
+The workflow should support importing, adding, inspecting, renaming, removing, replacing, and continuing to modify animations without regenerating the base model.
+
+## Animation Modify
+
+Animation Modify should follow the preservation-aware pattern already proven for model Modify:
+
+`Inspect animation -> export portable inspection -> edit externally -> import returned request -> preview/validate -> apply -> re-inspect`
+
+Initial executable semantics should be deliberately narrow and measurable. Candidate operations include timing/cycle length, overall motion amplitude, root motion, torso lean, limb swing/lift, contact timing, looping, and other provider/clip-specific tuning. Shared Modify transport must not hard-code Human anatomy; animation providers/capabilities own semantic interpretation.
+
+Artist-authored keyframes must not be overwritten unless ownership is explicit and the requested operation can preserve unowned work.
+
+## Intended artist workflow
+
+`Generate OR open/import base asset -> inspect/modify base -> import/attach/remove/replace component assets -> import/add/remove/replace/modify animation assets -> save editable .blend checkpoint -> export destination formats -> reopen editable checkpoint later and continue`
+
+The workflow should not force regeneration simply because the artist wants to add clothing, change an accessory, tune a Run animation, or add a new animation.
+
+## Implementation order before hair/clothing catalogs
+
+1. Add an explicit editable working-asset save/checkpoint operation with `.blend` as the initial format and non-destructive destination export separation.
+2. Add reopen/import validation for Asset Assistant `.blend` working assets and restore/inspect known metadata and state.
+3. Add imported component registration/adoption so artist-authored reusable hair/clothing/accessory assets can enter the existing component lifecycle without being generated by a provider.
+4. Promote animations to first-class portable records with stable identity, ownership, compatibility, and inspection.
+5. Add animation import/add/remove/replace lifecycle operations.
+6. Add preservation-aware animation Modify transport and the first narrowly scoped executable animation tuning semantics.
+7. Run a save -> reopen -> component edit -> animation edit -> save -> engine export regression/manual checkpoint.
+8. Only then begin real hair, clothing, and accessory catalogs/providers and richer component physics.
+
+## Non-goals for this stage
+
+- replacing Blender's native `.blend` file format;
+- inventing a custom binary project format before a demonstrated need;
+- forcing every imported external Blender asset to become Asset Assistant-owned;
+- baking hair/clothing into Human body geometry;
+- making GLB or FBX the authoritative editable project state;
+- implementing engine-specific physics before portable ownership and intent are established.
