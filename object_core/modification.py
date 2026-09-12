@@ -10,16 +10,12 @@ from .objects import get_provider
 
 @dataclass(frozen=True)
 class AnimationSnapshot:
-    """Portable identity for one Asset Assistant-generated animation clip."""
-
     clip_id: str
     export_name: str
 
 
 @dataclass(frozen=True)
 class AssetSnapshot:
-    """Portable facts observed from a generated asset."""
-
     asset_id: str
     provider_key: str
     provider_label: str
@@ -39,21 +35,33 @@ class AssetSnapshot:
 
 
 @dataclass(frozen=True)
+class SemanticOperation:
+    """Portable provider-aware edit against a declared semantic target."""
+
+    operation: str
+    target: str
+    arguments: Tuple[Tuple[str, object], ...] = ()
+
+    def argument_values(self):
+        return dict(self.arguments)
+
+
+@dataclass(frozen=True)
 class ModificationRequest:
     """Explicit requested changes; omitted fields mean preserve."""
 
     parameter_changes: Tuple[Tuple[str, object], ...] = ()
     animation_export_names: Tuple[Tuple[str, str], ...] = ()
+    semantic_operations: Tuple[SemanticOperation, ...] = ()
 
 
 @dataclass(frozen=True)
 class ModificationPlan:
-    """Reviewable plan produced before any host mutation occurs."""
-
     asset_id: str
     provider_key: str
     requested_parameter_changes: Tuple[Tuple[str, object], ...]
     requested_animation_renames: Tuple[Tuple[str, str], ...]
+    requested_semantic_operations: Tuple[SemanticOperation, ...]
     rebuild_components: Tuple[str, ...]
     blockers: Tuple[str, ...]
 
@@ -80,10 +88,7 @@ def _validate_parameter(parameter, value):
         return value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(parameter.label + " must be a number")
-    try:
-        normalized = float(value)
-    except OverflowError:
-        raise ValueError(parameter.label + " must be finite") from None
+    normalized = float(value)
     if not isfinite(normalized):
         raise ValueError(parameter.label + " must be finite")
     if not parameter.minimum <= normalized <= parameter.maximum:
@@ -91,23 +96,47 @@ def _validate_parameter(parameter, value):
     return normalized
 
 
+def _validate_json_value(value, path="argument"):
+    if value is None or isinstance(value, (str, bool, int, float)):
+        if isinstance(value, float) and not isfinite(value):
+            raise ValueError(path + " must be finite")
+        return value
+    if isinstance(value, (list, tuple)):
+        return tuple(_validate_json_value(item, path) for item in value)
+    if isinstance(value, dict):
+        return tuple(sorted((str(key), _validate_json_value(item, path + "." + str(key))) for key, item in value.items()))
+    raise TypeError(path + " must contain JSON-compatible values")
+
+
+def _normalize_semantic_operations(provider, operations):
+    targets = {target.key: target for target in getattr(provider, "semantic_targets", ())}
+    normalized = []
+    for operation in operations:
+        if not isinstance(operation, SemanticOperation):
+            raise TypeError("semantic_operations must contain SemanticOperation values")
+        if operation.target not in targets:
+            raise ValueError("Unsupported semantic target for " + provider.label + ": " + operation.target)
+        target = targets[operation.target]
+        if operation.operation not in target.operations:
+            raise ValueError(operation.operation + " is not supported for semantic target " + operation.target)
+        args = _as_unique_dict(operation.arguments, "semantic argument")
+        normalized_args = tuple(sorted((key, _validate_json_value(value, key)) for key, value in args.items()))
+        normalized.append(SemanticOperation(operation.operation, operation.target, normalized_args))
+    return tuple(normalized)
+
+
 def _conservative_parameter_impact(provider, snapshot):
-    """Rebuild only generated components that already exist on this asset."""
     components = ["geometry"]
     if provider.supports_rig and snapshot.has_rig:
         components.append("rig")
     if getattr(provider, "supports_materials", False) and snapshot.has_materials:
         components.append("materials")
-    if snapshot.has_animations and any(
-        getattr(provider, capability, False)
-        for capability in ("supports_idle", "supports_locomotion", "supports_run", "supports_flight")
-    ):
+    if snapshot.has_animations and any(getattr(provider, capability, False) for capability in ("supports_idle", "supports_locomotion", "supports_run", "supports_flight")):
         components.append("animations")
     return tuple(components)
 
 
 def plan_modification(snapshot, request):
-    """Validate an explicit request and return a non-mutating modification plan."""
     if not isinstance(snapshot, AssetSnapshot):
         raise TypeError("snapshot must be an AssetSnapshot")
     if not isinstance(request, ModificationRequest):
@@ -122,13 +151,11 @@ def plan_modification(snapshot, request):
     parameter_by_key = {parameter.key: parameter for parameter in provider.parameters}
     normalized_changes = []
     for key, value in changes.items():
-        try:
-            parameter = parameter_by_key[key]
-        except KeyError:
-            raise ValueError("Unsupported parameter for " + provider.label + ": " + key) from None
+        if key not in parameter_by_key:
+            raise ValueError("Unsupported parameter for " + provider.label + ": " + key)
         if key not in current:
             raise ValueError("Snapshot is missing provider parameter: " + key)
-        normalized = _validate_parameter(parameter, value)
+        normalized = _validate_parameter(parameter_by_key[key], value)
         if normalized != current[key]:
             normalized_changes.append((key, normalized))
 
@@ -144,25 +171,24 @@ def plan_modification(snapshot, request):
         if cleaned != generated_clips[clip_id].export_name:
             normalized_renames.append((clip_id, cleaned))
 
-    rebuild = _conservative_parameter_impact(provider, snapshot) if normalized_changes else ()
+    semantic = _normalize_semantic_operations(provider, request.semantic_operations)
+    rebuild = _conservative_parameter_impact(provider, snapshot) if (normalized_changes or semantic) else ()
     blockers = []
-    ownership = {
-        "geometry": snapshot.owns_geometry,
-        "rig": snapshot.owns_rig,
-        "materials": snapshot.owns_materials,
-        "animations": snapshot.owns_animations,
-    }
+    ownership = {"geometry": snapshot.owns_geometry, "rig": snapshot.owns_rig, "materials": snapshot.owns_materials, "animations": snapshot.owns_animations}
     for component in rebuild:
         if not ownership[component]:
             blockers.append("Cannot safely replace unowned or ambiguous " + component)
     if normalized_renames and not snapshot.owns_animations:
         blockers.append("Cannot safely rename unowned or ambiguous animations")
+    if semantic:
+        blockers.append("Semantic operations are valid but require the semantic apply layer before they can mutate Blender data")
 
     return ModificationPlan(
         asset_id=snapshot.asset_id,
         provider_key=provider.key,
         requested_parameter_changes=tuple(normalized_changes),
         requested_animation_renames=tuple(normalized_renames),
+        requested_semantic_operations=semantic,
         rebuild_components=tuple(rebuild),
         blockers=tuple(blockers),
     )
