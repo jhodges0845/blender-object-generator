@@ -8,7 +8,7 @@ intent without teaching the shared core about Blender, Godot, Unity, or Unreal.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 class ComponentKind(str, Enum):
@@ -40,7 +40,7 @@ class ComponentRecord:
     attachment_target: str
     attachment_mode: AttachmentMode
     parameters: Tuple[Tuple[str, object], ...] = ()
-    physics: PhysicsIntent | None = None
+    physics: Optional[PhysicsIntent] = None
     owns_geometry: bool = True
     owns_materials: bool = True
     owns_rig: bool = False
