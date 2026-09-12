@@ -52,6 +52,26 @@ class WorkflowSidebarTests(unittest.TestCase):
         ):
             self.assertIn("DEFAULT_CLOSED", panel.bl_options)
 
+    def test_all_workflow_panels_keep_the_polished_shell(self):
+        from blender_adapter import modify_ui, ui
+
+        panels = (
+            ui.HUMANOID_PT_panel,
+            modify_ui.ASSET_ASSISTANT_PT_modify,
+            ui.HUMANOID_PT_rigging,
+            ui.HUMANOID_PT_animations,
+            ui.HUMANOID_PT_validation,
+            ui.HUMANOID_PT_export,
+        )
+        for panel in panels:
+            self.assertTrue(
+                getattr(panel.draw, "_asset_assistant_polished_shell", False),
+                panel.bl_idname + " lost the Asset Assistant shell",
+            )
+
+        self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
+        self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
+
     def test_component_hierarchy_keeps_existing_operator_contracts(self):
         from blender_adapter import workflow_ui
 

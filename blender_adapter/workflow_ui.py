@@ -52,6 +52,8 @@ def _decorate_panel(panel_type, stage_label, stage_icon):
         original_draw(panel, context)
 
     draw_with_shell._asset_assistant_polished_shell = True
+    if getattr(original_draw, "_asset_assistant_confidence_header", False):
+        draw_with_shell._asset_assistant_confidence_header = True
     panel_type.draw = draw_with_shell
 
 
