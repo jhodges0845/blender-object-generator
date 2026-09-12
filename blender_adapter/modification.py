@@ -336,7 +336,7 @@ def _staged_asset(root, provider, values, snapshot):
     staged["object_type"] = provider.key
     for key, value in values.items():
         staged[key] = value
-    return staged
+    return staged, mesh
 
 
 def _remove_staged_root(staged, *, remove_children=True):
@@ -379,7 +379,7 @@ def apply_parameter_modification(root, plan):
     provider = get_provider(snapshot.provider_key)
     values = snapshot.parameter_values()
     values.update(dict(plan.requested_parameter_changes))
-    staged = _staged_asset(root, provider, values, snapshot)
+    staged, expected_mesh = _staged_asset(root, provider, values, snapshot)
 
     old_meshes = [obj for obj in root.children if obj.type == "MESH"]
     old_rigs = [obj for obj in root.children if obj.type == "ARMATURE"]
@@ -445,7 +445,7 @@ def apply_parameter_modification(root, plan):
                 if hasattr(old_active, "slots") and len(old_active.slots):
                     data.action_slot = old_active.slots[0]
 
-        result = inspect_generated_asset(root)
+        result = _inspect_generated_asset(root, expected_mesh=expected_mesh)
         if not result.owns_geometry:
             raise RuntimeError("Replacement geometry failed post-apply ownership validation.")
         if snapshot.has_rig and not result.owns_rig:
