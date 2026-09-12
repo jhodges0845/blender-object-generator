@@ -4,19 +4,31 @@
 _CATEGORY = "Asset Assistant"
 
 
+def _section_header(layout, title, subtitle="", icon="NONE"):
+    """Create a compact Blender-native section heading."""
+    row = layout.row(align=True)
+    row.scale_y = 1.1
+    row.label(text=title, icon=icon)
+    if subtitle:
+        note = layout.row()
+        note.active = False
+        note.label(text=subtitle)
+
+
 def _asset_summary(layout, context):
     """Render compact current-asset context without dominating the empty state."""
     settings = getattr(context.scene, "humanoid_settings", None)
     target = getattr(settings, "target", None) if settings else None
+    card = layout.box()
+    title = card.row(align=True)
+    title.label(text="CURRENT ASSET", icon="OBJECT_DATA")
     if target is None:
-        row = layout.row(align=True)
-        row.label(text="No current asset", icon="INFO")
+        empty = card.row()
+        empty.active = False
+        empty.label(text="Nothing selected yet")
         return
 
-    box = layout.box()
-    row = box.row(align=True)
-    row.label(text="Current Asset", icon="OBJECT_DATA")
-    row.label(text=target.name)
+    title.label(text=target.name)
     children = tuple(target.children)
     has_rig = any(obj.type == "ARMATURE" for obj in children)
     component_count = sum(obj.type == "MESH" for obj in children)
@@ -27,7 +39,7 @@ def _asset_summary(layout, context):
         if obj.animation_data.action is not None:
             animation_count += 1
         animation_count += len(obj.animation_data.nla_tracks)
-    status = box.row(align=True)
+    status = card.row(align=True)
     status.label(text="Rigged" if has_rig else "No Rig", icon="ARMATURE_DATA")
     status.label(text=str(animation_count) + " Clips", icon="ACTION")
     status.label(text=str(component_count) + " Parts", icon="OUTLINER_OB_MESH")
@@ -35,23 +47,23 @@ def _asset_summary(layout, context):
 
 def _draw_component_actions(box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory):
     generated = box.box()
-    generated.label(text="ADD COMPONENT", icon="ADD")
+    _section_header(generated, "ADD COMPONENT", "Build onto the current asset", "ADD")
     if target is None:
         generated.label(text="Create or choose an asset first.", icon="INFO")
     if hair_component_ui is not None:
-        row = generated.row(); row.enabled = target is not None
+        row = generated.row(); row.enabled = target is not None; row.scale_y = 1.1
         row.operator("asset_assistant.generate_hair_shell", text="Hair", icon="OUTLINER_OB_MESH")
     if clothing_component_ui is not None:
-        row = generated.row(); row.enabled = target is not None and clothing_component_ui._supports_shirt(target)
+        row = generated.row(); row.enabled = target is not None and clothing_component_ui._supports_shirt(target); row.scale_y = 1.1
         row.operator("asset_assistant.generate_basic_shirt", text="Shirt", icon="MOD_CLOTH")
-    row = generated.row(); row.enabled = target is not None
+    row = generated.row(); row.enabled = target is not None; row.scale_y = 1.1
     row.operator("asset_assistant.generate_ring_component", text="Ring / Bracelet", icon="MESH_TORUS")
     if self_rigged_accessory is not None:
-        row = generated.row(); row.enabled = target is not None
+        row = generated.row(); row.enabled = target is not None; row.scale_y = 1.1
         row.operator("asset_assistant.generate_self_rigged_accessory", text="Self-Rigged Accessory", icon="ARMATURE_DATA")
     imported = box.box()
-    imported.label(text="IMPORT COMPONENT", icon="IMPORT")
-    row = imported.row(); row.enabled = target is not None; row.scale_y = 1.15
+    _section_header(imported, "IMPORT COMPONENT", "Bring in artist-created geometry", "IMPORT")
+    row = imported.row(); row.enabled = target is not None; row.scale_y = 1.2
     row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected Mesh", icon="IMPORT")
     imported.label(text="Adopted mesh geometry becomes Asset Assistant-managed.")
     imported.label(text="Existing materials remain artist-owned.")
@@ -74,37 +86,43 @@ def _stage_proxy(panel, stage):
 
 def _draw_create(panel, context, ui, modify_ui, working_asset_ui):
     settings = context.scene.humanoid_settings
-    tabs = panel.layout.row(align=True); tabs.scale_y = 1.15
+    tabs = panel.layout.row(align=True); tabs.scale_y = 1.2
     tabs.prop(settings, "asset_assistant_create_view", expand=True)
     panel.layout.separator()
     if settings.asset_assistant_create_view == "GENERATE":
-        card = panel.layout.box()
-        card.label(text="CREATE ASSET", icon="OUTLINER_OB_MESH")
-        card.prop(settings, "object_type", text="Type")
+        _section_header(panel.layout, "NEW ASSET", "Choose a base, tune it, then generate", "OUTLINER_OB_MESH")
+        selector = panel.layout.box()
+        selector.prop(settings, "object_type", text="Asset Type")
         provider = ui.get_provider(settings.object_type)
+        params = panel.layout.box()
+        params.label(text="SETUP", icon="PREFERENCES")
         for field in provider.parameters:
-            card.prop(settings, ui._field_name(provider, field))
-        action = card.row(); action.scale_y = 1.45
+            params.prop(settings, ui._field_name(provider, field))
+        action = panel.layout.row(); action.scale_y = 1.6
         action.operator("humanoid.generate_blockout", text="Generate " + provider.label, icon="ADD")
         if working_asset_ui is not None:
             panel.layout.separator()
-            resume = panel.layout.box(); resume.label(text="CONTINUE EXISTING", icon="FILE_FOLDER")
-            row = resume.row(); row.scale_y = 1.1
+            resume = panel.layout.box()
+            _section_header(resume, "CONTINUE EXISTING", "Resume an Asset Assistant checkpoint", "FILE_FOLDER")
+            row = resume.row(); row.scale_y = 1.15
             row.operator("asset_assistant.open_editable_checkpoint", text="Open Editable Checkpoint", icon="FILE_FOLDER")
         return
     if settings.asset_assistant_create_view == "MODIFY":
+        _section_header(panel.layout, "MODIFY ASSET", "Inspect changes before applying them", "MODIFIER")
         modify_ui.ASSET_ASSISTANT_PT_modify.draw(panel, context)
         return
+    _section_header(panel.layout, "RIG & POSE", "Prepare the current asset for animation", "ARMATURE_DATA")
     ui._WorkflowPanel.draw(_stage_proxy(panel, "RIGGING"), context)
 
 
 def _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui):
-    panel.layout.label(text="ANIMATION WORKSPACE", icon="ACTION")
+    _section_header(panel.layout, "ANIMATION", "Create, preview and manage clips", "ACTION")
     ui._WorkflowPanel.draw(_stage_proxy(panel, "ANIMATION"), context)
     target = getattr(context.scene.humanoid_settings, "target", None)
     if target is not None:
         panel.layout.separator()
         clip_box = panel.layout.box()
+        clip_box.label(text="CLIP LIBRARY", icon="ACTION")
         animation_names_ui.ASSET_ASSISTANT_PT_animation_names.draw(type("ClipLibraryProxy", (), {"layout": clip_box})(), context)
     if animation_adoption_ui is not None:
         panel.layout.separator(); _draw_animation_adoption(panel.layout.box(), target)
@@ -112,26 +130,26 @@ def _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui)
 
 def _draw_components(panel, context, component_adoption_ui, hair_component_ui, clothing_component_ui, self_rigged_accessory):
     layout = panel.layout; settings = context.scene.humanoid_settings
-    layout.label(text="COMPONENT WORKSPACE", icon="OUTLINER_COLLECTION")
-    layout.prop(settings, "target", text="Asset")
+    _section_header(layout, "PARTS & COMPONENTS", "Hair, clothing, accessories and imported pieces", "OUTLINER_COLLECTION")
+    target_box = layout.box(); target_box.prop(settings, "target", text="Asset")
     target = getattr(settings, "target", None)
-    _draw_component_actions(layout.box(), target, hair_component_ui, clothing_component_ui, self_rigged_accessory)
+    _draw_component_actions(layout, target, hair_component_ui, clothing_component_ui, self_rigged_accessory)
 
 
 def _draw_export(panel, context, ui, working_asset_ui):
     layout = panel.layout; settings = context.scene.humanoid_settings
-    layout.label(text="EXPORT WORKSPACE", icon="EXPORT")
-    layout.prop(settings, "target", text="Asset")
+    _section_header(layout, "EXPORT", "Validate once, then ship to your target", "EXPORT")
+    target_box = layout.box(); target_box.prop(settings, "target", text="Asset")
     target = getattr(settings, "target", None)
     if target is None:
         layout.label(text="Create or choose an asset first.", icon="INFO"); return
-    setup = layout.box(); setup.label(text="TARGET", icon="EXPORT"); setup.prop(settings, "output_target")
-    if settings.output_target == "CURA": setup.label(text="STL: current pose, millimetres, one solid.")
+    setup = layout.box(); setup.label(text="DESTINATION", icon="EXPORT"); setup.prop(settings, "output_target")
+    if settings.output_target == "CURA": setup.label(text="STL • current pose • millimetres • one solid")
     else:
         setup.prop(settings, "asset_use"); setup.prop(settings, "require_textures")
     validation = layout.box(); validation.label(text="READINESS", icon="CHECKMARK")
     if settings.output_target != "CURA": validation.operator("humanoid.prepare_materials", text="Add Missing Materials", icon="MATERIAL")
-    action = validation.row(); action.scale_y = 1.15; action.operator("humanoid.validate_character", text="Run Validation", icon="CHECKMARK")
+    action = validation.row(); action.scale_y = 1.2; action.operator("humanoid.validate_character", text="Run Validation", icon="CHECKMARK")
     snapshot = settings.validation_results
     if snapshot:
         errors = sum(row.status == "ERROR" for row in snapshot); warnings = sum(row.status == "WARN" for row in snapshot); passes = sum(row.status == "PASS" for row in snapshot)
@@ -140,8 +158,8 @@ def _draw_export(panel, context, ui, working_asset_ui):
     else: validation.label(text="Run validation to check readiness.", icon="INFO")
     readiness_rows = snapshot if settings.output_target == "CURA" else ui._export_issues(context)
     ready = ui.is_ready(readiness_rows)
-    confidence = layout.box(); confidence.label(text="Ready to export" if ready else "Resolve readiness issues", icon="CHECKMARK" if ready else "ERROR")
-    export_row = confidence.row(); export_row.scale_y = 1.45; export_row.enabled = ready
+    confidence = layout.box(); confidence.label(text="READY TO EXPORT" if ready else "NOT READY YET", icon="CHECKMARK" if ready else "ERROR")
+    export_row = confidence.row(); export_row.scale_y = 1.6; export_row.enabled = ready
     export_row.operator("humanoid.export_asset", text="Export Asset", icon="EXPORT")
     if settings.last_export: confidence.label(text="Saved: " + settings.last_export, icon="CHECKMARK")
     if working_asset_ui is not None:
@@ -151,11 +169,16 @@ def _draw_export(panel, context, ui, working_asset_ui):
 
 def _draw_workspace(panel, context, ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui, hair_component_ui, clothing_component_ui, animation_adoption_ui, self_rigged_accessory):
     layout = panel.layout; settings = context.scene.humanoid_settings
-    hero = layout.box(); title = hero.row(align=True); title.scale_y = 1.3
+    hero = layout.box()
+    title = hero.row(align=True); title.scale_y = 1.35
     title.label(text="Asset Assistant", icon="TOOL_SETTINGS")
-    hero.label(text="Create  •  Animate  •  Prepare  •  Export")
-    nav = layout.row(align=True); nav.scale_y = 1.3; nav.prop(settings, "asset_assistant_workspace", expand=True)
-    _asset_summary(layout, context); layout.separator()
+    subtitle = hero.row(); subtitle.active = False
+    subtitle.label(text="Production workspace for Blender")
+    nav = layout.row(align=True); nav.scale_y = 1.35
+    nav.prop(settings, "asset_assistant_workspace", expand=True)
+    layout.separator(factor=0.6)
+    _asset_summary(layout, context)
+    layout.separator()
     if settings.asset_assistant_workspace == "CREATE": _draw_create(panel, context, ui, modify_ui, working_asset_ui)
     elif settings.asset_assistant_workspace == "ANIMATE": _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui)
     elif settings.asset_assistant_workspace == "COMPONENTS": _draw_components(panel, context, component_adoption_ui, hair_component_ui, clothing_component_ui, self_rigged_accessory)
