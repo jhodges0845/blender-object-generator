@@ -1,14 +1,65 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Present Asset Assistant as one ordered Blender sidebar workflow."""
+"""Present Asset Assistant as one ordered, polished Blender sidebar workflow."""
 
 _CATEGORY = "Asset Assistant"
+
+
+def _asset_summary(layout, context):
+    """Render a compact, read-only working-asset summary without changing workflow state."""
+    settings = getattr(context.scene, "humanoid_settings", None)
+    target = getattr(settings, "target", None) if settings else None
+    box = layout.box()
+    row = box.row(align=True)
+    row.label(text="Current Asset", icon="OBJECT_DATA")
+    if target is None:
+        box.label(text="No asset selected", icon="INFO")
+        box.label(text="Create an asset or choose an existing generated asset.")
+        return
+
+    box.label(text=target.name, icon="OUTLINER_OB_GROUP_INSTANCE")
+    children = tuple(target.children)
+    has_rig = any(obj.type == "ARMATURE" for obj in children)
+    component_count = sum(obj.type == "MESH" for obj in children)
+    animation_count = 0
+    for obj in children:
+        if obj.type != "ARMATURE" or not obj.animation_data:
+            continue
+        if obj.animation_data.action is not None:
+            animation_count += 1
+        animation_count += len(obj.animation_data.nla_tracks)
+
+    status = box.row(align=True)
+    status.label(text="Rigged" if has_rig else "No Rig", icon="ARMATURE_DATA")
+    status.label(text=str(animation_count) + " Animations", icon="ACTION")
+    box.label(text=str(component_count) + " Mesh Components", icon="OUTLINER_OB_MESH")
+
+
+def _decorate_panel(panel_type, stage_label, stage_icon):
+    """Add consistent product identity and context while preserving the existing panel draw."""
+    original_draw = panel_type.draw
+    if getattr(original_draw, "_asset_assistant_polished_shell", False):
+        return
+
+    def draw_with_shell(panel, context):
+        layout = panel.layout
+        title = layout.row(align=True)
+        title.scale_y = 1.15
+        title.label(text="Asset Assistant", icon="TOOL_SETTINGS")
+        subtitle = layout.row()
+        subtitle.label(text=stage_label, icon=stage_icon)
+        _asset_summary(layout, context)
+        layout.separator()
+        original_draw(panel, context)
+
+    draw_with_shell._asset_assistant_polished_shell = True
+    panel_type.draw = draw_with_shell
 
 
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
             animation_adoption_ui=None, self_rigged_accessory=None):
     panels = (
-        (ui.HUMANOID_PT_panel, "Generate", 0),
+        (ui.HUMANOID_PT_panel, "Create", 0),
         (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
         (ui.HUMANOID_PT_rigging, "Rig", 2),
         (ui.HUMANOID_PT_animations, "Animate", 3),
@@ -105,3 +156,17 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                 box.label(text="Validates ownership/continuity before saving.")
             draw_export_with_checkpoint._asset_assistant_checkpoint_action = True
             ui.HUMANOID_PT_export.draw = draw_export_with_checkpoint
+
+    # Apply the visual shell last so it wraps all existing workflow extensions rather than
+    # replacing them. This is intentionally presentation-only: every operator and property
+    # remains owned by its existing adapter module.
+    shell_panels = (
+        (ui.HUMANOID_PT_panel, "Create an asset", "OUTLINER_OB_MESH"),
+        (modify_ui.ASSET_ASSISTANT_PT_modify, "Refine the current asset", "MODIFIER"),
+        (ui.HUMANOID_PT_rigging, "Prepare for posing", "ARMATURE_DATA"),
+        (ui.HUMANOID_PT_animations, "Build and preview motion", "ACTION"),
+        (ui.HUMANOID_PT_validation, "Check game readiness", "CHECKMARK"),
+        (ui.HUMANOID_PT_export, "Send to your target", "EXPORT"),
+    )
+    for panel, label, icon in shell_panels:
+        _decorate_panel(panel, label, icon)
