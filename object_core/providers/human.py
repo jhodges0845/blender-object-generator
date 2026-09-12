@@ -7,6 +7,7 @@ from ..models import BodyType, HumanoidSpec, ImageTextureSpec, MaterialSpec
 from ..proportions import generate_proportions
 from ..rigging import generate_deforming_skeleton, generate_skin_weights, generate_skeleton
 from .base import Parameter
+from .semantic import SemanticTarget
 
 
 HUMAN_PARAMETERS = (
@@ -20,6 +21,21 @@ HUMAN_PARAMETERS = (
         0,
         tuple((value.value, value.value.title()) for value in BodyType),
     ),
+)
+
+HUMAN_SEMANTIC_TARGETS = (
+    SemanticTarget("body", "Body", "region", ("shape", "scale", "surface")),
+    SemanticTarget("torso", "Torso", "region", ("shape", "scale")),
+    SemanticTarget("shoulders", "Shoulders", "region", ("shape", "scale")),
+    SemanticTarget("head", "Head", "region", ("shape", "scale", "surface")),
+    SemanticTarget("face", "Face", "region", ("shape", "surface", "add_detail")),
+    SemanticTarget("arm.left", "Left Arm", "region", ("shape", "scale")),
+    SemanticTarget("arm.right", "Right Arm", "region", ("shape", "scale")),
+    SemanticTarget("leg.left", "Left Leg", "region", ("shape", "scale")),
+    SemanticTarget("leg.right", "Right Leg", "region", ("shape", "scale")),
+    SemanticTarget("hair", "Hair", "component", ("add_component", "remove_component", "shape", "surface")),
+    SemanticTarget("clothing", "Clothing", "component", ("add_component", "remove_component", "shape", "surface")),
+    SemanticTarget("accessories", "Accessories", "component", ("add_component", "remove_component", "shape", "surface")),
 )
 
 
@@ -39,6 +55,7 @@ class HumanoidProvider:
     supports_locomotion = supports_run = False
     uses_skin_weights = supports_materials = False
     parameters = HUMAN_PARAMETERS
+    semantic_targets = ()
 
     def proportions(self, values):
         return _proportions(values)
@@ -60,6 +77,7 @@ class HumanExperimentalProvider:
     supports_rig = supports_materials = supports_idle = supports_locomotion = supports_run = True
     uses_skin_weights = True
     parameters = HUMAN_PARAMETERS
+    semantic_targets = HUMAN_SEMANTIC_TARGETS
 
     def proportions(self, values):
         return _proportions(values)
