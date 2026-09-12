@@ -32,10 +32,12 @@ class ComponentContractTests(unittest.TestCase):
         self.assertEqual("hair", document["kind"])
         self.assertEqual("head", document["attachment_target"])
         self.assertEqual("none", document["rig_binding"])
-        self.assertEqual("rigid", document["behavior"])
+        self.assertIsNone(document["behavior"])
+        self.assertEqual(ComponentBehavior.RIGID, effective_behavior(record))
         self.assertEqual("secondary_motion", document["physics"]["mode"])
         self.assertNotIn("blender", str(document).lower())
         self.assertNotIn("godot", str(document).lower())
+        self.assertEqual(record, component_from_document(document))
 
     def test_skinned_component_can_bind_to_parent_rig_without_owning_it(self):
         record = ComponentRecord(
@@ -47,10 +49,10 @@ class ComponentContractTests(unittest.TestCase):
         self.assertIs(record, validate_component(record))
         document = component_document(record)
         self.assertEqual("parent", document["rig_binding"])
-        self.assertEqual("parent_skinned", document["behavior"])
+        self.assertIsNone(document["behavior"])
+        self.assertEqual(ComponentBehavior.PARENT_SKINNED, effective_behavior(record))
         self.assertFalse(document["ownership"]["rig"])
-        parsed = component_from_document(document)
-        self.assertEqual(ComponentBehavior.PARENT_SKINNED, parsed.behavior)
+        self.assertEqual(record, component_from_document(document))
 
     def test_self_rigged_gauntlet_is_separate_from_component_kind(self):
         record = ComponentRecord(
@@ -70,6 +72,7 @@ class ComponentContractTests(unittest.TestCase):
             attachment_mode=AttachmentMode.RIGID, behavior=ComponentBehavior.STATIC,
         )
         self.assertIs(record, validate_component(record))
+        self.assertEqual("static", component_document(record)["behavior"])
 
     def test_physics_assisted_hair_requires_explicit_physics_intent(self):
         record = ComponentRecord(
@@ -120,6 +123,7 @@ class ComponentContractTests(unittest.TestCase):
         }
         record = component_from_document(document)
         self.assertEqual(RigBinding.OWNED, record.rig_binding)
+        self.assertIsNone(record.behavior)
         self.assertEqual(ComponentBehavior.SELF_RIGGED, effective_behavior(record))
         self.assertTrue(record.owns_rig)
 
