@@ -17,6 +17,11 @@ _ANIMATION_RECORD_KEY = "asset_assistant_animation_record"
 _ANIMATION_ID_KEY = "asset_assistant_animation_id"
 
 
+def has_animation_record(action):
+    """Return whether an Action opts into the first-class animation record contract."""
+    return action.get(_ANIMATION_RECORD_KEY) is not None or action.get(_ANIMATION_ID_KEY) is not None
+
+
 def rig_signature(rig):
     """Return a deterministic compatibility signature for one Blender armature."""
     if rig is None or rig.type != "ARMATURE":
@@ -126,6 +131,7 @@ def update_animation_export_name(action, export_name):
 
 __all__ = [
     "animation_record",
+    "has_animation_record",
     "inspect_animation_record",
     "persist_generated_animation",
     "rig_signature",
