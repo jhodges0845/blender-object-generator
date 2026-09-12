@@ -35,6 +35,24 @@ class ModifyExchangeTests(unittest.TestCase):
         self.assertEqual(REQUEST_SCHEMA, template["schema"])
         self.assertEqual([], template["semantic_operations"])
 
+    def test_first_class_animation_serializes_stable_id_without_replacing_clip_key(self):
+        snapshot = self._snapshot(animations=(
+            AnimationSnapshot(
+                "Walk",
+                "Ground Walk",
+                animation_id="animation-123",
+                display_name="Walk Cycle",
+                source="generated",
+                owns_curves=True,
+            ),
+        ))
+        document = json.loads(inspection_json(snapshot))
+        animation = document["asset"]["animations"][0]
+        self.assertEqual("Walk", animation["clip_id"])
+        self.assertEqual("animation-123", animation["animation_id"])
+        self.assertEqual("Ground Walk", animation["export_name"])
+        self.assertEqual("generated", animation["source"])
+
     def test_inspection_round_trips_applied_semantic_patch_state(self):
         snapshot = self._snapshot(semantic_operations=(
             SemanticOperation("shape", "beak", (("profile", "hooked"), ("amount", 0.8))),
