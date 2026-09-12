@@ -9,6 +9,7 @@ try:
 except ModuleNotFoundError:
     bpy = None
 
+from blender_adapter import ui
 from blender_adapter.adapter import create_character
 from blender_adapter.working_asset_ui import (
     open_editable_checkpoint,
@@ -20,6 +21,22 @@ from object_core.objects import get_provider
 
 @unittest.skipIf(bpy is None, "requires Blender; use scripts/test_blender.py")
 class EditableCheckpointTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._registered_settings = False
+        if not hasattr(bpy.types.Scene, "humanoid_settings"):
+            bpy.utils.register_class(ui.HUMANOID_PG_result)
+            bpy.utils.register_class(ui.HUMANOID_PG_settings)
+            bpy.types.Scene.humanoid_settings = bpy.props.PointerProperty(type=ui.HUMANOID_PG_settings)
+            cls._registered_settings = True
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._registered_settings:
+            del bpy.types.Scene.humanoid_settings
+            bpy.utils.unregister_class(ui.HUMANOID_PG_settings)
+            bpy.utils.unregister_class(ui.HUMANOID_PG_result)
+
     def setUp(self):
         if bpy.context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
