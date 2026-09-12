@@ -173,7 +173,7 @@ class HUMANOID_OT_pose(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         root = _character(context) if context.scene else None
-        return context.mode == "OBJECT" and root is not None and any(o.type == "ARMATURE" for o in root.children)
+        return context.mode == "OBJECT" and root is not None and any(o.type == 'ARMATURE' for o in root.children)
 
     def execute(self, context):
         rig = next(o for o in _character(context).children if o.type == "ARMATURE")
@@ -378,6 +378,27 @@ def _needs_attention(context, stage):
                for issue in _export_issues(context))
 
 
+def _draw_validation_results(layout, rows, width):
+    """Present an existing validation snapshot in severity order without changing it."""
+    groups = (
+        ("ERROR", "Errors", "ERROR"),
+        ("WARN", "Warnings", "INFO"),
+        ("PASS", "Passed Checks", "CHECKMARK"),
+        ("INFO", "Information", "INFO"),
+    )
+    for status, label, icon in groups:
+        matches = [row for row in rows if row.status == status]
+        if not matches:
+            continue
+        section = layout.box()
+        section.label(text=f"{label} ({len(matches)})", icon=icon)
+        for result in matches:
+            card = section.box()
+            card.label(text=result.code.replace("_", " ").title(), icon=icon)
+            for line in textwrap.wrap(result.message, width):
+                card.label(text=line)
+
+
 class _WorkflowPanel:
     """Shared stage layout; each registered panel owns a fixed sidebar category."""
     bl_space_type = "VIEW_3D"
@@ -492,28 +513,32 @@ class _WorkflowPanel:
                 rows = _export_issues(context) if stage == 'EXPORT' else settings.validation_results
             if stage == 'EXPORT':
                 ready = is_ready(rows)
-                layout.label(text='Ready to export.' if ready else 'Needs attention: see Validation.',
-                             icon='CHECKMARK' if ready else 'ERROR')
-                row = layout.row()
-                row.enabled = ready
-                row.operator('humanoid.export_asset', icon='EXPORT')
+                confidence = layout.box()
+                confidence.label(text='Ready to export.' if ready else 'Needs attention before export.',
+                                 icon='CHECKMARK' if ready else 'ERROR')
+                if not ready:
+                    errors = sum(row.status == "ERROR" for row in rows)
+                    warnings = sum(row.status == "WARN" for row in rows)
+                    confidence.label(text=f"{errors} errors, {warnings} warnings")
+                    confidence.label(text="Review the Validate stage, then rerun validation.")
+                action = confidence.row()
+                action.scale_y = 1.25
+                action.enabled = ready
+                action.operator('humanoid.export_asset', text='Export Asset', icon='EXPORT')
                 if settings.last_export:
-                    layout.label(text='Saved: ' + settings.last_export)
+                    confidence.label(text='Saved: ' + settings.last_export, icon='CHECKMARK')
                 return
 
             if rows:
                 errors = sum(row.status == "ERROR" for row in rows)
                 warnings = sum(row.status == "WARN" for row in rows)
-                layout.label(text=f"{errors} errors, {warnings} warnings")
-                if stage != 'EXPORT':
-                    layout.label(text="Snapshot: rerun after editing.")
+                passes = sum(row.status == "PASS" for row in rows)
+                summary = layout.box()
+                summary.label(text="Validation Snapshot", icon="CHECKMARK" if errors == 0 else "ERROR")
+                summary.label(text=f"{errors} errors  •  {warnings} warnings  •  {passes} passed")
+                summary.label(text="Snapshot: rerun after editing.")
                 width = max(24, int(context.region.width / 7) - 6)
-                for row in rows:
-                    box = layout.box()
-                    box.label(text=row.status + ": " + row.code.replace("_", " ").title(),
-                              icon={"ERROR": "ERROR", "WARN": "INFO", "PASS": "CHECKMARK", "INFO": "INFO"}[row.status])
-                    for line in textwrap.wrap(row.message, width):
-                        box.label(text=line)
+                _draw_validation_results(layout, rows, width)
 
 
 class HUMANOID_PT_panel(_WorkflowPanel, bpy.types.Panel):
