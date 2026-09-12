@@ -25,6 +25,7 @@ AttachmentMode = _components.AttachmentMode
 ComponentKind = _components.ComponentKind
 ComponentRecord = _components.ComponentRecord
 PhysicsIntent = _components.PhysicsIntent
+RigBinding = _components.RigBinding
 component_document = _components.component_document
 component_from_document = _components.component_from_document
 validate_component = _components.validate_component
