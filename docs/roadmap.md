@@ -1,243 +1,93 @@
 # Asset Assistant Roadmap
 
-This is the working source of truth for current development priorities. Keep implemented behavior, automated coverage, manual verification, and future work clearly separated.
+This is the working source of truth for current development priorities.
 
 ## Product vision
 
-**Asset Assistant** is an open-source, artist-first 3D workflow assistant. It should remove repetitive and technical friction without replacing the artist. Generated assets are starting points, not mandatory session roots: artists should be able to generate or reopen an editable asset, attach reusable assets, work on animations independently, save checkpoints, and continue later.
+Asset Assistant is an open-source, artist-first 3D workflow assistant. Generation is optional: artists can generate, reopen, or import existing work and adopt it into the same preservation-aware workflow.
 
-The intended architecture is:
+Canonical production flow:
 
-`Host-independent asset core -> provider/source -> Blender adapter -> editable working state -> validation/preparation -> target adapter -> exported asset -> artist review`
-
-The project is broader than Human generation. The provider/capability model supports characters, creatures, props, printable assets, reusable components, and animation assets without making shared workflow code assume humanoid anatomy.
-
-See `docs/editable-asset-workflow.md`, `docs/production-character-roundtrip.md`, and `docs/editable-continuity-audit.md` for the current production workflow and checkpoint criteria.
+`Generate OR Import -> Inspect/Adopt -> Configure behavior/attachment -> Preview -> Validate -> Save Editable Checkpoint -> Reopen/Continue -> Validate for Target -> Export`
 
 ## Engineering guardrails
 
-- `object_core` remains independent of Blender APIs.
-- `blender_adapter` is the canonical Blender-specific implementation.
-- `humanoid_blender` remains only as a compatibility entry point/module ID where required.
-- Generic workflow code follows explicit provider capabilities rather than anatomy assumptions.
-- Shared Modify code owns transport/planning/preservation, while providers own anatomy and semantic interpretation.
-- Validation reports real limitations instead of manufacturing a green result.
-- A successful file write is not equivalent to destination certification.
-- Generated Blender data should remain editable by artists.
-- Generation is one asset source; imported/reopened assets enter through explicit validation/adoption rather than guessed ownership.
-- Editable working state is separate from destination export. `.blend` is the initial canonical working/checkpoint format; GLB/FBX/STL/3MF remain delivery formats.
-- Provider names and keys are canonical architecture identifiers; saved legacy identifiers are handled only through explicit compatibility mapping.
-- Unsupported Modify operations remain explicit blockers rather than silent no-ops.
-- Artist/imported curves, materials, rigs, NLA, drivers, and unrelated scene objects are never silently claimed.
+- `object_core` remains host-independent; Blender behavior stays in `blender_adapter`.
+- Providers/components own specialized semantics; shared workflow remains capability-driven.
+- Hair, clothing and accessories are separate assets, never Human body semantics.
+- Component kind and component behavior are independent.
+- Expensive behavior is opt-in and should degrade gracefully for older hardware.
+- Imported/external work is preservation-first and never silently claimed.
+- Validation is mandatory before save and freshly repeated before destination export.
+- `.blend` is the canonical editable checkpoint; GLB/FBX/STL/3MF are delivery formats.
+- No release/tag without explicit approval.
 
-## Completed platform foundation
+## Completed foundation
 
-- [x] Asset Assistant identity and GPL release packaging.
-- [x] Host-independent `object_core` and canonical `blender_adapter` boundary.
-- [x] Provider registry, parameter fields, and capability declaration validation.
-- [x] Canonical Human, Quadruped, Avian, and Box providers.
-- [x] Static, rigid animated, and skin-weight deforming provider paths.
-- [x] Core validation plus Blender-specific inspection.
-- [x] Godot, Unity, Unreal, and Cura target profiles/adapters.
-- [x] GLB/glTF, FBX, and STL export paths.
-- [x] Provider-aware rigging and capability-driven Idle / Walk / Run / Flight workflows where supported.
-- [x] Blender 5.2 layered-action support and Blender 2.92 compatibility.
-- [x] CI on Python 3.9-3.12 plus Blender 2.92.0 and 5.2.1.
-- [x] Branch protection requiring all six CI checks before merge.
-- [x] Godot, Unity, Unreal, and Cura smoke verification.
-- [x] Redraw-time validation caching plus fresh export safety preflight.
-- [x] Cura Human print preparation plus selectable print-scale presets.
-- [x] Unified Asset Assistant sidebar organized around Generate / Modify / Rig / Animate / Validate / Export.
-- [x] Reproducible tagged-release packaging automation implemented; no release/tag without explicit approval.
+- [x] Human, Quadruped, Avian and Box provider foundations.
+- [x] Host-independent core + Blender adapter boundary.
+- [x] Human/Avian semantic Modify and external model exchange.
+- [x] Component records, rigid/bone attachment and parent-rig skinning.
+- [x] Imported rigid and parent-skinned component adoption with artist material preservation.
+- [x] Safe component remove/replace and Modify component state.
+- [x] Editable `.blend` save/reopen continuity, including native Blender reopen validation.
+- [x] First-class animation records and imported/artist Action registration.
+- [x] External generated-animation refinement for duration/strength/export name.
+- [x] Godot/Unity/Unreal/Cura target paths and six required CI checks.
 
-## Provider status
+## Current manual checkpoint — production character continuity
 
-### Human — foundation complete, visual quality refinement active
+The existing hands-on checkpoint remains required before public alpha, but it no longer blocks small production-component proofs:
 
-Human has connected deformable geometry, dedicated skeleton and skin weights, editable UV/material/texture data, Idle/Walk/Run, automated deformation coverage, destination evidence, and rich topology-preserving semantic Modify.
+`Generate Human -> save/reopen -> model inspection -> external refinement -> preview/apply -> validate/save -> animation inspection -> external refinement -> preview/play/apply -> validate/save -> target validation/export`
 
-Implemented semantic targets include body, torso, shoulders, head, face, jaw, cheeks, arms, and legs. Human is the primary proof target for production-character continuity.
+Acceptance remains: identity survives, UI is understandable, artist-owned data is preserved, animation identity survives, and final target export contains expected state.
 
-Remaining Human work is quality, not architecture:
+## Active phase — production components and external adoption
 
-- [ ] visually review the latest base-face landmark pass;
-- [ ] refine body/hand silhouette where real production review exposes limitations;
-- [ ] grow animation semantics beyond global duration/strength when production use shows which controls matter.
+We are starting this work now rather than waiting for the manual checkpoint. Keep initial scope deliberately small until the hands-on round trip confirms UX.
 
-### Quadruped — foundation complete
+### Shared component behavior
 
-Quadruped proves the architecture with genuinely non-Human terrestrial anatomy: connected geometry, dedicated skeleton/weights, deformation coverage, Idle/Walk/Run, deterministic UVs, portable material intent, and generic Blender workflow/export coverage.
+- [x] Portable behavior profiles: static, rigid, parent-skinned, self-rigged, physics-assisted.
+- [x] Backward-compatible behavior inference for existing component records.
+- [ ] Expose behavior selection through the existing Generate/Import component workflow rather than a new parallel UI.
+- [ ] Working-state validation gate before editable save for component/rig/ownership integrity.
+- [ ] Fresh target validation remains mandatory before export.
 
-- [ ] provider-owned rich semantic executor remains a follow-up milestone.
+### External asset adoption
 
-### Avian — foundation complete plus rich semantic executor
+- [x] Imported rigid artist mesh adoption.
+- [x] Imported parent-rig-skinned mesh adoption.
+- [ ] General external-object inspection/adoption entry point: inspect before claiming ownership.
+- [ ] Report supported/reduced-capability/blocked adoption state instead of forcing regeneration.
+- [ ] Adopt recognizable external rigs/materials/weights while preserving artist ownership boundaries.
+- [ ] Reuse first-class imported animation registration for external Actions.
 
-Avian adds non-Human airborne anatomy and a distinct capability set: connected wings/tail/legs/feet, dedicated rig/weights, UV/material intent, Idle/Walk/Flight, no Run, and persistent topology-preserving semantic operations for body/chest/head/beak/wings/tail/legs/feet.
+### First production proofs
 
-The shared workflow remains unaware of beaks/wings; those semantics stay provider-owned.
+1. **Accessory proof first:** a simple rigid accessory (ring/pendant-style) created/imported separately and attached through the existing workflow. Prove remove/replace, material preservation, save/reopen and export.
+2. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
+3. **Hair proof:** separate hair asset with low-cost static/rigid path first, then bone-driven/parent-skinned motion. Physics is optional and layered later.
+4. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
+5. Only after those proofs, generalize catalog/provider UX.
 
-## Model Modify — implemented
+### Performance rule
 
-Current workflow:
+Hair/accessory/clothing motion must not become a baseline runtime requirement. Prefer tiers/fallbacks: static or rigid cheapest, bone-driven/skinned middle path, physics-assisted optional. Material animation such as emissive glow must not require skeletal animation.
 
-`Select Asset Assistant asset -> Export Inspection -> external edit -> Import Change File -> Preview/Review -> Apply -> revalidate`
+## Provider quality follow-ups
 
-Implemented:
+Human visual refinement remains active: base-face/body/hand review and later provider-owned gait controls. Quadruped rich semantic Modify remains future work. Avian foundation and rich semantics are complete; further polish is evidence-driven.
 
-- [x] portable inspection/snapshot/request/plan contracts;
-- [x] stable asset/provider identity binding;
-- [x] non-mutating preview followed by fresh revalidation on apply;
-- [x] transactional provider-parameter regeneration with preservation blockers;
-- [x] generated animation export-name metadata changes;
-- [x] provider-owned semantic target manifests/execution;
-- [x] persistent/replayable semantic patches;
-- [x] Human and Avian semantic geometry execution;
-- [x] safe composition/routing of parameter, semantic, and animation-name changes;
-- [x] component state in external inspection plus validated component removal;
-- [x] real Human external inspection -> returned request -> Blender apply proof.
+## Release hardening still required
 
-Important limitation: machine-readable inspection describes procedural/ownership state, not rendered appearance. Production-character aesthetic refinement should pair JSON inspection with Blender viewport review/screenshots.
-
-## Component foundation — implemented; real catalogs intentionally paused
-
-Hair, clothing, and accessories are first-class attachable components rather than Human body semantics.
-
-Implemented:
-
-- [x] portable component records and physics intent;
-- [x] rigid root/bone attachment;
-- [x] parent-rig-skinned attachment;
-- [x] stable ownership metadata and tamper detection;
-- [x] safe remove/replace lifecycle with rollback;
-- [x] component state in Modify exchange and safe external removal;
-- [x] imported rigid artist mesh adoption;
-- [x] imported parent-rig-skinned mesh adoption;
-- [x] artist material ownership preservation.
-
-Real generated/import catalogs remain paused until the editable-continuity manual checkpoint is accepted.
-
-## Editable working state — implemented, manual acceptance pending
-
-`.blend` is the canonical editable checkpoint format; destination exports remain separate.
-
-Implemented:
-
-- [x] **Save Editable Checkpoint (.blend)** in the existing Export workflow using copy-save so the current session path is unchanged;
-- [x] checkpoint kind/version metadata;
-- [x] **Open Editable Checkpoint (.blend)** entry path;
-- [x] post-load reinspection/target restoration;
-- [x] marked checkpoints now auto-validate even when opened through Blender File/Open or Recent Files;
-- [x] component/Modify/rig/animation state survives ordinary `.blend` persistence through Blender data + Asset Assistant metadata.
-
-Manual acceptance still required:
-
-- [ ] real save -> reopen -> visual review through the installed sidebar workflow.
-
-## First-class animation assets — implemented
-
-Animations are no longer only one-shot generated clips.
-
-Implemented:
-
-- [x] portable `AnimationRecord` with stable ID, display/export name, provenance, rig signature, frame range, FPS, loop/root-motion intent, ownership, provider/capability;
-- [x] generated Action persistence/inspection;
-- [x] artist/imported Action registration without claiming curves;
-- [x] preservation-aware add/register/remove/replace lifecycle;
-- [x] managed animation scoping by compatibility **and owning Asset Assistant rig identity**;
-- [x] rich animation state in external Modify inspection;
-- [x] dedicated Animations-panel external refinement workflow;
-- [x] non-mutating animation request preview;
-- [x] executable generated-clip tuning for cycle duration/speed, motion strength, and export name;
-- [x] stable animation ID preserved across regeneration;
-- [x] other generated/artist Actions preserved when one clip is refined.
-
-Future animation tuning should be provider/capability-specific and evidence-driven: gait/body-language controls, root motion, torso lean, arm swing, knee lift, contact timing, etc. Do not implement arbitrary shared quaternion-curve surgery.
-
-## Current checkpoint — production-character editable continuity
-
-The automated architecture is ready for the real artist pass.
-
-Automated coverage now proves:
-
-- [x] Human model inspection and semantic refinement;
-- [x] first-class animation inspection/refinement;
-- [x] stable asset/animation identity through refinement;
-- [x] editable `.blend` checkpoint save contract;
-- [x] engine export after the refinement sequence;
-- [x] Blender 2.92.0 and 5.2.1 CI coverage;
-- [x] native Blender load handler for marked checkpoint validation.
-
-Manual checkpoint to perform before closing this phase:
-
-`Generate Human -> save .blend -> reopen -> export model inspection -> external body request -> import -> preview -> visual review -> apply -> save -> reopen -> generate/select animation -> export animation inspection -> external animation request -> import -> preview -> apply -> play -> save -> reopen -> destination export`
-
-Acceptance criteria:
-
-- [ ] no lost provider/asset identity;
-- [ ] active target restored after reopen;
-- [ ] model Preview/Apply understandable in the real sidebar;
-- [ ] visual body refinement can be iterated with JSON + screenshot feedback;
-- [ ] animation Preview/Apply understandable in the real sidebar;
-- [ ] stable animation identity survives the round trip;
-- [ ] final engine export contains the expected refined asset/animations;
-- [ ] no unrelated/artist-owned data is overwritten.
-
-## Next phase after manual checkpoint — production components
-
-Once the continuity pass succeeds, begin real reusable components rather than more framework work.
-
-Suggested order:
-
-1. Hair provider/import workflow with rigid/skinned attachment as appropriate.
-2. Clothing workflow using parent-rig skinning and explicit material ownership.
-3. Accessories using the existing rigid/bone attachment path.
-4. Portable collision/physics intent for hair/clothing only after static ownership/attachment is reliable.
-5. Use a real production character to expose missing component controls before generalizing further.
-
-The component core must remain game/project-agnostic; named game characters are production validation targets, not special cases in shared code.
-
-## Performance and test health
-
-Previous audit work removed duplicated CI discovery/execution and added Python 3.12 `object_core` coverage reporting. Modify snapshot reuse reduced repeated expensive scene/provider inspection.
-
-Remaining evidence-driven follow-ups:
-
-- [ ] profile representative production Human model inspection/preview/apply if the manual workflow feels slow;
-- [ ] profile animation inspection/preview/apply only if interactive use exposes latency;
-- [ ] add performance instrumentation only where stable enough not to create flaky CI.
-
-## Target verification and release hardening
-
-Completed evidence:
-
-- [x] repeatable target-verification checklist;
-- [x] Godot GLB import/animation smoke check;
-- [x] Unity FBX model/animation smoke check;
-- [x] Unreal FBX model/animation smoke check;
-- [x] Cura Box/Human STL path evidence;
-- [x] Human Godot/Unity/Unreal checkpoints;
-- [x] Quadruped Blender generation/rig/animation/material checkpoint;
-- [x] Avian automated Godot/Unity animation packaging plus Blender visual review.
-
-Before public alpha:
-
-- [ ] detailed Cura representative-Human slicing/physical-print review;
-- [ ] broader Quadruped/Avian destination certification where useful;
-- [ ] full cross-provider preservation/architecture/docs/test-coverage audit;
+- [ ] complete real installed-Blender production-character continuity pass;
+- [ ] detailed representative Human Cura slicing/physical-print review;
+- [ ] broader cross-provider/component preservation audit;
 - [ ] clean packaged-install smoke test in Blender 5.2.1;
-- [ ] explicit version/tag/release decision;
-- [ ] publish only with explicit approval.
-
-## Shared follow-ups
-
-- richer Human Run/Walk body-language controls through provider-owned animation Modify;
-- additional Avian gait/flight polish only if visual review exposes a real issue;
-- Quadruped semantic executor;
-- reusable UV/material/validation infrastructure only when another real provider requires it;
-- watertight print-preparation work only for providers that explicitly support printing;
-- optional Godot `.tscn` packaging research while retaining GLB as the portable default;
-- broader destination certification during release hardening.
+- [ ] explicit version/tag/release decision and explicit approval.
 
 ## Near-term milestone
 
-> Asset Assistant can create or reopen useful editable starting assets across supported body plans; preserve reusable attached assets and independent animations across working sessions; inspect and richly modify model and animation state through preservation-aware workflows; validate truthfully; export through supported targets without sacrificing the editable working state; and leave the result ready for continued artist or game-engine refinement.
+> An artist can generate **or import** a base asset/component, explicitly adopt supported external work, choose a reusable behavior/attachment profile, validate before saving, reopen and continue, refine model/animation state without losing ownership boundaries, validate again for a destination, and export — while expensive component motion remains optional for projects targeting older hardware.
