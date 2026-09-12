@@ -18,59 +18,37 @@ class WorkflowSidebarTests(unittest.TestCase):
     def tearDown(self):
         self.addon.unregister()
 
-    def test_workflow_panels_share_one_ordered_asset_assistant_category(self):
+    def test_sidebar_uses_one_visible_asset_assistant_workspace(self):
         from blender_adapter import animation_names_ui, modify_ui, ui
 
-        panels = (
-            (ui.HUMANOID_PT_panel, "Create", 0),
-            (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
-            (ui.HUMANOID_PT_rigging, "Rig", 2),
-            (ui.HUMANOID_PT_animations, "Animate", 3),
-            (ui.HUMANOID_PT_validation, "Validate", 4),
-            (ui.HUMANOID_PT_export, "Export", 5),
-        )
-        for panel, label, order in panels:
-            self.assertEqual("Asset Assistant", panel.bl_category)
-            self.assertEqual(label, panel.bl_label)
-            self.assertEqual(order, panel.bl_order)
-
-        names = animation_names_ui.ASSET_ASSISTANT_PT_animation_names
-        self.assertEqual("Asset Assistant", names.bl_category)
-        self.assertEqual("HUMANOID_PT_animations", names.bl_parent_id)
-        self.assertEqual("Clip Library", names.bl_label)
-
-    def test_only_create_starts_expanded(self):
-        from blender_adapter import modify_ui, ui
-
+        self.assertEqual("Asset Assistant", ui.HUMANOID_PT_panel.bl_label)
+        self.assertEqual("Asset Assistant", ui.HUMANOID_PT_panel.bl_category)
+        self.assertTrue(getattr(ui.HUMANOID_PT_panel.draw, "_asset_assistant_workspace", False))
         self.assertNotIn("DEFAULT_CLOSED", ui.HUMANOID_PT_panel.bl_options)
-        for panel in (
+
+        legacy_panels = (
             modify_ui.ASSET_ASSISTANT_PT_modify,
             ui.HUMANOID_PT_rigging,
             ui.HUMANOID_PT_animations,
             ui.HUMANOID_PT_validation,
             ui.HUMANOID_PT_export,
-        ):
-            self.assertIn("DEFAULT_CLOSED", panel.bl_options)
-
-    def test_all_workflow_panels_keep_the_polished_shell(self):
-        from blender_adapter import modify_ui, ui
-
-        panels = (
-            ui.HUMANOID_PT_panel,
-            modify_ui.ASSET_ASSISTANT_PT_modify,
-            ui.HUMANOID_PT_rigging,
-            ui.HUMANOID_PT_animations,
-            ui.HUMANOID_PT_validation,
-            ui.HUMANOID_PT_export,
+            animation_names_ui.ASSET_ASSISTANT_PT_animation_names,
         )
-        for panel in panels:
-            self.assertTrue(
-                getattr(panel.draw, "_asset_assistant_polished_shell", False),
-                panel.bl_idname + " lost the Asset Assistant shell",
-            )
+        for panel in legacy_panels:
+            self.assertEqual("Asset Assistant", panel.bl_category)
+            self.assertFalse(panel.poll(bpy.context), panel.bl_idname + " should be hidden from the sidebar")
 
-        self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
-        self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
+    def test_workspace_navigation_properties_are_registered(self):
+        from blender_adapter import ui
+
+        settings = bpy.context.scene.humanoid_settings
+        self.assertEqual("CREATE", settings.asset_assistant_workspace)
+        self.assertEqual("GENERATE", settings.asset_assistant_create_view)
+
+        settings.asset_assistant_workspace = "ANIMATE"
+        settings.asset_assistant_create_view = "MODIFY"
+        self.assertEqual("ANIMATE", settings.asset_assistant_workspace)
+        self.assertEqual("MODIFY", settings.asset_assistant_create_view)
 
     def test_repeated_registration_keeps_one_export_fastpath_layer(self):
         from blender_adapter import ui
@@ -87,8 +65,6 @@ class WorkflowSidebarTests(unittest.TestCase):
             getattr(getattr(second_draw, "_asset_assistant_wrapped_draw", None), "_asset_assistant_fastpath", False),
             "Export fast path stacked on top of another fast path",
         )
-        self.assertTrue(getattr(second_draw, "_asset_assistant_polished_shell", False))
-        self.assertTrue(getattr(second_draw, "_asset_assistant_confidence_header", False))
 
     def test_supported_blender_metadata_matches_required_runtime(self):
         self.assertEqual((5, 2, 1), self.addon.bl_info["blender"])
