@@ -73,13 +73,18 @@ class WorkflowSidebarTests(unittest.TestCase):
         from blender_adapter import workflow_ui
 
         class FakeRow:
-            def __init__(self, calls):
+            def __init__(self, calls, labels):
                 self.calls = calls
+                self.labels = labels
                 self.enabled = True
                 self.scale_y = 1.0
+                self.active = True
 
             def operator(self, operator_id, text="", icon="NONE"):
                 self.calls.append((operator_id, text, icon, self.enabled))
+
+            def label(self, text="", **_kwargs):
+                self.labels.append(text)
 
         class FakeBox:
             def __init__(self, calls, labels):
@@ -90,7 +95,7 @@ class WorkflowSidebarTests(unittest.TestCase):
                 return FakeBox(self.calls, self.labels)
 
             def row(self):
-                return FakeRow(self.calls)
+                return FakeRow(self.calls, self.labels)
 
             def label(self, text="", **_kwargs):
                 self.labels.append(text)
