@@ -38,14 +38,37 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None):
     # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
 
-    # Editable working-state checkpoints belong in Export, but are not engine
-    # destination targets. Append one independent .blend action to the existing
-    # Export panel instead of adding another sidebar section or target adapter.
     if working_asset_ui is not None:
-        original_draw = ui.HUMANOID_PT_export.draw
-        if not getattr(original_draw, "_asset_assistant_checkpoint_action", False):
-            def draw_with_checkpoint(panel, context):
-                original_draw(panel, context)
+        # Reopening an editable checkpoint is the alternative entry path to
+        # generating a new base asset, so keep it inside Generate.
+        original_generate_draw = ui.HUMANOID_PT_panel.draw
+        if not getattr(original_generate_draw, "_asset_assistant_checkpoint_open", False):
+            def draw_generate_with_open(panel, context):
+                original_generate_draw(panel, context)
+                layout = panel.layout
+                layout.separator()
+                box = layout.box()
+                box.label(text="Continue existing work")
+                box.operator(
+                    "asset_assistant.open_editable_checkpoint",
+                    text="Open Editable Checkpoint (.blend)",
+                    icon="FILE_FOLDER",
+                )
+                status = context.scene.get("asset_assistant_working_state_status")
+                message = context.scene.get("asset_assistant_working_state_message")
+                if status and message:
+                    box.label(text=message, icon="CHECKMARK" if status == "READY" else "ERROR")
+
+            draw_generate_with_open._asset_assistant_checkpoint_open = True
+            ui.HUMANOID_PT_panel.draw = draw_generate_with_open
+
+        # Editable working-state checkpoints belong in Export, but are not engine
+        # destination targets. Append one independent .blend action to the existing
+        # Export panel instead of adding another sidebar section or target adapter.
+        original_export_draw = ui.HUMANOID_PT_export.draw
+        if not getattr(original_export_draw, "_asset_assistant_checkpoint_action", False):
+            def draw_export_with_checkpoint(panel, context):
+                original_export_draw(panel, context)
                 layout = panel.layout
                 layout.separator()
                 box = layout.box()
@@ -57,5 +80,5 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None):
                 )
                 box.label(text="Preserves the full Blender editing state.")
 
-            draw_with_checkpoint._asset_assistant_checkpoint_action = True
-            ui.HUMANOID_PT_export.draw = draw_with_checkpoint
+            draw_export_with_checkpoint._asset_assistant_checkpoint_action = True
+            ui.HUMANOID_PT_export.draw = draw_export_with_checkpoint
