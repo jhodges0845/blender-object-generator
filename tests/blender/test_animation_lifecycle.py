@@ -92,11 +92,12 @@ class BlenderAnimationLifecycleTests(unittest.TestCase):
         root, _ = self._rigged_human()
         artist = self._artist_action(root, "Keep My Curves")
         record = register_animation_action(root, artist, fps=24.0)
+        name = artist.name
 
         removed = remove_animation(root, record.animation_id)
 
         self.assertEqual(record.animation_id, removed.animation_id)
-        self.assertIn(artist, bpy.data.actions)
+        self.assertIs(bpy.data.actions.get(name), artist)
         self.assertFalse(has_animation_record(artist))
         self.assertNotIn("asset_assistant_export_name", artist)
 
@@ -115,6 +116,7 @@ class BlenderAnimationLifecycleTests(unittest.TestCase):
         root, rig = self._rigged_human()
         current = self._artist_action(root, "Original Artist Idle")
         first = register_animation_action(root, current, export_name="Idle", fps=24.0)
+        current_name = current.name
         replacement = current.copy()
         replacement.name = "Replacement Artist Idle"
         for key in tuple(replacement.keys()):
@@ -135,7 +137,7 @@ class BlenderAnimationLifecycleTests(unittest.TestCase):
         self.assertEqual(first.animation_id, updated.animation_id)
         self.assertEqual(AnimationSource.IMPORTED, updated.source)
         self.assertIs(rig.animation_data.action, replacement)
-        self.assertIn(current, bpy.data.actions)
+        self.assertIs(bpy.data.actions.get(current_name), current)
         self.assertFalse(has_animation_record(current))
         self.assertEqual(first.animation_id, animation_record(replacement).animation_id)
 
