@@ -40,6 +40,19 @@ def component_operation_document(operation):
     }
 
 
+def animation_snapshot_document(clip):
+    """Serialize legacy or first-class animation inspection state."""
+    document = {"clip_id": clip.clip_id, "export_name": clip.export_name}
+    for key in (
+        "display_name", "source", "rig_signature", "frame_start", "frame_end", "fps",
+        "looping", "root_motion", "owns_curves", "source_reference", "provider_key", "capability",
+    ):
+        value = getattr(clip, key, None)
+        if value is not None:
+            document[key] = value
+    return document
+
+
 def inspection_document(snapshot):
     """Return a JSON-serializable inspection document for an Asset Assistant snapshot."""
     provider = get_provider(snapshot.provider_key)
@@ -61,10 +74,7 @@ def inspection_document(snapshot):
             "provider_key": snapshot.provider_key,
             "provider_label": snapshot.provider_label,
             "parameters": dict(snapshot.parameters),
-            "animations": [
-                {"clip_id": clip.clip_id, "export_name": clip.export_name}
-                for clip in snapshot.animations
-            ],
+            "animations": [animation_snapshot_document(clip) for clip in snapshot.animations],
             "semantic_targets": targets,
             "applied_semantic_operations": [semantic_operation_document(operation) for operation in snapshot.semantic_operations],
             "attached_components": [component_document(record) for record in snapshot.components],
