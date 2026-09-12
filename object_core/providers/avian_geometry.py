@@ -118,7 +118,7 @@ def _project_uvs(vertices, faces):
 
 
 def generate_avian_deformable_mesh(dimensions):
-    """Return one connected low-poly Avian surface with integrated wings and tail."""
+    """Return one connected low-poly Avian surface with wings, legs, feet and tail."""
     length = dimensions["body_length_cm"]
     width = dimensions["body_width_cm"]
     height = dimensions["body_height_cm"]
@@ -159,10 +159,13 @@ def generate_avian_deformable_mesh(dimensions):
     _append_tube(vertices, faces, centers, widths, depths)
 
     wing_level = 4
-    openings = {}
-    for side, segment in (("left", 3), ("right", 7)):
-        face_index = 1 + wing_level * _RING_SIDES + segment
-        openings[side] = faces[face_index]
+    leg_level = 3
+    openings = {
+        "wing.left": faces[1 + wing_level * _RING_SIDES + 3],
+        "wing.right": faces[1 + wing_level * _RING_SIDES + 7],
+        "leg.left": faces[1 + leg_level * _RING_SIDES + 7],
+        "leg.right": faces[1 + leg_level * _RING_SIDES + 4],
+    }
     removed = {face for face in openings.values()}
     faces = [face for face in faces if face not in removed]
 
@@ -184,7 +187,38 @@ def generate_avian_deformable_mesh(dimensions):
         base = max(height * 0.20, 1.0)
         widths_wing = (base * 1.12, base, base * 0.84, base * 0.55, base * 0.18)
         depths_wing = (base * 0.78, base * 0.66, base * 0.54, base * 0.34, base * 0.12)
-        _append_branch(vertices, faces, openings[side], centers_wing, widths_wing, depths_wing)
+        _append_branch(vertices, faces, openings["wing." + side], centers_wing, widths_wing, depths_wing)
+
+    # Ground-contact anatomy. The leg bends slightly forward and the foot projects
+    # along +Y so the generated bird has a readable stance before animation.
+    hip_x = width * 0.25
+    hip_y = -length * 0.04
+    hip_z = body_z - height * 0.26
+    knee_z = height * 0.28
+    ankle_z = height * 0.08
+    toe_y = hip_y + length * 0.17
+    leg_thickness = max(width * 0.12, 0.8)
+    for side, sign in (("left", -1.0), ("right", 1.0)):
+        hip = (sign * hip_x, hip_y, hip_z)
+        knee = (sign * hip_x * 1.08, hip_y + length * 0.025, knee_z)
+        ankle = (sign * hip_x * 1.02, hip_y + length * 0.055, ankle_z)
+        toe = (sign * hip_x, toe_y, ankle_z * 0.72)
+        centers_leg = (hip, _lerp(hip, knee, 0.45), knee, ankle, toe)
+        widths_leg = (
+            leg_thickness * 1.15,
+            leg_thickness,
+            leg_thickness * 0.82,
+            leg_thickness * 0.68,
+            leg_thickness * 0.42,
+        )
+        depths_leg = (
+            leg_thickness * 1.10,
+            leg_thickness * 0.92,
+            leg_thickness * 0.72,
+            leg_thickness * 0.56,
+            leg_thickness * 0.34,
+        )
+        _append_branch(vertices, faces, openings["leg." + side], centers_leg, widths_leg, depths_leg)
 
     vertices, faces = tuple(vertices), tuple(faces)
     return ObjectMesh((MeshPart("avian", vertices, faces, _project_uvs(vertices, faces)),))
