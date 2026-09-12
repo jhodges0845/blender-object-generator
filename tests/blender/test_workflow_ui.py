@@ -38,6 +38,19 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.assertEqual("Asset Assistant", names.bl_category)
         self.assertEqual("HUMANOID_PT_animations", names.bl_parent_id)
 
+    def test_only_generate_starts_expanded(self):
+        from blender_adapter import modify_ui, ui
+
+        self.assertNotIn("DEFAULT_CLOSED", ui.HUMANOID_PT_panel.bl_options)
+        for panel in (
+            modify_ui.ASSET_ASSISTANT_PT_modify,
+            ui.HUMANOID_PT_rigging,
+            ui.HUMANOID_PT_animations,
+            ui.HUMANOID_PT_validation,
+            ui.HUMANOID_PT_export,
+        ):
+            self.assertIn("DEFAULT_CLOSED", panel.bl_options)
+
 
 if __name__ == "__main__":
     unittest.main()
