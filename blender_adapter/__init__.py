@@ -24,12 +24,13 @@ def register():
         clothing_component_ui, component_adoption_ui, component_modify_apply,
         component_modify_exchange, cura_scale_ui, hair_component_ui, modification,
         modify_fastpath, modify_ui, run_ui, self_rigged_accessory, ui, ui_fastpath,
-        workflow_ui, workspace_nav_ui, working_asset_ui,
+        workflow_ui, workspace_create_ui, workspace_nav_ui, working_asset_ui,
     )
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
     animation_tuning_ui.prepare(ui)
     workspace_nav_ui.install(workflow_ui)
+    workspace_create_ui.install(workflow_ui, ui)
     workflow_ui.prepare(
         ui, modify_ui, animation_names_ui, working_asset_ui,
         component_adoption_ui, hair_component_ui, clothing_component_ui,

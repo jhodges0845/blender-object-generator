@@ -1,0 +1,118 @@
+from blender_adapter import workspace_create_ui
+
+
+class _Field:
+    def __init__(self, name):
+        self.name = name
+
+
+class _Provider:
+    label = "Human"
+    parameters = tuple(_Field(name) for name in ("height", "weight", "body_type", "waist", "shoulders"))
+
+
+class _UI:
+    @staticmethod
+    def get_provider(_key):
+        return _Provider()
+
+    @staticmethod
+    def _field_name(_provider, field):
+        return "field_" + field.name
+
+
+class _Settings:
+    object_type = "human_experimental"
+    asset_assistant_create_advanced = False
+
+
+class _Scene:
+    humanoid_settings = _Settings()
+
+
+class _Context:
+    scene = _Scene()
+
+
+class _Node:
+    def __init__(self):
+        self.scale_y = 1.0
+        self.children = []
+        self.labels = []
+        self.props = []
+        self.enums = []
+        self.operators = []
+
+    def box(self):
+        child = _Node()
+        self.children.append(child)
+        return child
+
+    def row(self, align=False):
+        child = _Node()
+        self.children.append(child)
+        return child
+
+    def column(self, align=False):
+        child = _Node()
+        self.children.append(child)
+        return child
+
+    def label(self, **kwargs):
+        self.labels.append(kwargs)
+
+    def prop(self, _settings, prop, **kwargs):
+        self.props.append((prop, kwargs))
+
+    def prop_enum(self, _settings, prop, key, **kwargs):
+        self.enums.append((prop, key, kwargs))
+
+    def operator(self, op, **kwargs):
+        self.operators.append((op, kwargs))
+
+    def separator(self, **_kwargs):
+        pass
+
+
+class _Panel:
+    def __init__(self):
+        self.layout = _Node()
+
+
+def _walk(node):
+    yield node
+    for child in node.children:
+        yield from _walk(child)
+
+
+def test_create_generate_uses_four_large_asset_tiles_and_primary_action():
+    panel = _Panel()
+    workspace_create_ui._draw_generate(panel, _Context(), _UI(), working_asset_ui=object())
+
+    nodes = list(_walk(panel.layout))
+    enums = [call for node in nodes for call in node.enums]
+    asset_enums = [call for call in enums if call[0] == "object_type"]
+    assert [call[1] for call in asset_enums] == [
+        "human_experimental", "human_experimental",
+        "quadruped", "quadruped",
+        "avian", "avian",
+        "box", "box",
+    ]
+
+    icon_rows = [node for node in nodes if node.scale_y == 1.75 and node.enums]
+    assert len(icon_rows) == 4
+
+    operators = [call for node in nodes for call in node.operators]
+    assert ("humanoid.generate_blockout", {"text": "Generate Human", "icon": "ADD"}) in operators
+    assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Editable Checkpoint", "icon": "FILE_FOLDER"}) in operators
+
+
+def test_create_generate_keeps_first_three_parameters_visible_and_collapses_rest():
+    panel = _Panel()
+    workspace_create_ui._draw_generate(panel, _Context(), _UI(), working_asset_ui=None)
+
+    props = [call[0] for node in _walk(panel.layout) for call in node.props]
+    assert props[:3] == ["field_height", "field_weight", "field_body_type"]
+    assert "field_waist" not in props
+    assert "field_shoulders" not in props
+    assert "asset_assistant_create_advanced" in props
