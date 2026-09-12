@@ -8,6 +8,7 @@ from .core import (
     AttachmentMode,
     ComponentRecord,
     ObjectMesh,
+    RigBinding,
     component_document,
     component_from_document,
     validate_component,
@@ -103,6 +104,29 @@ def _validate_attachment(root, component_root, record):
         raise ValueError("component bone attachment no longer matches persisted metadata")
 
 
+def _validate_owned_rig(component_root, record):
+    descendants = tuple(_descendants(component_root))
+    owned_rigs = [
+        obj for obj in descendants
+        if obj.type == "ARMATURE"
+        and obj.get(_COMPONENT_ID_KEY) == record.component_id
+        and bool(obj.get("asset_assistant_component_rig"))
+    ]
+    if record.owns_rig:
+        if record.rig_binding != RigBinding.OWNED:
+            raise ValueError("component declares rig ownership without owned rig binding")
+        if len(owned_rigs) != 1:
+            raise ValueError("owned-rig component must contain exactly one managed component armature")
+        rig = owned_rigs[0]
+        mesh_children = [obj for obj in descendants if obj.type == "MESH"]
+        for mesh in mesh_children:
+            armature_modifiers = [modifier for modifier in mesh.modifiers if modifier.type == "ARMATURE"]
+            if not any(modifier.object == rig for modifier in armature_modifiers):
+                raise ValueError("owned-rig component mesh is no longer bound to its component armature")
+    elif owned_rigs:
+        raise ValueError("component contains a managed component armature without declaring rig ownership")
+
+
 def inspect_component(root, component_id):
     """Return the validated record only when Blender hierarchy and metadata still agree."""
     record = next((item for item in component_records(root) if item.component_id == component_id), None)
@@ -122,6 +146,7 @@ def inspect_component(root, component_id):
     mesh_children = [child for child in component_root.children if child.type == "MESH"]
     if record.owns_geometry and not mesh_children:
         raise ValueError("owned component geometry is missing")
+    _validate_owned_rig(component_root, record)
     return record
 
 
@@ -144,14 +169,33 @@ def _attach_component_root(root, component_root, record):
 def _delete_component_tree(component_root):
     import bpy
 
+    component_id = str(component_root.get(_COMPONENT_ID_KEY) or "").strip()
     objects = list(_descendants(component_root))
     objects.append(component_root)
     meshes = [obj.data for obj in objects if obj.type == "MESH" and obj.data is not None]
+    armatures = [
+        obj.data for obj in objects
+        if obj.type == "ARMATURE" and obj.data is not None
+        and obj.get(_COMPONENT_ID_KEY) == component_id
+        and bool(obj.get("asset_assistant_component_rig"))
+    ]
+    actions = [
+        action for action in bpy.data.actions
+        if component_id
+        and action.get(_COMPONENT_ID_KEY) == component_id
+        and bool(action.get("asset_assistant_component_animation"))
+    ]
     for obj in reversed(objects):
         bpy.data.objects.remove(obj, do_unlink=True)
     for data in meshes:
         if data.users == 0:
             bpy.data.meshes.remove(data)
+    for data in armatures:
+        if data.users == 0:
+            bpy.data.armatures.remove(data)
+    for action in actions:
+        if action.users == 0:
+            bpy.data.actions.remove(action)
 
 
 def attach_rigid_component(root, mesh, record, *, name="Accessory"):

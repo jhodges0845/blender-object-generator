@@ -24,7 +24,7 @@ Canonical production flow:
 
 ## Development / CI rules
 
-Main is protected and changes go through branches/PRs. Required CI covers Python 3.9, 3.10, 3.11, 3.12 with coverage plus Blender 2.92.0 and 5.2.1. During the current production-component phase, successful PRs are authorized to merge automatically after all required checks pass. After creating a PR, wait about one minute before the first CI inspection. On failure, inspect and fix the exact failing job rather than guessing. Never create a release or tag without explicit approval.
+Main is protected and changes go through branches/PRs. Required CI covers Python 3.9, 3.10, 3.11, 3.12 with coverage plus Blender 5.2.1. Blender 2.92.0 is no longer a supported or required runtime; new development should target Blender 5.2.1 rather than carrying legacy compatibility work that would constrain the current architecture. During the current production-component phase, successful PRs are authorized to merge automatically after all required checks pass. After creating a PR, wait about one minute before the first CI inspection. On failure, inspect and fix the exact failing job rather than guessing. Never create a release or tag without explicit approval.
 
 ## Completed foundation
 
