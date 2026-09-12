@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify tag matches package version
+        if: github.event_name == 'push'
+        run: |
+          expected="v$(python - <<'PY'
+          import tomllib
+          with open('pyproject.toml', 'rb') as handle:
+              print(tomllib.load(handle)['project']['version'])
+          PY
+          )"
+          test "${GITHUB_REF_NAME}" = "$expected"
+
+      - name: Build reproducible release ZIP
+        run: |
+          python -m scripts.build_blender_addon --output dist/asset_assistant.zip
+          python -m scripts.build_blender_addon --output dist/asset_assistant.rebuild.zip
+          cmp dist/asset_assistant.zip dist/asset_assistant.rebuild.zip
+          sha256sum dist/asset_assistant.zip > dist/asset_assistant.zip.sha256
+          rm dist/asset_assistant.rebuild.zip
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-assistant-release
+          path: |
+            dist/asset_assistant.zip
+            dist/asset_assistant.zip.sha256
+
+      - name: Publish GitHub release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/asset_assistant.zip
+            dist/asset_assistant.zip.sha256
