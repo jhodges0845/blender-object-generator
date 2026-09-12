@@ -9,6 +9,7 @@ from .semantic import SemanticTarget
 from .avian_animation import generate_avian_flight, generate_avian_idle, generate_avian_walk
 from .avian_geometry import generate_avian_deformable_mesh
 from .avian_rigging import generate_avian_skeleton, generate_avian_skin_weights
+from .avian_semantic import apply_avian_semantic_operations
 
 
 AVIAN_PARAMETERS = (
@@ -32,6 +33,16 @@ AVIAN_SEMANTIC_TARGETS = (
     SemanticTarget("foot.left", "Left Foot", "region", ("shape", "scale")),
     SemanticTarget("foot.right", "Right Foot", "region", ("shape", "scale")),
     SemanticTarget("plumage", "Plumage", "component", ("surface", "add_detail")),
+)
+
+_AVIAN_GEOMETRY_TARGETS = (
+    "body", "chest", "head", "beak", "wing.left", "wing.right",
+    "tail", "leg.left", "leg.right", "foot.left", "foot.right",
+)
+AVIAN_SEMANTIC_APPLY_CAPABILITIES = tuple(
+    (target, operation)
+    for target in _AVIAN_GEOMETRY_TARGETS
+    for operation in ("shape", "scale")
 )
 
 
@@ -60,12 +71,16 @@ class AvianProvider:
     uses_skin_weights = True
     parameters = AVIAN_PARAMETERS
     semantic_targets = AVIAN_SEMANTIC_TARGETS
+    semantic_apply_capabilities = AVIAN_SEMANTIC_APPLY_CAPABILITIES
 
     def dimensions(self, values):
         return _dimensions(self.parameters, values)
 
     def mesh(self, values):
         return generate_avian_deformable_mesh(self.dimensions(values))
+
+    def semantic_mesh(self, mesh, values, operations):
+        return apply_avian_semantic_operations(mesh, self.dimensions(values), operations)
 
     def skeleton(self, values):
         return generate_avian_skeleton(self.dimensions(values))
