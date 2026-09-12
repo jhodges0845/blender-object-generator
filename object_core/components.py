@@ -160,7 +160,7 @@ def component_document(record):
         "attachment_target": record.attachment_target,
         "attachment_mode": record.attachment_mode.value,
         "rig_binding": record.rig_binding.value,
-        "behavior": effective_behavior(record).value,
+        "behavior": None if record.behavior is None else record.behavior.value,
         "parameters": dict(record.parameters),
         "physics": None if record.physics is None else {
             "mode": record.physics.mode,
