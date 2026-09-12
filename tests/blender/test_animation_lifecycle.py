@@ -88,6 +88,18 @@ class BlenderAnimationLifecycleTests(unittest.TestCase):
         self.assertIn(artist, managed_actions(root))
         self.assertEqual("ArtistIdle", artist["asset_assistant_export_name"])
 
+    def test_registration_failure_does_not_partially_claim_artist_action(self):
+        root, rig = self._rigged_human()
+        artist = self._artist_action(root, "Unclaimed Artist Action")
+        del rig["asset_assistant_rig_id"]
+
+        with self.assertRaisesRegex(ValueError, "stable Asset Assistant rig id"):
+            register_animation_action(root, artist, fps=24.0)
+
+        self.assertFalse(has_animation_record(artist))
+        self.assertNotIn("asset_assistant_export_name", artist)
+        self.assertNotIn("asset_assistant_rig_id", artist)
+
     def test_remove_artist_registration_preserves_action(self):
         root, _ = self._rigged_human()
         artist = self._artist_action(root, "Keep My Curves")
