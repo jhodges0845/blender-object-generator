@@ -9,6 +9,7 @@ from .semantic import SemanticTarget
 from .avian_animation import generate_avian_flight, generate_avian_idle, generate_avian_walk
 from .avian_geometry import generate_avian_deformable_mesh
 from .avian_rigging import generate_avian_skeleton, generate_avian_skin_weights
+from .avian_semantic import apply_avian_semantics, validate_avian_semantic_operation
 
 
 AVIAN_PARAMETERS = (
@@ -19,19 +20,21 @@ AVIAN_PARAMETERS = (
     Parameter("tail_length_cm", "Tail Length (cm)", 22, 4, 100),
 )
 
+# Only operations backed by the current Avian semantic apply implementation are
+# advertised. Rich surface/detail operations can be added later without changing
+# the shared Modify exchange contract.
 AVIAN_SEMANTIC_TARGETS = (
-    SemanticTarget("body", "Body", "region", ("shape", "scale", "surface")),
+    SemanticTarget("body", "Body", "region", ("shape", "scale")),
     SemanticTarget("chest", "Chest", "region", ("shape", "scale")),
-    SemanticTarget("head", "Head", "region", ("shape", "scale", "surface")),
-    SemanticTarget("beak", "Beak", "region", ("shape", "scale", "surface")),
-    SemanticTarget("wing.left", "Left Wing", "region", ("shape", "scale", "surface")),
-    SemanticTarget("wing.right", "Right Wing", "region", ("shape", "scale", "surface")),
-    SemanticTarget("tail", "Tail", "region", ("shape", "scale", "surface")),
-    SemanticTarget("leg.left", "Left Leg", "region", ("shape", "scale", "surface")),
-    SemanticTarget("leg.right", "Right Leg", "region", ("shape", "scale", "surface")),
+    SemanticTarget("head", "Head", "region", ("shape", "scale")),
+    SemanticTarget("beak", "Beak", "region", ("shape", "scale")),
+    SemanticTarget("wing.left", "Left Wing", "region", ("shape", "scale")),
+    SemanticTarget("wing.right", "Right Wing", "region", ("shape", "scale")),
+    SemanticTarget("tail", "Tail", "region", ("shape", "scale")),
+    SemanticTarget("leg.left", "Left Leg", "region", ("shape", "scale")),
+    SemanticTarget("leg.right", "Right Leg", "region", ("shape", "scale")),
     SemanticTarget("foot.left", "Left Foot", "region", ("shape", "scale")),
     SemanticTarget("foot.right", "Right Foot", "region", ("shape", "scale")),
-    SemanticTarget("plumage", "Plumage", "component", ("surface", "add_detail")),
 )
 
 
@@ -66,6 +69,12 @@ class AvianProvider:
 
     def mesh(self, values):
         return generate_avian_deformable_mesh(self.dimensions(values))
+
+    def apply_semantics(self, mesh, operations, values):
+        return apply_avian_semantics(mesh, operations, self.dimensions(values))
+
+    def validate_semantic_operation(self, operation):
+        validate_avian_semantic_operation(operation)
 
     def skeleton(self, values):
         return generate_avian_skeleton(self.dimensions(values))
