@@ -2,6 +2,12 @@
 """Convert portable provider animation samples into editable Blender actions."""
 
 from math import ceil
+
+from .animation_records import (
+    has_animation_record,
+    persist_generated_animation,
+    update_animation_export_name,
+)
 from .workflow import provider_for
 
 
@@ -67,6 +73,8 @@ def set_clip_export_name(root, clip_name, export_name):
                       if other is not action and clip_export_name(other) == export_name), None)
     if duplicate is not None:
         raise ValueError('Animation export names must be unique for this character.')
+    if has_animation_record(action):
+        update_animation_export_name(action, export_name)
     action[_EXPORT_NAME] = export_name
     return action
 
@@ -99,10 +107,11 @@ def activate_generated_action(root, clip_name):
     return action
 
 
-def _add_clip(root, scene, clip, suffix):
+def _add_clip(root, scene, clip, suffix, capability):
     import bpy
     from mathutils import Vector, Quaternion, Matrix
 
+    provider = provider_for(root)
     rig = _rig(root)
     data = rig.animation_data
     if generated_action(root, suffix) is not None:
@@ -131,6 +140,7 @@ def _add_clip(root, scene, clip, suffix):
 
         fps = scene.render.fps / scene.render.fps_base
         start = scene.frame_start
+        end = start + clip.duration * fps
         action = bpy.data.actions.new(rig.name + '.' + suffix)
         action[_GENERATED] = True
         action[_GENERATED_RIG] = rig.name
@@ -154,7 +164,7 @@ def _add_clip(root, scene, clip, suffix):
                 track = tracks_by_bone.get(bone.name)
                 if track is None:
                     identity = Quaternion((1.0, 0.0, 0.0, 0.0))
-                    samples = [(start, identity), (start + clip.duration * fps, identity)]
+                    samples = [(start, identity), (end, identity)]
                 else:
                     axis = bone.bone.matrix_local.to_3x3().inverted() @ Vector(track.axis)
                     samples = [(start + seconds * fps, Quaternion(axis, angle)) for seconds, angle in track.keys]
@@ -176,6 +186,17 @@ def _add_clip(root, scene, clip, suffix):
                 rig.animation_data.action_slot = slot
             action.use_fake_user = True
             rig.data.pose_position = 'POSE'
+            persist_generated_animation(
+                root,
+                action,
+                display_name=suffix,
+                export_name=suffix,
+                frame_start=start,
+                frame_end=end,
+                fps=fps,
+                provider_key=provider.key,
+                capability=capability,
+            )
         except Exception:
             if rig.animation_data:
                 rig.animation_data.action = previous_action
@@ -187,7 +208,7 @@ def _add_clip(root, scene, clip, suffix):
                 rig.pose.bones[name].rotation_mode = mode
             bpy.data.actions.remove(action)
             raise
-        return action, max(start, ceil(start + clip.duration * fps) - 1)
+        return action, max(start, ceil(end) - 1)
     except Exception:
         if data and data.action is None and previous_action is not None:
             data.action = previous_action
@@ -202,7 +223,7 @@ def add_idle(root, scene, duration=4.0, strength=1.0):
     provider = provider_for(root)
     if not provider.supports_idle:
         raise ValueError(provider.label + ' does not support idle animation.')
-    return _add_clip(root, scene, provider.idle(duration, strength), 'Idle')
+    return _add_clip(root, scene, provider.idle(duration, strength), 'Idle', 'idle')
 
 
 def locomotion_clip_name(provider):
@@ -214,18 +235,24 @@ def add_locomotion(root, scene, duration=1.2, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_locomotion', False):
         raise ValueError(provider.label + ' does not support locomotion animation.')
-    return _add_clip(root, scene, provider.locomotion(duration, strength), locomotion_clip_name(provider))
+    return _add_clip(
+        root,
+        scene,
+        provider.locomotion(duration, strength),
+        locomotion_clip_name(provider),
+        'locomotion',
+    )
 
 
 def add_flight(root, scene, duration=1.2, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_flight', False):
         raise ValueError(provider.label + ' does not support flight animation.')
-    return _add_clip(root, scene, provider.flight(duration, strength), 'Flight')
+    return _add_clip(root, scene, provider.flight(duration, strength), 'Flight', 'flight')
 
 
 def add_run(root, scene, duration=0.72, strength=1.0):
     provider = provider_for(root)
     if not getattr(provider, 'supports_run', False):
         raise ValueError(provider.label + ' does not support run animation.')
-    return _add_clip(root, scene, provider.run(duration, strength), 'Run')
+    return _add_clip(root, scene, provider.run(duration, strength), 'Run', 'run')
