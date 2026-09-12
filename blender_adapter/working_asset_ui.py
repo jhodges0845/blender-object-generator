@@ -7,6 +7,17 @@ import bpy
 from bpy_extras.io_utils import ExportHelper
 
 
+def save_editable_checkpoint(filepath, save_operator):
+    """Write an editable Blender copy without changing the active working file."""
+    path = Path(filepath)
+    if path.suffix.lower() != ".blend":
+        path = path.with_suffix(".blend")
+    result = save_operator(filepath=str(path), copy=True)
+    if "FINISHED" not in result:
+        raise RuntimeError("Blender did not finish saving the editable checkpoint.")
+    return str(path)
+
+
 class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelper):
     bl_idname = "asset_assistant.save_editable_checkpoint"
     bl_label = "Save Editable Checkpoint"
@@ -27,18 +38,12 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
-        path = Path(self.filepath)
-        if path.suffix.lower() != ".blend":
-            path = path.with_suffix(".blend")
         try:
-            result = bpy.ops.wm.save_as_mainfile(filepath=str(path), copy=True)
+            filepath = save_editable_checkpoint(self.filepath, bpy.ops.wm.save_as_mainfile)
         except (RuntimeError, OSError, ValueError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
-        if "FINISHED" not in result:
-            self.report({"ERROR"}, "Blender did not finish saving the editable checkpoint.")
-            return {"CANCELLED"}
-        self.report({"INFO"}, "Editable checkpoint saved without changing the current working file.")
+        self.report({"INFO"}, "Editable checkpoint saved: " + filepath)
         return {"FINISHED"}
 
 
@@ -55,4 +60,9 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
-__all__ = ["ASSET_ASSISTANT_OT_save_editable_checkpoint", "register", "unregister"]
+__all__ = [
+    "ASSET_ASSISTANT_OT_save_editable_checkpoint",
+    "save_editable_checkpoint",
+    "register",
+    "unregister",
+]
