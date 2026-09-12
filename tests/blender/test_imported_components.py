@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import unittest
+from unittest import mock
 
 try:
     import bpy
@@ -53,15 +54,21 @@ class ImportedComponentAdoptionTests(unittest.TestCase):
         obj.location = (2.0, 3.0, 4.0)
         return obj
 
-    def _record(self, *, target="asset_root", component_id="imported-hat-001"):
+    def _record(
+        self,
+        *,
+        target="asset_root",
+        component_id="imported-hat-001",
+        owns_materials=False,
+    ):
         return ComponentRecord(
             component_id=component_id,
             kind=ComponentKind.ACCESSORY,
-            provider_key="imported.blender",
+            provider_key="artist_authored",
             attachment_target=target,
             attachment_mode=AttachmentMode.RIGID,
             owns_geometry=True,
-            owns_materials=False,
+            owns_materials=owns_materials,
             owns_rig=False,
         )
 
@@ -115,6 +122,42 @@ class ImportedComponentAdoptionTests(unittest.TestCase):
 
         self.assertEqual((), component_records(root))
 
+    def test_mesh_with_children_is_rejected_before_ownership_transfer(self):
+        root = self._generated_human()
+        mesh_object = self._external_mesh()
+        child = bpy.data.objects.new("External Child", None)
+        bpy.context.scene.collection.objects.link(child)
+        child.parent = mesh_object
+
+        with self.assertRaisesRegex(ValueError, "no child objects"):
+            adopt_rigid_component(root, mesh_object, self._record())
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual((), component_records(root))
+
+    def test_armature_driven_mesh_is_not_mislabeled_as_rigid(self):
+        root = self._generated_human(rigged=True)
+        mesh_object = self._external_mesh()
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        modifier = mesh_object.modifiers.new(name="External Rig", type="ARMATURE")
+        modifier.object = armature
+
+        with self.assertRaisesRegex(ValueError, "skinned component adoption"):
+            adopt_rigid_component(root, mesh_object, self._record())
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual((), component_records(root))
+
+    def test_imported_adoption_does_not_claim_material_ownership(self):
+        root = self._generated_human()
+        mesh_object = self._external_mesh()
+
+        with self.assertRaisesRegex(ValueError, "does not claim material ownership"):
+            adopt_rigid_component(root, mesh_object, self._record(owns_materials=True))
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual((), component_records(root))
+
     def test_failed_attachment_rolls_back_external_mesh_parent_and_registry(self):
         root = self._generated_human(rigged=True)
         mesh_object = self._external_mesh()
@@ -126,6 +169,25 @@ class ImportedComponentAdoptionTests(unittest.TestCase):
 
         self.assertIsNone(mesh_object.parent)
         self.assertEqual(world, mesh_object.matrix_world)
+        self.assertNotIn("asset_assistant_component_id", mesh_object)
+        self.assertEqual((), component_records(root))
+
+    def test_failed_post_adoption_inspection_restores_existing_object_metadata(self):
+        root = self._generated_human()
+        mesh_object = self._external_mesh()
+        mesh_object["component_part_name"] = "artist-label"
+        world = mesh_object.matrix_world.copy()
+
+        with mock.patch(
+            "blender_adapter.imported_components.inspect_component",
+            side_effect=ValueError("inspection failed"),
+        ):
+            with self.assertRaisesRegex(ValueError, "inspection failed"):
+                adopt_rigid_component(root, mesh_object, self._record())
+
+        self.assertIsNone(mesh_object.parent)
+        self.assertEqual(world, mesh_object.matrix_world)
+        self.assertEqual("artist-label", mesh_object["component_part_name"])
         self.assertNotIn("asset_assistant_component_id", mesh_object)
         self.assertEqual((), component_records(root))
 
