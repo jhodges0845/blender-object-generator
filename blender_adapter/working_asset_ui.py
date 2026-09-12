@@ -90,15 +90,29 @@ def _record_checkpoint_error(scene, error):
 
 @persistent
 def _validate_reopened_checkpoint(_unused):
+    """Validate any marked checkpoint after load, including native Blender File/Open."""
     global _OPEN_EXPECTS_CHECKPOINT
     expected = _OPEN_EXPECTS_CHECKPOINT
     _OPEN_EXPECTS_CHECKPOINT = False
-    if not expected:
+
+    marked = tuple(
+        scene for scene in bpy.data.scenes
+        if scene.get(_CHECKPOINT_KIND_KEY) == _CHECKPOINT_KIND
+    )
+    if marked:
+        for scene in marked:
+            try:
+                validate_checkpoint_scene(scene)
+            except (ValueError, TypeError, RuntimeError, AttributeError) as error:
+                _record_checkpoint_error(scene, error)
         return
-    for scene in bpy.data.scenes:
-        try:
-            validate_checkpoint_scene(scene)
-        except (ValueError, TypeError, RuntimeError, AttributeError) as error:
+
+    # When the Asset Assistant Open operator explicitly promised a checkpoint,
+    # keep the previous error behavior for an unmarked .blend. Native Blender
+    # loads of ordinary files remain untouched.
+    if expected:
+        error = ValueError("This .blend file is not marked as an Asset Assistant editable checkpoint.")
+        for scene in bpy.data.scenes:
             _record_checkpoint_error(scene, error)
 
 

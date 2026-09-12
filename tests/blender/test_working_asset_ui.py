@@ -11,6 +11,7 @@ except ModuleNotFoundError:
 
 from blender_adapter import ui
 from blender_adapter.adapter import create_character
+import blender_adapter.working_asset_ui as working_asset_ui
 from blender_adapter.working_asset_ui import (
     open_editable_checkpoint,
     save_editable_checkpoint,
@@ -52,6 +53,7 @@ class EditableCheckpointTests(unittest.TestCase):
             if key in scene:
                 del scene[key]
         scene.humanoid_settings.target = None
+        working_asset_ui._OPEN_EXPECTS_CHECKPOINT = False
 
     def _human(self):
         provider = get_provider("human_experimental")
@@ -117,6 +119,26 @@ class EditableCheckpointTests(unittest.TestCase):
         self.assertEqual(root.get("asset_assistant_asset_id"), snapshots[0].asset_id)
         self.assertEqual(root, scene.humanoid_settings.target)
         self.assertEqual("READY", scene["asset_assistant_working_state_status"])
+
+    def test_native_blender_load_validates_marked_checkpoint(self):
+        scene = bpy.context.scene
+        root = self._human()
+        scene["asset_assistant_working_state_kind"] = "asset-assistant-editable-checkpoint"
+        scene["asset_assistant_working_state_version"] = 1
+        scene.humanoid_settings.target = None
+
+        working_asset_ui._validate_reopened_checkpoint(None)
+
+        self.assertEqual(root, scene.humanoid_settings.target)
+        self.assertEqual("READY", scene["asset_assistant_working_state_status"])
+
+    def test_native_blender_load_ignores_ordinary_unmarked_file(self):
+        scene = bpy.context.scene
+
+        working_asset_ui._validate_reopened_checkpoint(None)
+
+        self.assertNotIn("asset_assistant_working_state_status", scene)
+        self.assertNotIn("asset_assistant_working_state_message", scene)
 
     def test_reopen_validation_rejects_unmarked_blend_scene(self):
         with self.assertRaisesRegex(ValueError, "not marked"):
