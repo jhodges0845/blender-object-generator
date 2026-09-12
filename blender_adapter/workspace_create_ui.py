@@ -2,8 +2,7 @@
 """High-impact Blender-native presentation for the Asset Assistant Create workspace.
 
 This module owns presentation only. Existing provider parameters and operators are
-reused so generation, Modify, Rig, ownership, animation, and export behavior remain
-unchanged.
+reused so generation, Modify, Rig, animation, and export behavior remain unchanged.
 """
 
 _ASSET_TILES = (
@@ -52,17 +51,37 @@ def _draw_asset_tiles(layout, settings, ui):
         )
 
 
+def _draw_start_options(layout, working_asset_ui):
+    """Show the continue-existing path before asking the artist to generate anything."""
+    if working_asset_ui is None:
+        return
+    start = layout.box()
+    start.label(text="START WITH", icon="FILE_FOLDER")
+    start.label(text="Continue an existing asset, or build a new one below")
+    row = start.row(align=True)
+    row.scale_y = 1.45
+    row.operator(
+        "asset_assistant.open_editable_checkpoint",
+        text="Open Existing Asset",
+        icon="FILE_FOLDER",
+    )
+
+
 def _draw_generate(panel, context, ui, working_asset_ui):
     settings = context.scene.humanoid_settings
     layout = panel.layout
     provider = ui.get_provider(settings.object_type)
     fields = tuple(provider.parameters)
 
+    _draw_start_options(layout, working_asset_ui)
+    if working_asset_ui is not None:
+        layout.separator(factor=0.6)
+
     # One dominant card instead of a stack of equally weighted boxes.
     create = layout.box()
     hero = create.row(align=True)
     hero.scale_y = 1.35
-    hero.label(text="CREATE CHARACTER", icon="USER")
+    hero.label(text="CREATE NEW ASSET", icon="USER")
     create.label(text="Choose a starting point, tune the essentials, then build")
     create.separator(factor=0.5)
 
@@ -92,22 +111,16 @@ def _draw_generate(panel, context, ui, working_asset_ui):
     create.separator(factor=0.75)
     action = create.row()
     action.scale_y = 2.0
+    replacing = getattr(settings, "target", None) is not None
     action.operator(
-        "humanoid.generate_blockout",
-        text="Generate " + provider.label,
-        icon="ADD",
+        "asset_assistant.generate_replace_current",
+        text=("Replace Current with " if replacing else "Generate ") + provider.label,
+        icon="FILE_REFRESH" if replacing else "ADD",
     )
-    create.label(text="Creates a new editable Asset Assistant model")
-
-    if working_asset_ui is not None:
-        layout.separator(factor=0.7)
-        resume = layout.row(align=True)
-        resume.scale_y = 1.05
-        resume.operator(
-            "asset_assistant.open_editable_checkpoint",
-            text="Open Existing Asset",
-            icon="FILE_FOLDER",
-        )
+    create.label(
+        text="Replaces the current asset after a successful build"
+        if replacing else "Creates a new editable Asset Assistant model"
+    )
 
 
 def _draw_create(panel, context, ui, modify_ui, working_asset_ui):
