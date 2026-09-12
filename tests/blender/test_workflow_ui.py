@@ -59,6 +59,7 @@ class WorkflowSidebarTests(unittest.TestCase):
             def __init__(self, calls):
                 self.calls = calls
                 self.enabled = True
+                self.scale_y = 1.0
 
             def operator(self, operator_id, text="", icon="NONE"):
                 self.calls.append((operator_id, text, icon, self.enabled))
@@ -102,6 +103,46 @@ class WorkflowSidebarTests(unittest.TestCase):
             ],
         )
         self.assertTrue(all(enabled for _operator_id, _text, _icon, enabled in calls))
+
+    def test_animation_adoption_remains_separate_and_preserves_operator_contract(self):
+        from blender_adapter import workflow_ui
+
+        class FakeObject:
+            def __init__(self, object_type):
+                self.type = object_type
+
+        class FakeTarget:
+            children = (FakeObject("ARMATURE"),)
+
+        class FakeRow:
+            def __init__(self, calls):
+                self.calls = calls
+                self.enabled = True
+                self.scale_y = 1.0
+
+            def operator(self, operator_id, text="", icon="NONE"):
+                self.calls.append((operator_id, text, icon, self.enabled))
+
+        class FakeBox:
+            def __init__(self, calls, labels):
+                self.calls = calls
+                self.labels = labels
+
+            def row(self):
+                return FakeRow(self.calls)
+
+            def label(self, text="", **_kwargs):
+                self.labels.append(text)
+
+        calls = []
+        labels = []
+        workflow_ui._draw_animation_adoption(FakeBox(calls, labels), FakeTarget())
+
+        self.assertIn("Bring Your Own Animation", labels)
+        self.assertEqual(
+            [("asset_assistant.adopt_animation_action", "Adopt Existing Action", "ACTION", True)],
+            calls,
+        )
 
 
 if __name__ == "__main__":
