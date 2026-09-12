@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Present Asset Assistant as one ordered, polished Blender sidebar workflow."""
+"""Present Asset Assistant as one compact Blender sidebar workspace."""
 
 _CATEGORY = "Asset Assistant"
 
 
 def _asset_summary(layout, context):
-    """Render a compact, read-only working-asset summary without changing workflow state."""
+    """Render one compact, read-only working-asset summary."""
     settings = getattr(context.scene, "humanoid_settings", None)
     target = getattr(settings, "target", None) if settings else None
     box = layout.box()
     row = box.row(align=True)
     row.label(text="Current Asset", icon="OBJECT_DATA")
     if target is None:
-        box.label(text="No asset selected", icon="INFO")
-        box.label(text="Create an asset or choose an existing generated asset.")
+        row.label(text="None", icon="INFO")
+        box.label(text="Create an asset or choose one in a workspace below.")
         return
 
-    box.label(text=target.name, icon="OUTLINER_OB_GROUP_INSTANCE")
+    row.label(text=target.name)
     children = tuple(target.children)
     has_rig = any(obj.type == "ARMATURE" for obj in children)
     component_count = sum(obj.type == "MESH" for obj in children)
@@ -30,31 +30,8 @@ def _asset_summary(layout, context):
 
     status = box.row(align=True)
     status.label(text="Rigged" if has_rig else "No Rig", icon="ARMATURE_DATA")
-    status.label(text=str(animation_count) + " Animations", icon="ACTION")
-    box.label(text=str(component_count) + " Mesh Components", icon="OUTLINER_OB_MESH")
-
-
-def _decorate_panel(panel_type, stage_label, stage_icon):
-    """Add consistent product identity and context while preserving the existing panel draw."""
-    original_draw = panel_type.draw
-    if getattr(original_draw, "_asset_assistant_polished_shell", False):
-        return
-
-    def draw_with_shell(panel, context):
-        layout = panel.layout
-        title = layout.row(align=True)
-        title.scale_y = 1.15
-        title.label(text="Asset Assistant", icon="TOOL_SETTINGS")
-        subtitle = layout.row()
-        subtitle.label(text=stage_label, icon=stage_icon)
-        _asset_summary(layout, context)
-        layout.separator()
-        original_draw(panel, context)
-
-    draw_with_shell._asset_assistant_polished_shell = True
-    if getattr(original_draw, "_asset_assistant_confidence_header", False):
-        draw_with_shell._asset_assistant_confidence_header = True
-    panel_type.draw = draw_with_shell
+    status.label(text=str(animation_count) + " Clips", icon="ACTION")
+    status.label(text=str(component_count) + " Parts", icon="OUTLINER_OB_MESH")
 
 
 def _draw_component_actions(box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory):
@@ -102,139 +79,207 @@ def _draw_animation_adoption(box, target):
     box.label(text="Asset Assistant adds identity and export metadata only.")
 
 
-def _wrap_confidence_panel(panel_type, heading, detail, icon):
-    """Add confidence-oriented context before existing validation/export controls."""
-    original_draw = panel_type.draw
-    if getattr(original_draw, "_asset_assistant_confidence_header", False):
+def _stage_proxy(panel, stage):
+    """Let the established stage renderer draw inside the single workspace panel."""
+    proxy = type("AssetAssistantStageProxy", (), {})()
+    proxy.layout = panel.layout
+    proxy.stage = stage
+    return proxy
+
+
+def _draw_create(panel, context, ui, modify_ui, working_asset_ui):
+    settings = context.scene.humanoid_settings
+    panel.layout.prop(settings, "asset_assistant_create_view", expand=True)
+    panel.layout.separator()
+
+    if settings.asset_assistant_create_view == "GENERATE":
+        ui._WorkflowPanel.draw(_stage_proxy(panel, "MODEL"), context)
+        if working_asset_ui is not None:
+            box = panel.layout.box()
+            box.label(text="Continue Existing Work", icon="FILE_FOLDER")
+            row = box.row()
+            row.scale_y = 1.1
+            row.operator("asset_assistant.open_editable_checkpoint", text="Open Editable Checkpoint (.blend)", icon="FILE_FOLDER")
         return
 
-    def draw_with_confidence(panel, context):
-        layout = panel.layout
-        box = layout.box()
-        box.label(text=heading, icon=icon)
-        box.label(text=detail)
-        target = getattr(context.scene.humanoid_settings, "target", None)
-        if target is None:
-            box.label(text="Choose an asset before continuing.", icon="INFO")
-        else:
-            box.label(text="Current target: " + target.name, icon="OBJECT_DATA")
-        layout.separator()
-        original_draw(panel, context)
+    if settings.asset_assistant_create_view == "MODIFY":
+        modify_ui.ASSET_ASSISTANT_PT_modify.draw(panel, context)
+        return
 
-    draw_with_confidence._asset_assistant_confidence_header = True
-    panel_type.draw = draw_with_confidence
+    ui._WorkflowPanel.draw(_stage_proxy(panel, "RIGGING"), context)
+
+
+def _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui):
+    ui._WorkflowPanel.draw(_stage_proxy(panel, "ANIMATION"), context)
+    target = getattr(context.scene.humanoid_settings, "target", None)
+
+    if target is not None:
+        panel.layout.separator()
+        clip_box = panel.layout.box()
+        animation_names_ui.ASSET_ASSISTANT_PT_animation_names.draw(type("ClipLibraryProxy", (), {"layout": clip_box})(), context)
+
+    if animation_adoption_ui is not None:
+        panel.layout.separator()
+        _draw_animation_adoption(panel.layout.box(), target)
+
+
+def _draw_components(panel, context, component_adoption_ui, hair_component_ui, clothing_component_ui,
+                     self_rigged_accessory):
+    layout = panel.layout
+    settings = context.scene.humanoid_settings
+    layout.prop(settings, "target")
+    target = getattr(settings, "target", None)
+    box = layout.box()
+    box.label(text="Asset Components", icon="OUTLINER_COLLECTION")
+    box.label(text="Build hair, clothing and accessories as separate editable pieces.")
+    _draw_component_actions(box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory)
+
+
+def _draw_export(panel, context, ui, working_asset_ui):
+    layout = panel.layout
+    settings = context.scene.humanoid_settings
+    layout.prop(settings, "target")
+    target = getattr(settings, "target", None)
+    if target is None:
+        layout.label(text="Create or choose an asset first.", icon="INFO")
+        return
+
+    setup = layout.box()
+    setup.label(text="Export Target", icon="EXPORT")
+    setup.prop(settings, "output_target")
+    if settings.output_target == "CURA":
+        setup.label(text="STL: current pose, millimetres, one solid.")
+    else:
+        setup.prop(settings, "asset_use")
+        setup.prop(settings, "require_textures")
+
+    validation = layout.box()
+    validation.label(text="Readiness", icon="CHECKMARK")
+    if settings.output_target != "CURA":
+        validation.operator("humanoid.prepare_materials", text="Add Missing Materials", icon="MATERIAL")
+    action = validation.row()
+    action.scale_y = 1.15
+    action.operator("humanoid.validate_character", text="Run Validation", icon="CHECKMARK")
+
+    snapshot = settings.validation_results
+    if snapshot:
+        errors = sum(row.status == "ERROR" for row in snapshot)
+        warnings = sum(row.status == "WARN" for row in snapshot)
+        passes = sum(row.status == "PASS" for row in snapshot)
+        validation.label(text=f"{errors} errors  •  {warnings} warnings  •  {passes} passed",
+                         icon="CHECKMARK" if errors == 0 else "ERROR")
+        width = max(24, int(context.region.width / 7) - 6)
+        ui._draw_validation_results(validation, snapshot, width)
+    else:
+        validation.label(text="Run validation to create a readiness snapshot.", icon="INFO")
+
+    readiness_rows = snapshot if settings.output_target == "CURA" else ui._export_issues(context)
+    ready = ui.is_ready(readiness_rows)
+    confidence = layout.box()
+    confidence.label(text="Ready to export." if ready else "Needs attention before export.",
+                     icon="CHECKMARK" if ready else "ERROR")
+    export_row = confidence.row()
+    export_row.scale_y = 1.3
+    export_row.enabled = ready
+    export_row.operator("humanoid.export_asset", text="Export Asset", icon="EXPORT")
+    if settings.last_export:
+        confidence.label(text="Saved: " + settings.last_export, icon="CHECKMARK")
+
+    if working_asset_ui is not None:
+        checkpoint = layout.box()
+        checkpoint.label(text="Editable Working State", icon="FILE_BLEND")
+        checkpoint.operator("asset_assistant.save_editable_checkpoint",
+                            text="Validate + Save Editable Checkpoint (.blend)", icon="FILE_TICK")
+
+
+def _draw_workspace(panel, context, ui, modify_ui, animation_names_ui, working_asset_ui,
+                    component_adoption_ui, hair_component_ui, clothing_component_ui,
+                    animation_adoption_ui, self_rigged_accessory):
+    layout = panel.layout
+    settings = context.scene.humanoid_settings
+
+    title = layout.row(align=True)
+    title.scale_y = 1.2
+    title.label(text="Asset Assistant", icon="TOOL_SETTINGS")
+    layout.label(text="Create. Animate. Prepare. Export.")
+
+    nav = layout.row(align=True)
+    nav.scale_y = 1.2
+    nav.prop(settings, "asset_assistant_workspace", expand=True)
+    _asset_summary(layout, context)
+    layout.separator()
+
+    if settings.asset_assistant_workspace == "CREATE":
+        _draw_create(panel, context, ui, modify_ui, working_asset_ui)
+    elif settings.asset_assistant_workspace == "ANIMATE":
+        _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui)
+    elif settings.asset_assistant_workspace == "COMPONENTS":
+        _draw_components(panel, context, component_adoption_ui, hair_component_ui,
+                         clothing_component_ui, self_rigged_accessory)
+    else:
+        _draw_export(panel, context, ui, working_asset_ui)
+
+
+def _hide_legacy_panel(panel_type):
+    """Keep legacy panel classes registered for compatibility but out of the sidebar."""
+    def poll(_cls, _context):
+        return False
+    panel_type.poll = classmethod(poll)
 
 
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
             animation_adoption_ui=None, self_rigged_accessory=None):
-    panels = (
-        (ui.HUMANOID_PT_panel, "Create", 0),
-        (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
-        (ui.HUMANOID_PT_rigging, "Rig", 2),
-        (ui.HUMANOID_PT_animations, "Animate", 3),
-        (ui.HUMANOID_PT_validation, "Validate", 4),
-        (ui.HUMANOID_PT_export, "Export", 5),
+    # Navigation state lives on the existing settings group so saved files and operator
+    # contracts stay intact. These properties are presentation-only.
+    annotations = ui.HUMANOID_PG_settings.__annotations__
+    if "asset_assistant_workspace" not in annotations:
+        annotations["asset_assistant_workspace"] = ui.EnumProperty(
+            name="Workspace",
+            default="CREATE",
+            items=[
+                ("CREATE", "Create", "Create, modify or rig an asset"),
+                ("ANIMATE", "Animate", "Create, preview and manage animation clips"),
+                ("COMPONENTS", "Components", "Manage hair, clothing and accessories"),
+                ("EXPORT", "Export", "Validate and export for a target application"),
+            ],
+        )
+    if "asset_assistant_create_view" not in annotations:
+        annotations["asset_assistant_create_view"] = ui.EnumProperty(
+            name="Create View",
+            default="GENERATE",
+            items=[
+                ("GENERATE", "Generate", "Create a new base asset"),
+                ("MODIFY", "Modify", "Safely modify the current asset"),
+                ("RIG", "Rig", "Rig or pose the current asset"),
+            ],
+        )
+
+    # The Create panel becomes the one visible Asset Assistant workspace.
+    ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
+    ui.HUMANOID_PT_panel.bl_category = _CATEGORY
+    ui.HUMANOID_PT_panel.bl_order = 0
+    ui.HUMANOID_PT_panel.bl_options = set(getattr(ui.HUMANOID_PT_panel, "bl_options", set())) - {"DEFAULT_CLOSED"}
+
+    def draw_workspace(panel, context):
+        _draw_workspace(
+            panel, context, ui, modify_ui, animation_names_ui, working_asset_ui,
+            component_adoption_ui, hair_component_ui, clothing_component_ui,
+            animation_adoption_ui, self_rigged_accessory,
+        )
+
+    draw_workspace._asset_assistant_workspace = True
+    ui.HUMANOID_PT_panel.draw = draw_workspace
+
+    legacy_panels = (
+        modify_ui.ASSET_ASSISTANT_PT_modify,
+        ui.HUMANOID_PT_rigging,
+        ui.HUMANOID_PT_animations,
+        ui.HUMANOID_PT_validation,
+        ui.HUMANOID_PT_export,
+        animation_names_ui.ASSET_ASSISTANT_PT_animation_names,
     )
-    for panel, label, order in panels:
-        panel.bl_label = label
+    for order, panel in enumerate(legacy_panels, start=1):
         panel.bl_category = _CATEGORY
         panel.bl_order = order
-        options = set(getattr(panel, "bl_options", set()))
-        if order == 0:
-            options.discard("DEFAULT_CLOSED")
-        else:
-            options.add("DEFAULT_CLOSED")
-        panel.bl_options = options
-
-    animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
-
-    if animation_adoption_ui is not None:
-        original_animation_draw = ui.HUMANOID_PT_animations.draw
-        if not getattr(original_animation_draw, "_asset_assistant_external_actions", False):
-            def draw_animation_with_external_actions(panel, context):
-                original_animation_draw(panel, context)
-                layout = panel.layout
-                layout.separator()
-                box = layout.box()
-                target = getattr(context.scene.humanoid_settings, "target", None)
-                _draw_animation_adoption(box, target)
-            draw_animation_with_external_actions._asset_assistant_external_actions = True
-            ui.HUMANOID_PT_animations.draw = draw_animation_with_external_actions
-
-    if component_adoption_ui is not None:
-        original_generate_draw = ui.HUMANOID_PT_panel.draw
-        if not getattr(original_generate_draw, "_asset_assistant_components", False):
-            def draw_generate_with_components(panel, context):
-                original_generate_draw(panel, context)
-                layout = panel.layout
-                layout.separator()
-                box = layout.box()
-                box.label(text="Components", icon="OUTLINER_COLLECTION")
-                box.label(text="Build the asset in separate editable pieces.")
-                target = getattr(context.scene.humanoid_settings, "target", None)
-                _draw_component_actions(
-                    box, target, hair_component_ui, clothing_component_ui, self_rigged_accessory)
-
-            draw_generate_with_components._asset_assistant_components = True
-            ui.HUMANOID_PT_panel.draw = draw_generate_with_components
-
-    if working_asset_ui is not None:
-        original_generate_draw = ui.HUMANOID_PT_panel.draw
-        if not getattr(original_generate_draw, "_asset_assistant_checkpoint_open", False):
-            def draw_generate_with_open(panel, context):
-                original_generate_draw(panel, context)
-                layout = panel.layout
-                layout.separator()
-                box = layout.box()
-                box.label(text="Continue Existing Work", icon="FILE_FOLDER")
-                box.label(text="Resume an Asset Assistant working file without rebuilding it.")
-                action = box.row()
-                action.scale_y = 1.15
-                action.operator("asset_assistant.open_editable_checkpoint", text="Open Editable Checkpoint (.blend)", icon="FILE_FOLDER")
-                status = context.scene.get("asset_assistant_working_state_status")
-                message = context.scene.get("asset_assistant_working_state_message")
-                if status and message:
-                    box.label(text=message, icon="CHECKMARK" if status == "READY" else "ERROR")
-            draw_generate_with_open._asset_assistant_checkpoint_open = True
-            ui.HUMANOID_PT_panel.draw = draw_generate_with_open
-
-        original_export_draw = ui.HUMANOID_PT_export.draw
-        if not getattr(original_export_draw, "_asset_assistant_checkpoint_action", False):
-            def draw_export_with_checkpoint(panel, context):
-                original_export_draw(panel, context)
-                layout = panel.layout
-                layout.separator()
-                box = layout.box()
-                box.label(text="Editable working state")
-                box.operator("asset_assistant.save_editable_checkpoint", text="Validate + Save Editable Checkpoint (.blend)", icon="FILE_TICK")
-                box.label(text="Validates ownership/continuity before saving.")
-            draw_export_with_checkpoint._asset_assistant_checkpoint_action = True
-            ui.HUMANOID_PT_export.draw = draw_export_with_checkpoint
-
-    _wrap_confidence_panel(
-        ui.HUMANOID_PT_validation,
-        "Readiness Check",
-        "Review target requirements and resolve issues before export.",
-        "CHECKMARK",
-    )
-    _wrap_confidence_panel(
-        ui.HUMANOID_PT_export,
-        "Export Confidence",
-        "Export stays locked until the current target passes its readiness checks.",
-        "EXPORT",
-    )
-
-    # Apply the visual shell last so it wraps all existing workflow extensions rather than
-    # replacing them. This is intentionally presentation-only: every operator and property
-    # remains owned by its existing adapter module.
-    shell_panels = (
-        (ui.HUMANOID_PT_panel, "Create an asset", "OUTLINER_OB_MESH"),
-        (modify_ui.ASSET_ASSISTANT_PT_modify, "Refine the current asset", "MODIFIER"),
-        (ui.HUMANOID_PT_rigging, "Prepare for posing", "ARMATURE_DATA"),
-        (ui.HUMANOID_PT_animations, "Build and preview motion", "ACTION"),
-        (ui.HUMANOID_PT_validation, "Check game readiness", "CHECKMARK"),
-        (ui.HUMANOID_PT_export, "Send to your target", "EXPORT"),
-    )
-    for panel, label, icon in shell_panels:
-        _decorate_panel(panel, label, icon)
+        _hide_legacy_panel(panel)
