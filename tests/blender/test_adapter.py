@@ -75,7 +75,7 @@ class BlenderAdapterTests(unittest.TestCase):
                 raise RuntimeError("injected mesh creation failure")
             return real_populate(*args)
 
-        with patch.object(adapter, "_populate_mesh", side_effect=RuntimeError("injected mesh creation failure")):
+        with patch.object(adapter, "_populate_mesh", side_effect=fail_second_mesh):
             with self.assertRaisesRegex(RuntimeError, "injected"):
                 create_character(self.mesh, scene=self.scene)
         self.assertEqual(before, (set(bpy.data.objects), set(bpy.data.meshes), set(bpy.data.collections)))
