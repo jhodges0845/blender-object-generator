@@ -15,19 +15,19 @@ bl_info = {
     "author": "Asset Assistant contributors",
     "version": (0, 9, 0),
     "blender": (2, 92, 0),
-    "location": "3D View > Sidebar > Generator",
-    "description": "Generate, prepare, validate, and export editable 3D assets",
+    "location": "3D View > Sidebar > Asset Assistant",
+    "description": "Generate, modify, rig, animate, validate, and export editable 3D assets",
     "category": "3D View",
 }
 
 
 def register():
-    from . import animation_names_ui, avian_ui, cura_scale_ui, modify_ui, run_ui, ui, ui_fastpath
-    # Keep stable class/operator IDs for compatibility while presenting the new
-    # product name to artists in Blender.
-    ui.HUMANOID_PT_panel.bl_label = "Asset Assistant"
+    from . import animation_names_ui, avian_ui, cura_scale_ui, modify_ui, run_ui, ui, ui_fastpath, workflow_ui
+    # Keep stable class/operator IDs for compatibility while presenting one
+    # ordered Asset Assistant workflow to artists.
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
+    workflow_ui.prepare(ui, modify_ui, animation_names_ui)
     ui_fastpath.install(ui)
     ui.register()
     animation_names_ui.register()
