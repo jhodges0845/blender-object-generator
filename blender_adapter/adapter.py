@@ -2,8 +2,12 @@
 """Translate core mesh data into Blender data; no provider-specific generation rules here."""
 
 from math import isfinite
+from uuid import uuid4
 
 from .core import ObjectMesh, Skeleton
+
+
+_ASSET_ID = "asset_assistant_asset_id"
 
 
 def _populate_mesh(data, part, coordinate_scale):
@@ -63,6 +67,7 @@ def create_asset(mesh: ObjectMesh, *, name="Asset", scene=None, skeleton=None,
         root["generator"] = "object_generator"
         root["stage"] = "blockout"
         root["coordinate_scale"] = coordinate_scale
+        root[_ASSET_ID] = uuid4().hex
         for part in mesh.parts:
             data = bpy.data.meshes.new(name + "." + part.name)
             created_meshes.append(data)
