@@ -8,7 +8,13 @@ except ModuleNotFoundError:
     bpy = None
 
 from blender_adapter.adapter import create_character
-from blender_adapter.components import attach_rigid_component, component_records, inspect_component
+from blender_adapter.components import (
+    attach_rigid_component,
+    component_records,
+    inspect_component,
+    remove_component,
+    replace_rigid_component,
+)
 from object_core.components import AttachmentMode, ComponentKind, ComponentRecord
 from object_core.objects import get_provider
 
@@ -50,11 +56,11 @@ class BlenderComponentPersistenceTests(unittest.TestCase):
         values = {field.key: field.default for field in provider.parameters}
         return provider.mesh(values)
 
-    def _record(self, *, component_id="proof-accessory-001", target="asset_root"):
+    def _record(self, *, component_id="proof-accessory-001", target="asset_root", provider_key="box-proof"):
         return ComponentRecord(
             component_id=component_id,
             kind=ComponentKind.ACCESSORY,
-            provider_key="box-proof",
+            provider_key=provider_key,
             attachment_target=target,
             attachment_mode=AttachmentMode.RIGID,
             owns_geometry=True,
@@ -122,6 +128,64 @@ class BlenderComponentPersistenceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "metadata is invalid"):
             inspect_component(root, record.component_id)
+
+    def test_remove_component_deletes_owned_tree_and_registry_entry(self):
+        root = self._generated_human()
+        record = self._record()
+        component_root = attach_rigid_component(root, self._proof_mesh(), record, name="Proof Accessory")
+        object_name = component_root.name
+
+        removed = remove_component(root, record.component_id)
+
+        self.assertEqual(record, removed)
+        self.assertEqual((), component_records(root))
+        self.assertIsNone(bpy.data.objects.get(object_name))
+        with self.assertRaisesRegex(ValueError, "not registered"):
+            inspect_component(root, record.component_id)
+
+    def test_remove_bone_component_preserves_generated_armature(self):
+        root = self._generated_human(rigged=True)
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        armature_name = armature.name
+        record = self._record(target="bone:hand.right")
+        attach_rigid_component(root, self._proof_mesh(), record, name="Held Accessory")
+
+        remove_component(root, record.component_id)
+
+        self.assertIsNotNone(bpy.data.objects.get(armature_name))
+        self.assertEqual((), component_records(root))
+
+    def test_replace_component_keeps_identity_and_can_change_attachment(self):
+        root = self._generated_human(rigged=True)
+        original = self._record(target="asset_root", provider_key="box-proof-v1")
+        attach_rigid_component(root, self._proof_mesh(), original, name="Original Accessory")
+        replacement = self._record(target="bone:hand.right", provider_key="box-proof-v2")
+
+        previous, replacement_root = replace_rigid_component(
+            root,
+            self._proof_mesh(),
+            replacement,
+            name="Replacement Accessory",
+        )
+
+        self.assertEqual(original, previous)
+        self.assertEqual(replacement, inspect_component(root, original.component_id))
+        self.assertEqual((replacement,), component_records(root))
+        self.assertEqual("BONE", replacement_root.parent_type)
+        self.assertEqual("hand.right", replacement_root.parent_bone)
+
+    def test_failed_replace_restores_previous_component(self):
+        root = self._generated_human(rigged=True)
+        original = self._record(target="asset_root", provider_key="box-proof-v1")
+        original_root = attach_rigid_component(root, self._proof_mesh(), original, name="Original Accessory")
+        bad_replacement = self._record(target="bone:not-a-bone", provider_key="box-proof-v2")
+
+        with self.assertRaisesRegex(ValueError, "attachment bone does not exist"):
+            replace_rigid_component(root, self._proof_mesh(), bad_replacement, name="Bad Replacement")
+
+        self.assertEqual(original, inspect_component(root, original.component_id))
+        self.assertEqual((original,), component_records(root))
+        self.assertIsNotNone(bpy.data.objects.get(original_root.name))
 
 
 if __name__ == "__main__":

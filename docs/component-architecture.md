@@ -43,12 +43,15 @@ Components must remain preservation boundaries. The Blender execution slices now
 5. duplicate component-id rejection;
 6. transactional creation rollback when attachment fails;
 7. rigid `asset_root` and `bone:<bone-name>` attachment validation;
-8. inspection that detects missing bones, armature detachment, or bone retargeting.
+8. inspection that detects missing bones, armature detachment, or bone retargeting;
+9. validated removal of owned component trees and registry entries;
+10. stable-id replacement that keeps the old component intact until the replacement has been created and re-inspected successfully;
+11. rollback to the previous component when replacement creation fails.
 
 Still required before broader component Modify is executable:
 
-1. skinned component ownership and rig/weight inspection;
-2. safe transactional remove/replace operations;
+1. skinned component ownership and parent-rig binding semantics;
+2. skinned rig/weight inspection and preservation rules;
 3. Modify inspection/request transport for component state;
 4. adapter-specific physics preparation only after ownership is known;
 5. artist-facing component creation/selection UI and real component providers.
@@ -61,7 +64,9 @@ Artist-created or artist-edited component data must not be overwritten unless ow
 
 For `attachment_target="asset_root"`, the component root is parented directly to the generated asset root. For `attachment_target="bone:<bone-name>"`, the component root is parented to the generated armature using Blender bone parenting after the target bone is validated.
 
-This slice intentionally supports only rigid generated components that own their geometry. It does not yet provide artist-facing Blender UI or a public accessory catalog/provider. Tests use a simple portable mesh only to prove persistence and attachment behavior. Hair, clothing, skinned components, remove/replace operations, and dynamics remain later slices.
+`remove_component()` first requires a clean inspection result, then removes only the component-owned hierarchy and its registry entry. `replace_rigid_component()` preserves the stable component ID, temporarily keeps the previous component as the rollback source, creates and validates the replacement, and deletes the previous owned tree only after the new component is known-good.
+
+This slice intentionally supports only rigid generated components that own their geometry. It does not yet provide artist-facing Blender UI or a public accessory catalog/provider. Tests use a simple portable mesh only to prove persistence, attachment, and lifecycle behavior. Hair, clothing, skinned components, and dynamics remain later slices.
 
 ## Intended layering
 
