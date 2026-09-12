@@ -12,6 +12,22 @@ REQUEST_SCHEMA = "asset-assistant.modify-request/v2"
 LEGACY_REQUEST_SCHEMA = "asset-assistant.modify-request/v1"
 
 
+def _json_value(value):
+    if isinstance(value, tuple):
+        if value and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) for item in value):
+            return {key: _json_value(item) for key, item in value}
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _semantic_document(operation):
+    return {
+        "operation": operation.operation,
+        "target": operation.target,
+        "arguments": {key: _json_value(value) for key, value in operation.arguments},
+    }
+
+
 def inspection_document(snapshot):
     """Return a JSON-serializable inspection document for an Asset Assistant snapshot."""
     provider = get_provider(snapshot.provider_key)
@@ -36,6 +52,9 @@ def inspection_document(snapshot):
                 for clip in snapshot.animations
             ],
             "semantic_targets": targets,
+            "semantic_operations": [
+                _semantic_document(operation) for operation in snapshot.semantic_operations
+            ],
             "components": {
                 "has_rig": snapshot.has_rig,
                 "has_materials": snapshot.has_materials,
