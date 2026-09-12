@@ -64,6 +64,12 @@ class AnimationRecordTests(unittest.TestCase):
             validate_animation(self._record(frame_start=10, frame_end=9))
         with self.assertRaisesRegex(ValueError, "fps"):
             validate_animation(self._record(fps=0))
+        with self.assertRaisesRegex(ValueError, "frame_start"):
+            validate_animation(self._record(frame_start=float("nan")))
+        with self.assertRaisesRegex(ValueError, "frame_end"):
+            validate_animation(self._record(frame_end=float("inf")))
+        with self.assertRaisesRegex(ValueError, "fps"):
+            validate_animation(self._record(fps=float("inf")))
 
     def test_unknown_document_fields_are_rejected(self):
         document = animation_document(self._record())
