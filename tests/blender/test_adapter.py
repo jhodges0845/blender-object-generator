@@ -96,18 +96,22 @@ class BlenderAdapterTests(unittest.TestCase):
                  ("quadruped", "Quadruped"),
                  ("avian", "Avian")],
             )
-            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
-            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Generator")
-            for panel_name, category, stage in (
-                    ('HUMANOID_PT_panel', 'Generator', 'MODEL'),
-                    ('HUMANOID_PT_rigging', 'Rigging', 'RIGGING'),
-                    ('HUMANOID_PT_animations', 'Animations', 'ANIMATION'),
-                    ('HUMANOID_PT_validation', 'Validation', 'VALIDATION'),
-                    ('HUMANOID_PT_export', 'Export', 'EXPORT')):
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Generate")
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Asset Assistant")
+            for panel_name, label, order, stage in (
+                    ('HUMANOID_PT_panel', 'Generate', 0, 'MODEL'),
+                    ('ASSET_ASSISTANT_PT_modify', 'Modify', 1, None),
+                    ('HUMANOID_PT_rigging', 'Rig', 2, 'RIGGING'),
+                    ('HUMANOID_PT_animations', 'Animate', 3, 'ANIMATION'),
+                    ('HUMANOID_PT_validation', 'Validate', 4, 'VALIDATION'),
+                    ('HUMANOID_PT_export', 'Export', 5, 'EXPORT')):
                 panel = getattr(bpy.types, panel_name)
                 self.assertTrue(panel.is_registered)
-                self.assertEqual(panel.bl_category, category)
-                self.assertEqual(panel.stage, stage)
+                self.assertEqual(panel.bl_label, label)
+                self.assertEqual(panel.bl_category, "Asset Assistant")
+                self.assertEqual(panel.bl_order, order)
+                if stage is not None:
+                    self.assertEqual(panel.stage, stage)
             tabs = self.scene.humanoid_settings.bl_rna.properties["workflow_tab"].enum_items
             self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION", "EXPORT"])
             self.scene.cursor.location = (2, 3, 4)
@@ -148,8 +152,8 @@ class BlenderAdapterTests(unittest.TestCase):
             humanoid_blender.unregister()
             bpy.context.window.scene = previous_scene
         self.assertFalse(hasattr(bpy.types.Scene, "humanoid_settings"))
-        for panel_name in ('HUMANOID_PT_panel', 'HUMANOID_PT_rigging', 'HUMANOID_PT_animations',
-                           'HUMANOID_PT_validation', 'HUMANOID_PT_export'):
+        for panel_name in ('HUMANOID_PT_panel', 'ASSET_ASSISTANT_PT_modify', 'HUMANOID_PT_rigging',
+                           'HUMANOID_PT_animations', 'HUMANOID_PT_validation', 'HUMANOID_PT_export'):
             self.assertFalse(hasattr(bpy.types, panel_name))
         self.assertEqual(set(self.scene.objects), generated_objects)
         self.assertTrue(generated_meshes.issubset(set(bpy.data.meshes)))
