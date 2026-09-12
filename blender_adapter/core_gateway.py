@@ -30,6 +30,14 @@ component_document = _components.component_document
 component_from_document = _components.component_from_document
 validate_component = _components.validate_component
 
+_animations = import_module(_core_name + '.animations')
+AnimationRecord = _animations.AnimationRecord
+AnimationSource = _animations.AnimationSource
+RootMotionIntent = _animations.RootMotionIntent
+animation_document = _animations.animation_document
+animation_from_document = _animations.animation_from_document
+validate_animation = _animations.validate_animation
+
 _modification = import_module(_core_name + '.modification')
 ModifyAssetSnapshot = _modification.AssetSnapshot
 AnimationSnapshot = _modification.AnimationSnapshot

@@ -10,7 +10,7 @@ Animations are first-class reusable assets in Asset Assistant. Their portable id
 - artist-facing `display_name` and destination-facing `export_name`;
 - `AnimationSource` provenance: generated, imported, or artist-authored;
 - portable `rig_signature` compatibility identity;
-- frame start/end and FPS;
+- finite frame start/end and FPS;
 - loop intent;
 - `RootMotionIntent` (`none`, `in_place`, or `root`);
 - explicit `owns_curves` ownership boundary;
@@ -24,8 +24,18 @@ Generated records must own their generated curves. Imported or artist-authored r
 
 `animation_document()` produces strict JSON-safe portable state. `animation_from_document()` rejects missing and unknown fields instead of silently accepting host-specific metadata or schema drift.
 
+## Blender persistence and inspection
+
+New Asset Assistant-generated Blender Actions persist the portable record as Action metadata while retaining the existing generated clip, rig ownership, and export-name properties used by current UI/export code.
+
+The adapter assigns a stable animation ID, records provider/capability provenance, and computes a deterministic rig signature from the generated armature's bone names, parent relationships, and deform flags. Inspection rejects mismatched IDs, incompatible rig signatures, generated records attached to non-generated Actions, and export-name drift.
+
+The existing animation export-name workflow updates the portable record and the legacy Action property together. Legacy generated Actions from older `.blend` files that do not yet carry animation-record metadata remain usable and renameable; malformed new record metadata is not silently ignored.
+
+Current generated Idle/Walk-or-locomotion/Flight/Run clips are recorded as looping, in-place animations because the current provider generators create cyclic rotational motion without root translation.
+
 ## Next adapter slice
 
-The Blender adapter will persist a portable animation document alongside an Action and inspect it back into `AnimationRecord`. It must verify rig compatibility and ownership without assuming an Action is safe to mutate merely because it exists in the `.blend` file.
+With generated Action persistence/inspection established, the next lifecycle slice can register imported/artist-authored Actions and add preservation-aware add/remove/replace operations without regenerating the base asset.
 
-After persistence/inspection is proven, lifecycle work can add/import/remove/replace records transactionally and later expose preservation-aware animation Modify semantics.
+After lifecycle work is proven, animation inspection/request transport can expose preservation-aware Modify planning and narrowly scoped executable tuning semantics.
