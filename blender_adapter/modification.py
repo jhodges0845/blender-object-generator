@@ -96,7 +96,7 @@ def _expected_mesh(provider, values, semantic_operations):
     return mesh
 
 
-def _geometry_owned(root, provider, values, semantic_operations, warnings):
+def _geometry_owned(root, provider, values, semantic_operations, warnings, expected_mesh=None):
     meshes = [obj for obj in root.children if obj.type == "MESH"]
     if not meshes:
         warnings.append("Generated geometry is missing.")
@@ -108,7 +108,7 @@ def _geometry_owned(root, provider, values, semantic_operations, warnings):
         warnings.append("One or more generated mesh transforms were edited.")
         return False
     try:
-        expected = _expected_mesh(provider, values, semantic_operations)
+        expected = expected_mesh if expected_mesh is not None else _expected_mesh(provider, values, semantic_operations)
     except (KeyError, TypeError, ValueError):
         warnings.append("Current generation parameters and semantic patch cannot reproduce provider geometry.")
         return False
@@ -200,8 +200,8 @@ def _animation_state(root, warnings):
     return tuple(sorted(clips, key=lambda clip: clip.clip_id)), True, True
 
 
-def inspect_generated_asset(root):
-    """Return a portable snapshot without mutating the Blender scene."""
+def _inspect_generated_asset(root, expected_mesh=None):
+    """Return a portable snapshot, optionally reusing already-generated expected geometry."""
     if not is_generated(root):
         raise ValueError("Choose a generated Asset Assistant asset first.")
     warnings = []
@@ -213,7 +213,14 @@ def inspect_generated_asset(root):
 
     values = _saved_parameters(root, provider, warnings)
     semantic_operations = _semantic_operations(root, warnings)
-    owns_geometry = _geometry_owned(root, provider, values, semantic_operations, warnings)
+    owns_geometry = _geometry_owned(
+        root,
+        provider,
+        values,
+        semantic_operations,
+        warnings,
+        expected_mesh=expected_mesh,
+    )
     has_rig, owns_rig = _rig_state(root, warnings)
     has_materials, owns_materials = _material_state(root, provider, values, warnings)
     animations, has_animations, owns_animations = _animation_state(root, warnings)
@@ -239,6 +246,11 @@ def inspect_generated_asset(root):
         owns_animations=owns_animations,
         warnings=tuple(warnings),
     )
+
+
+def inspect_generated_asset(root):
+    """Return a portable snapshot without mutating the Blender scene."""
+    return _inspect_generated_asset(root)
 
 
 def _check_plan_matches(root, plan):
@@ -527,7 +539,7 @@ def apply_semantic_modification(root, plan):
                 vertex.co = tuple(value * scale for value in coordinate)
             obj.data.update()
         root[_SEMANTIC_PATCH] = payload
-        result = inspect_generated_asset(root)
+        result = _inspect_generated_asset(root, expected_mesh=mesh)
         if not result.owns_geometry:
             raise RuntimeError("Semantic patch failed post-apply ownership validation.")
     except Exception:
