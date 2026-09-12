@@ -31,6 +31,7 @@ def register():
         component_modify_apply,
         component_modify_exchange,
         cura_scale_ui,
+        hair_component_ui,
         modification,
         modify_fastpath,
         modify_ui,
@@ -45,7 +46,14 @@ def register():
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
     animation_tuning_ui.prepare(ui)
-    workflow_ui.prepare(ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui)
+    workflow_ui.prepare(
+        ui,
+        modify_ui,
+        animation_names_ui,
+        working_asset_ui,
+        component_adoption_ui,
+        hair_component_ui,
+    )
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
     modify_fastpath.install(modify_ui)
@@ -59,6 +67,7 @@ def register():
     modify_ui.register()
     working_asset_ui.register()
     component_adoption_ui.register()
+    hair_component_ui.register()
 
 
 def unregister():
@@ -67,11 +76,13 @@ def unregister():
         animation_tuning_ui,
         component_adoption_ui,
         cura_scale_ui,
+        hair_component_ui,
         modify_ui,
         run_ui,
         ui,
         working_asset_ui,
     )
+    hair_component_ui.unregister()
     component_adoption_ui.unregister()
     working_asset_ui.unregister()
     modify_ui.unregister()

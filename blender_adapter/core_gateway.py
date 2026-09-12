@@ -32,6 +32,7 @@ component_from_document = _components.component_from_document
 effective_behavior = _components.effective_behavior
 validate_component = _components.validate_component
 _component_primitives = import_module(_core_name + '.component_primitives')
+hair_shell_mesh = _component_primitives.hair_shell_mesh
 ring_mesh = _component_primitives.ring_mesh
 
 _animations = import_module(_core_name + '.animations')

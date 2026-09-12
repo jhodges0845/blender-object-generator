@@ -9,7 +9,8 @@ operator identifiers remain untouched for saved files and scripts.
 _CATEGORY = "Asset Assistant"
 
 
-def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_adoption_ui=None):
+def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
+            component_adoption_ui=None, hair_component_ui=None):
     """Place workflow panels under one ordered Asset Assistant sidebar tab."""
     panels = (
         (ui.HUMANOID_PT_panel, "Generate", 0),
@@ -33,9 +34,6 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
 
     if component_adoption_ui is not None:
-        # Components enter through the same first stage as base assets: generate
-        # a supported starting point or import/select external geometry and adopt
-        # it. No separate Hair/Clothing/Accessory sidebar workflow is introduced.
         original_generate_draw = ui.HUMANOID_PT_panel.draw
         if not getattr(original_generate_draw, "_asset_assistant_components", False):
             def draw_generate_with_components(panel, context):
@@ -47,6 +45,14 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
                 target = getattr(context.scene.humanoid_settings, "target", None)
                 if target is None:
                     box.label(text="Choose or generate a base asset first.")
+                if hair_component_ui is not None:
+                    hair = box.row()
+                    hair.enabled = target is not None
+                    hair.operator(
+                        "asset_assistant.generate_hair_shell",
+                        text="Generate Hair Shell",
+                        icon="OUTLINER_OB_MESH",
+                    )
                 generated = box.row()
                 generated.enabled = target is not None
                 generated.operator(
