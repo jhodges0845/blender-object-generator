@@ -102,17 +102,18 @@ class WorkflowSidebarTests(unittest.TestCase):
                 self.calls.append((operator_id, text, icon, self.enabled))
 
         class FakeBox:
-            def __init__(self, calls):
+            def __init__(self, calls, labels):
                 self.calls = calls
+                self.labels = labels
 
             def box(self):
-                return FakeBox(self.calls)
+                return FakeBox(self.calls, self.labels)
 
             def row(self):
                 return FakeRow(self.calls)
 
-            def label(self, **_kwargs):
-                return None
+            def label(self, text="", **_kwargs):
+                self.labels.append(text)
 
         class HairUi:
             pass
@@ -126,8 +127,9 @@ class WorkflowSidebarTests(unittest.TestCase):
             pass
 
         calls = []
+        labels = []
         workflow_ui._draw_component_actions(
-            FakeBox(calls), object(), HairUi, ClothingUi, AccessoryUi)
+            FakeBox(calls, labels), object(), HairUi, ClothingUi, AccessoryUi)
 
         self.assertEqual(
             [operator_id for operator_id, _text, _icon, _enabled in calls],
@@ -140,6 +142,9 @@ class WorkflowSidebarTests(unittest.TestCase):
             ],
         )
         self.assertTrue(all(enabled for _operator_id, _text, _icon, enabled in calls))
+        self.assertIn("Adopted mesh geometry becomes Asset Assistant-managed.", labels)
+        self.assertIn("Existing materials remain artist-owned.", labels)
+        self.assertNotIn("Existing geometry and artist materials remain yours.", labels)
 
     def test_animation_adoption_remains_separate_and_preserves_operator_contract(self):
         from blender_adapter import workflow_ui
