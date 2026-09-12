@@ -70,23 +70,32 @@ Components must remain preservation boundaries. The Blender execution slices now
 17. failed skinned replacement rollback that restores the previous registry/object metadata and leaves the original weighted component usable;
 18. Modify inspection v3 exports validated attached component records;
 19. Modify request v3 parses portable add/remove/replace component operations;
-20. component requests validate identity/existence before planning and are explicitly blocked from execution until a dedicated component apply stage exists.
+20. Blender capability planning makes exactly one validated component removal executable through the external Modify apply path;
+21. base geometry/rig regeneration is blocked while components are attached so component bindings cannot be invalidated silently;
+22. add/replace remain explicit blockers until a real component provider can reproduce geometry and, where required, skin weights.
 
-Still required before broader component Modify is executable:
+Still required before the first real component-provider workflow is complete:
 
-1. executable Modify apply paths for validated component add/remove/replace requests;
-2. adapter-specific physics preparation only after ownership is known;
-3. artist-facing component creation/selection UI;
-4. real clothing/hair/accessory providers and visual-quality validation;
-5. component-owned rig execution for `rig_binding="owned"` if/when a provider requires it.
+1. implement a real component provider capable of reproducing geometry and optional skin weights from portable parameters;
+2. route validated Modify add/replace through that provider and the existing rigid/skinned lifecycle functions;
+3. add artist-facing component creation/selection UI;
+4. run a component regression/documentation checkpoint;
+5. add adapter-specific physics preparation only after the first provider proves the ownership flow;
+6. add component-owned rig execution for `rig_binding="owned"` only if a provider actually requires it.
 
 Artist-created or artist-edited component data must not be overwritten unless ownership is explicit and the operation is safe.
 
 ## Modify exchange
 
-Modify inspection and request schemas are now version 3. Inspection JSON includes `attached_components`, each serialized with the same portable `ComponentRecord` document used for Blender persistence. The request template includes `component_operations` for `add`, `remove`, and `replace` intent.
+Modify inspection and request schemas are version 3. Inspection JSON includes `attached_components`, each serialized with the same portable `ComponentRecord` document used for Blender persistence. The request template includes `component_operations` for `add`, `remove`, and `replace` intent.
 
-Legacy request v1 and v2 payloads remain readable. Component operations are only accepted by v3, are validated against the inspected component identities, and currently produce an explicit planning blocker rather than mutating the Blender scene. This keeps external inspect → edit → re-import workflows forward-compatible without exposing an unsafe partial apply path.
+Legacy request v1 and v2 payloads remain readable. Component operations are validated against the inspected component identities by the host-independent planner. The portable core still treats component mutation as transport intent; Blender then refines that plan according to capabilities it can prove safe.
+
+Blender currently enables exactly one `remove` operation per imported request. The requested component is re-inspected before deletion and dispatched through the rigid or parent-rig-skinned lifecycle path as appropriate. Multiple removals are intentionally separated into individual requests so rollback boundaries remain explicit. Requests that mix component removal with other Modify changes are also blocked.
+
+`add` and `replace` remain blocked because a `ComponentRecord` contains identity, attachment, ownership, parameters, and physics intent but not executable geometry or skin weights. Those operations become safe only after a component provider can deterministically reproduce the requested component from its portable record.
+
+The Blender planner also blocks provider geometry/rig regeneration while any component remains attached. This prevents a parameter or semantic body change from replacing the parent rig underneath skinned clothing or bone-attached accessories before rebinding/preservation behavior exists.
 
 The artist-facing Blender Modify workflow enriches its base asset snapshot with revalidated rigid/skinned component state before exporting inspection JSON or validating an imported request. Invalid/tampered component state therefore blocks transport rather than being silently described as healthy.
 
@@ -105,6 +114,8 @@ For `attachment_target="asset_root"`, the component root is parented directly to
 `remove_skinned_component()` requires a clean skinned inspection result before deleting the component-owned hierarchy and registry entry. It does not delete or mutate the owning asset armature.
 
 `replace_skinned_component()` preserves the stable component ID and uses the previous weighted component as the rollback source. The old tree remains intact while the replacement is created and fully re-inspected; only then is the old component deleted. If replacement creation or validation fails, the previous registry and component-root metadata are restored.
+
+`blender_adapter.component_modify_apply` layers Blender capability checks over the portable planner. It enables a single validated remove request, dispatches rigid/skinned removal through their proven lifecycle functions, preserves the owning asset and armature, and leaves add/replace blocked until executable providers exist.
 
 These slices still do not provide artist-facing component creation UI, a public clothing/hair catalog, component-owned rigs, or physics execution.
 
