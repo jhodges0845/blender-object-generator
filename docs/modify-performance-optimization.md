@@ -7,7 +7,7 @@ This note continues the performance audit after PR #132.
 - The Modify panel draw path does not run full ownership inspection or regenerate provider geometry on redraw. It resolves the selected generated asset/provider and renders stored status.
 - Full `inspect_generated_asset()` is intentionally expensive because geometry ownership compares the live Blender mesh against reproducible provider output.
 - Semantic Modify previously reproduced expected geometry three times during one apply: once in the pre-apply ownership check, once to build the requested semantic result, and once again in the post-apply ownership check.
-- Parameter regeneration still has a similar follow-up opportunity: the staged provider mesh is built before swap, while post-apply inspection regenerates provider geometry again.
+- Parameter regeneration previously had the same kind of duplication: the staged provider mesh was built before swap, then post-apply inspection regenerated provider geometry again.
 - External multi-stage Modify previously discarded the validated snapshot returned by each apply stage, then immediately performed another full UI-level inspection before planning the next stage and once more at the end.
 
 ## First safe optimization
@@ -26,10 +26,18 @@ This removes redundant UI-level ownership inspections between external Modify st
 
 A Blender regression test covers a semantic external request and asserts that the UI performs only its required initial inspection; the apply function remains responsible for its own pre/post validation and returns the final authoritative snapshot.
 
+## Third safe optimization
+
+Parameter regeneration now carries the exact provider mesh used to build the staging asset into post-swap ownership validation. The live replacement geometry is still checked against that mesh for part identities, topology, vertex coordinates, coordinate scale, rig state, material state, animation state, and metadata. Only the redundant second provider geometry generation is skipped.
+
+The pre-apply `_check_plan_matches()` inspection is unchanged and still independently reproduces the current asset before any destructive swap. The staged mesh is only reused after it has already been generated for the replacement components.
+
+A Blender regression test asserts that parameter apply performs only the required pre-apply `_expected_mesh` reproduction; post-apply validation must reuse the staged mesh.
+
 ## Next profiling targets
 
-1. Parameter regeneration: carry the staged mesh into post-swap ownership validation rather than regenerating it.
-2. Validation refresh after Modify: measure target-adapter preparation separately before changing it, because export validation may intentionally perform work beyond Modify ownership checks.
-3. Combined external requests: profile representative parameter + semantic + metadata requests after the snapshot-reuse change before considering any deeper sequencing optimization.
+1. Validation refresh after Modify: measure target-adapter preparation separately before changing it, because export validation may intentionally perform work beyond Modify ownership checks.
+2. Combined external requests: profile representative parameter + semantic + metadata requests after the snapshot-reuse changes before considering deeper sequencing optimization.
+3. Imported-request boundary: measure the parse-time inspection plus the apply-time inspection before considering whether those two checks can safely share validated state.
 
 Preservation and ownership checks remain authoritative; performance changes must not weaken them.
