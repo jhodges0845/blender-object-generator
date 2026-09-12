@@ -13,6 +13,7 @@ from .objects import get_provider
 class AnimationSnapshot:
     clip_id: str
     export_name: str
+    animation_id: Optional[str] = None
     display_name: Optional[str] = None
     source: Optional[str] = None
     rig_signature: Optional[str] = None
