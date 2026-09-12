@@ -20,10 +20,18 @@ class BlenderAnimationRecordTests(unittest.TestCase):
     def setUp(self):
         if bpy.context.mode != "OBJECT":
             bpy.ops.object.mode_set(mode="OBJECT")
-        bpy.ops.object.select_all(action="SELECT")
-        bpy.ops.object.delete(use_global=False)
-        for action in tuple(bpy.data.actions):
-            bpy.data.actions.remove(action)
+        self.previous_scene = bpy.context.window.scene
+        self.before = {name: set(getattr(bpy.data, name)) for name in
+                       ("objects", "meshes", "armatures", "collections", "materials", "images", "actions")}
+
+    def tearDown(self):
+        if bpy.context.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.context.window.scene = self.previous_scene
+        for name, original in self.before.items():
+            data = getattr(bpy.data, name)
+            for item in set(data) - original:
+                data.remove(item, do_unlink=True)
 
     def _rigged_human(self):
         provider = get_provider("human_experimental")
