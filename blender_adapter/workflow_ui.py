@@ -6,7 +6,7 @@ _CATEGORY = "Asset Assistant"
 
 def _section_header(layout, title, subtitle="", icon="NONE"):
     """Create a compact Blender-native section heading."""
-    row = layout.row(align=True)
+    row = layout.row()
     row.scale_y = 1.1
     row.label(text=title, icon=icon)
     if subtitle:
