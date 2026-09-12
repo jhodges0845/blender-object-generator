@@ -107,8 +107,27 @@ def test_create_generate_uses_four_unified_asset_buttons_and_primary_action():
     assert len(action_rows) == 1
 
     operators = [call for node in nodes for call in node.operators]
-    assert ("humanoid.generate_blockout", {"text": "Generate Human", "icon": "ADD"}) in operators
+    assert ("asset_assistant.generate_replace_current", {"text": "Generate Human", "icon": "ADD"}) in operators
     assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Existing Asset", "icon": "FILE_FOLDER"}) in operators
+
+    existing_rows = [node for node in nodes if node.scale_y == 1.45 and node.operators]
+    assert len(existing_rows) == 1
+
+
+def test_generate_action_becomes_replace_when_a_current_asset_exists():
+    marker = object()
+    previous = _Context.scene.humanoid_settings.target
+    try:
+        _Context.scene.humanoid_settings.target = marker
+        panel = _Panel()
+        workspace_create_ui._draw_generate(panel, _Context(), _UI(), working_asset_ui=object())
+        operators = [call for node in _walk(panel.layout) for call in node.operators]
+        assert (
+            "asset_assistant.generate_replace_current",
+            {"text": "Replace Current with Human", "icon": "FILE_REFRESH"},
+        ) in operators
+    finally:
+        _Context.scene.humanoid_settings.target = previous
 
 
 def test_create_generate_keeps_first_three_parameters_visible_and_collapses_rest():
