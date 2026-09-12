@@ -25,6 +25,9 @@ class AssetSnapshot:
     provider_label: str
     parameters: Tuple[Tuple[str, object], ...]
     animations: Tuple[AnimationSnapshot, ...] = ()
+    has_rig: bool = False
+    has_materials: bool = False
+    has_animations: bool = False
     owns_geometry: bool = False
     owns_rig: bool = False
     owns_materials: bool = False
@@ -88,14 +91,14 @@ def _validate_parameter(parameter, value):
     return normalized
 
 
-def _conservative_parameter_impact(provider):
-    """Capability-driven safe default until providers need finer-grained impact."""
+def _conservative_parameter_impact(provider, snapshot):
+    """Rebuild only generated components that already exist on this asset."""
     components = ["geometry"]
-    if provider.supports_rig:
+    if provider.supports_rig and snapshot.has_rig:
         components.append("rig")
-    if getattr(provider, "supports_materials", False):
+    if getattr(provider, "supports_materials", False) and snapshot.has_materials:
         components.append("materials")
-    if any(
+    if snapshot.has_animations and any(
         getattr(provider, capability, False)
         for capability in ("supports_idle", "supports_locomotion", "supports_run", "supports_flight")
     ):
@@ -141,7 +144,7 @@ def plan_modification(snapshot, request):
         if cleaned != generated_clips[clip_id].export_name:
             normalized_renames.append((clip_id, cleaned))
 
-    rebuild = _conservative_parameter_impact(provider) if normalized_changes else ()
+    rebuild = _conservative_parameter_impact(provider, snapshot) if normalized_changes else ()
     blockers = []
     ownership = {
         "geometry": snapshot.owns_geometry,
