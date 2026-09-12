@@ -116,25 +116,23 @@ def _apply_external_request(context, root, request):
             parameter_changes=plan.requested_parameter_changes,
         )
         parameter_plan = plan_modification(snapshot, parameter_request)
-        apply_parameter_modification(root, parameter_plan)
+        snapshot = apply_parameter_modification(root, parameter_plan)
 
     if plan.requested_semantic_operations:
-        refreshed = inspect_generated_asset(root)
         semantic_request = ModificationRequest(
             semantic_operations=plan.requested_semantic_operations,
         )
-        semantic_plan = plan_modification(refreshed, semantic_request)
-        apply_semantic_modification(root, semantic_plan)
+        semantic_plan = plan_modification(snapshot, semantic_request)
+        snapshot = apply_semantic_modification(root, semantic_plan)
 
     if plan.requested_animation_renames:
-        refreshed = inspect_generated_asset(root)
         rename_request = ModificationRequest(
             animation_export_names=plan.requested_animation_renames,
         )
-        rename_plan = plan_modification(refreshed, rename_request)
-        apply_metadata_modification(root, rename_plan)
+        rename_plan = plan_modification(snapshot, rename_request)
+        snapshot = apply_metadata_modification(root, rename_plan)
 
-    return inspect_generated_asset(root)
+    return snapshot
 
 
 class ASSET_ASSISTANT_OT_modify_inspect(bpy.types.Operator):
