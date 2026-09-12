@@ -9,6 +9,8 @@ This note continues the performance audit after PR #132.
 - Semantic Modify previously reproduced expected geometry three times during one apply: once in the pre-apply ownership check, once to build the requested semantic result, and once again in the post-apply ownership check.
 - Parameter regeneration previously had the same kind of duplication: the staged provider mesh was built before swap, then post-apply inspection regenerated provider geometry again.
 - External multi-stage Modify previously discarded the validated snapshot returned by each apply stage, then immediately performed another full UI-level inspection before planning the next stage and once more at the end.
+- Imported Modify previously inspected the unchanged asset once to validate the returned request and then immediately inspected it again when entering the external apply helper.
+- The post-Modify target validation refresh is a distinct read-only validation pass. It updates the view layer, inspects the current asset, applies target-specific checks, and intentionally remains fresh after mutation.
 
 ## First safe optimization
 
@@ -34,10 +36,33 @@ The pre-apply `_check_plan_matches()` inspection is unchanged and still independ
 
 A Blender regression test asserts that parameter apply performs only the required pre-apply `_expected_mesh` reproduction; post-apply validation must reuse the staged mesh.
 
-## Next profiling targets
+## Fourth safe optimization
 
-1. Validation refresh after Modify: measure target-adapter preparation separately before changing it, because export validation may intentionally perform work beyond Modify ownership checks.
-2. Combined external requests: profile representative parameter + semantic + metadata requests after the snapshot-reuse changes before considering deeper sequencing optimization.
-3. Imported-request boundary: measure the parse-time inspection plus the apply-time inspection before considering whether those two checks can safely share validated state.
+Imported Modify now reuses the already-current asset snapshot created to validate the returned request when entering the external apply helper. The request still binds to the current asset id and provider before any mutation.
+
+Standalone calls to the external apply helper still perform their own initial inspection when no snapshot is supplied. Parameter, semantic, and metadata apply stages still execute their authoritative pre-apply `_check_plan_matches()` inspections and post-apply validation.
+
+The explicit target validation refresh after Modify is unchanged. This is intentional: it produces a fresh export-readiness snapshot for the mutated asset rather than reusing Modify ownership state for a different purpose.
+
+Regression coverage verifies both paths: imported apply reuses the supplied current snapshot, while standalone helper use still inspects for itself.
+
+## Current conclusion
+
+The measured/inspected duplication found in the rich Modify path has now been removed without weakening preservation boundaries:
+
+1. semantic post-apply provider mesh regeneration;
+2. redundant external-stage UI inspections;
+3. parameter post-swap provider mesh regeneration;
+4. duplicate imported-request/helper-boundary inspection.
+
+The combined external parameter + semantic + metadata path still performs a fresh ownership inspection inside each destructive apply stage. Those checks are intentional safety boundaries and should not be removed merely to reduce call count.
+
+Likewise, post-Modify target validation remains a fresh read-only validation pass because export-readiness checks are not interchangeable with Modify ownership checks.
+
+## Future profiling targets
+
+1. Measure representative Human and Avian Generate / Inspect / Apply latency with stable instrumentation before making further runtime changes.
+2. Compare CI durations across several post-split runs and record a stable baseline before adding performance thresholds.
+3. Revisit combined external requests only if measured latency shows the preserved per-stage ownership checks are a material user-facing bottleneck.
 
 Preservation and ownership checks remain authoritative; performance changes must not weaken them.
