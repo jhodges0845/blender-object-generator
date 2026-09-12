@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Inspect Blender data and safely apply approved Modify operations."""
 
+import json
 from math import isclose
 
 from .animation import clip_export_name, generated_actions
-from .core import AnimationSnapshot, ModificationPlan, ModifyAssetSnapshot, canonical_provider_key, get_provider
+from .core import (
+    AnimationSnapshot,
+    ModificationPlan,
+    ModifyAssetSnapshot,
+    SemanticOperation,
+    canonical_provider_key,
+    get_provider,
+)
 from .workflow import is_generated
 
 
@@ -14,6 +22,7 @@ _EXPORT_NAME = "asset_assistant_export_name"
 _GENERATED_CLIP = "asset_assistant_clip"
 _GENERATED_RIG = "asset_assistant_rig"
 _GENERATED_MATERIAL = "asset_assistant_generated_material"
+_SEMANTIC_STACK = "asset_assistant_semantic_operations"
 
 
 def _identity_matrix(matrix):
@@ -31,7 +40,75 @@ def _saved_parameters(root, provider, warnings):
     return tuple(values)
 
 
-def _geometry_owned(root, provider, values, warnings):
+def _semantic_document(operation):
+    def thaw(value):
+        if isinstance(value, tuple):
+            if value and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) for item in value):
+                return {key: thaw(item) for key, item in value}
+            return [thaw(item) for item in value]
+        return value
+
+    return {
+        "operation": operation.operation,
+        "target": operation.target,
+        "arguments": {key: thaw(value) for key, value in operation.arguments},
+    }
+
+
+def _semantic_stack(root, provider, warnings):
+    payload = root.get(_SEMANTIC_STACK)
+    if not payload:
+        return ()
+    if not isinstance(payload, str):
+        warnings.append("Stored semantic modification stack is invalid.")
+        return ()
+    try:
+        raw = json.loads(payload)
+    except (TypeError, json.JSONDecodeError):
+        warnings.append("Stored semantic modification stack is not valid JSON.")
+        return ()
+    if not isinstance(raw, list):
+        warnings.append("Stored semantic modification stack is invalid.")
+        return ()
+    operations = []
+    try:
+        for item in raw:
+            if not isinstance(item, dict):
+                raise TypeError
+            operation = SemanticOperation(
+                str(item["operation"]),
+                str(item["target"]),
+                tuple(dict(item.get("arguments", {})).items()),
+            )
+            validator = getattr(provider, "validate_semantic_operation", None)
+            if callable(validator):
+                validator(operation)
+            operations.append(operation)
+    except (KeyError, TypeError, ValueError):
+        warnings.append("Stored semantic modification stack cannot be reproduced by this provider.")
+        return ()
+    return tuple(operations)
+
+
+def _store_semantic_stack(root, operations):
+    root[_SEMANTIC_STACK] = json.dumps(
+        [_semantic_document(operation) for operation in operations],
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _provider_mesh(provider, values, semantic_operations=()):
+    mesh = provider.mesh(values)
+    if semantic_operations:
+        apply = getattr(provider, "apply_semantics", None)
+        if not callable(apply):
+            raise ValueError(provider.label + " cannot reproduce stored semantic modifications")
+        mesh = apply(mesh, semantic_operations, values)
+    return mesh
+
+
+def _geometry_owned(root, provider, values, semantic_operations, warnings):
     meshes = [obj for obj in root.children if obj.type == "MESH"]
     if not meshes:
         warnings.append("Generated geometry is missing.")
@@ -43,9 +120,9 @@ def _geometry_owned(root, provider, values, warnings):
         warnings.append("One or more generated mesh transforms were edited.")
         return False
     try:
-        expected = provider.mesh(dict(values))
+        expected = _provider_mesh(provider, dict(values), semantic_operations)
     except (KeyError, TypeError, ValueError):
-        warnings.append("Current generation parameters cannot reproduce the provider geometry.")
+        warnings.append("Current generation state cannot reproduce the provider geometry.")
         return False
     actual = {obj.get("part_name", obj.get("body_part")): obj for obj in meshes}
     expected_parts = {part.name: part for part in expected.parts}
@@ -111,9 +188,6 @@ def _material_state(root, provider, values, warnings):
     except (KeyError, TypeError, ValueError):
         warnings.append("Provider materials cannot be reproduced from saved parameters.")
         return True, False
-    # New generated materials carry an explicit ownership marker, so Blender's
-    # automatic .001/.002 name suffixes do not turn a second generated asset into
-    # an ambiguous one. Exact names remain a compatibility path for older files.
     actual_names = {material.name for material in materials}
     marked_generated = all(bool(material.get(_GENERATED_MATERIAL)) for material in materials)
     owned = marked_generated or actual_names == expected_names
@@ -150,7 +224,8 @@ def inspect_generated_asset(root):
         warnings.append("Legacy provider key " + str(stored_key) + " resolves to " + canonical_key + ".")
 
     values = _saved_parameters(root, provider, warnings)
-    owns_geometry = _geometry_owned(root, provider, values, warnings)
+    semantic_operations = _semantic_stack(root, provider, warnings)
+    owns_geometry = _geometry_owned(root, provider, values, semantic_operations, warnings)
     has_rig, owns_rig = _rig_state(root, warnings)
     has_materials, owns_materials = _material_state(root, provider, values, warnings)
     animations, has_animations, owns_animations = _animation_state(root, warnings)
@@ -166,6 +241,7 @@ def inspect_generated_asset(root):
         provider_label=provider.label,
         parameters=values,
         animations=animations,
+        semantic_operations=semantic_operations,
         has_rig=has_rig,
         has_materials=has_materials,
         has_animations=has_animations,
@@ -193,7 +269,7 @@ def _check_plan_matches(root, plan):
 def apply_metadata_modification(root, plan):
     """Apply an approved metadata-only plan transactionally."""
     snapshot = _check_plan_matches(root, plan)
-    if plan.rebuild_components or plan.requested_parameter_changes:
+    if plan.rebuild_components or plan.requested_parameter_changes or plan.requested_semantic_operations:
         raise ValueError("This apply path only supports metadata-only modifications.")
     if plan.requested_animation_renames and not snapshot.owns_animations:
         raise ValueError("Generated animation ownership is ambiguous; nothing was changed.")
@@ -229,14 +305,14 @@ def apply_metadata_modification(root, plan):
     return inspect_generated_asset(root)
 
 
-def _staged_asset(root, provider, values, snapshot):
+def _staged_asset(root, provider, values, snapshot, semantic_operations):
     """Build replacement generated components before touching the live asset."""
     import bpy
     from .adapter import create_character
 
     if bpy.context.scene.objects.get(root.name) != root or bpy.context.mode != "OBJECT":
         raise ValueError("Modify regeneration requires the asset in the active scene and Object Mode.")
-    mesh = provider.mesh(values)
+    mesh = _provider_mesh(provider, values, semantic_operations)
     materials = provider.materials(values) if snapshot.has_materials else ()
     skeleton = None
     weights = None
@@ -255,6 +331,8 @@ def _staged_asset(root, provider, values, snapshot):
     staged["object_type"] = provider.key
     for key, value in values.items():
         staged[key] = value
+    if semantic_operations:
+        _store_semantic_stack(staged, semantic_operations)
     return staged
 
 
@@ -271,17 +349,15 @@ def _remove_staged_root(staged, *, remove_children=True):
             bpy.data.collections.remove(collection)
 
 
-def apply_parameter_modification(root, plan):
-    """Stage and swap provider-owned generated components for parameter changes."""
+def _apply_regeneration(root, plan, values, semantic_operations):
+    """Transactionally swap regenerated provider-owned components into the live root."""
     import bpy
 
     snapshot = _check_plan_matches(root, plan)
-    if not plan.requested_parameter_changes:
-        raise ValueError("This apply path requires at least one provider parameter change.")
     if not plan.rebuild_components or "geometry" not in plan.rebuild_components:
-        raise ValueError("Parameter modification plan must rebuild generated geometry.")
+        raise ValueError("Regeneration plan must rebuild generated geometry.")
     if plan.requested_animation_renames:
-        raise ValueError("Apply animation renames separately before parameter regeneration.")
+        raise ValueError("Apply animation renames separately from generated component regeneration.")
 
     ownership = {
         "geometry": snapshot.owns_geometry,
@@ -294,9 +370,7 @@ def apply_parameter_modification(root, plan):
             raise ValueError("Generated " + component + " ownership is ambiguous; nothing was changed.")
 
     provider = get_provider(snapshot.provider_key)
-    values = snapshot.parameter_values()
-    values.update(dict(plan.requested_parameter_changes))
-    staged = _staged_asset(root, provider, values, snapshot)
+    staged = _staged_asset(root, provider, values, snapshot, semantic_operations)
 
     old_meshes = [obj for obj in root.children if obj.type == "MESH"]
     old_rigs = [obj for obj in root.children if obj.type == "ARMATURE"]
@@ -325,6 +399,7 @@ def apply_parameter_modification(root, plan):
     old_children = tuple(old_meshes + old_rigs)
     old_names = {obj: obj.name for obj in old_children}
     parameter_before = {key: root.get(key) for key, _ in plan.requested_parameter_changes}
+    semantic_before = root.get(_SEMANTIC_STACK)
     action_metadata = {action: (action.get(_RIG_ID), action.get(_GENERATED_RIG)) for action in actions}
     old_active = old_rig.animation_data.action if old_rig and old_rig.animation_data else None
 
@@ -348,6 +423,10 @@ def apply_parameter_modification(root, plan):
 
         for key, value in plan.requested_parameter_changes:
             root[key] = value
+        if semantic_operations:
+            _store_semantic_stack(root, semantic_operations)
+        elif _SEMANTIC_STACK in root:
+            del root[_SEMANTIC_STACK]
 
         if actions:
             new_rig_id = new_rig.get(_RIG_ID)
@@ -391,6 +470,11 @@ def apply_parameter_modification(root, plan):
                     del root[key]
             else:
                 root[key] = old_value
+        if semantic_before is None:
+            if _SEMANTIC_STACK in root:
+                del root[_SEMANTIC_STACK]
+        else:
+            root[_SEMANTIC_STACK] = semantic_before
         for action, (old_rig_id, old_rig_name) in action_metadata.items():
             if old_rig_id is None:
                 if _RIG_ID in action:
@@ -409,3 +493,29 @@ def apply_parameter_modification(root, plan):
         bpy.data.objects.remove(obj, do_unlink=True)
     _remove_staged_root(staged, remove_children=False)
     return result
+
+
+def apply_parameter_modification(root, plan):
+    """Stage and swap generated components while preserving the semantic stack."""
+    snapshot = _check_plan_matches(root, plan)
+    if not plan.requested_parameter_changes:
+        raise ValueError("This apply path requires at least one provider parameter change.")
+    if plan.requested_semantic_operations:
+        raise ValueError("Apply semantic operations separately from parameter regeneration.")
+    values = snapshot.parameter_values()
+    values.update(dict(plan.requested_parameter_changes))
+    return _apply_regeneration(root, plan, values, snapshot.semantic_operations)
+
+
+def apply_semantic_modification(root, plan):
+    """Append provider-backed semantic operations and regenerate transactionally."""
+    snapshot = _check_plan_matches(root, plan)
+    if not plan.requested_semantic_operations:
+        raise ValueError("This apply path requires at least one semantic operation.")
+    if plan.requested_parameter_changes:
+        raise ValueError("Apply parameter changes separately from semantic regeneration.")
+    provider = get_provider(snapshot.provider_key)
+    if not callable(getattr(provider, "apply_semantics", None)):
+        raise ValueError(provider.label + " does not implement semantic apply.")
+    operations = tuple(snapshot.semantic_operations) + tuple(plan.requested_semantic_operations)
+    return _apply_regeneration(root, plan, snapshot.parameter_values(), operations)
