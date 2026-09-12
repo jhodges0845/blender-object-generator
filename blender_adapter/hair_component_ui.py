@@ -86,10 +86,12 @@ class ASSET_ASSISTANT_OT_generate_hair_shell(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     component_name: bpy.props.StringProperty(name="Name", default="Hair Shell")
+    # Blender does not allow a string default when EnumProperty items are supplied
+    # by a callback. Set the intended Rigid default in invoke() instead so dynamic
+    # availability remains context-aware and registration stays valid.
     behavior: bpy.props.EnumProperty(
         name="Behavior",
         items=_behavior_items,
-        default=ComponentBehavior.RIGID.value,
     )
     attachment_target: bpy.props.EnumProperty(name="Attach To", items=_attachment_items)
     width_cm: bpy.props.FloatProperty(name="Width (cm)", default=18.0, min=4.0, max=60.0)
@@ -102,6 +104,7 @@ class ASSET_ASSISTANT_OT_generate_hair_shell(bpy.types.Operator):
         return context.scene is not None and context.mode == "OBJECT" and _target(context) is not None
 
     def invoke(self, context, event):
+        self.behavior = ComponentBehavior.RIGID.value
         self.attachment_target = _default_attachment(_target(context))
         return context.window_manager.invoke_props_dialog(self, width=440)
 
