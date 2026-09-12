@@ -69,14 +69,8 @@ class WorkflowSidebarTests(unittest.TestCase):
                 panel.bl_idname + " lost the Asset Assistant shell",
             )
 
-        self.assertTrue(
-            getattr(ui.HUMANOID_PT_validation.draw.__closure__[0].cell_contents, "_asset_assistant_confidence_header", False)
-            or "Readiness Check" in ui.HUMANOID_PT_validation.draw.__code__.co_consts
-        )
-        self.assertTrue(
-            getattr(ui.HUMANOID_PT_export.draw.__closure__[0].cell_contents, "_asset_assistant_confidence_header", False)
-            or "Export Confidence" in ui.HUMANOID_PT_export.draw.__code__.co_consts
-        )
+        self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
+        self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
 
     def test_component_hierarchy_keeps_existing_operator_contracts(self):
         from blender_adapter import workflow_ui
