@@ -38,30 +38,17 @@ def _draw_create_mode_nav(layout, settings):
 
 
 def _draw_asset_tiles(layout, settings, ui):
-    """Draw provider choices as tall, highly scannable creation tiles."""
+    """Draw each provider as one cohesive tall button with icon and label together."""
     tiles = layout.row(align=True)
+    tiles.scale_y = 2.25
     for key, icon in _ASSET_TILES:
         provider = ui.get_provider(key)
-        tile = tiles.column(align=True)
-        tile.scale_x = 1.08
-
-        icon_button = tile.row(align=True)
-        icon_button.scale_y = 2.4
-        icon_button.prop_enum(
-            settings,
-            "object_type",
-            key,
-            text="",
-            icon=icon,
-        )
-
-        label_button = tile.row(align=True)
-        label_button.scale_y = 1.25
-        label_button.prop_enum(
+        tiles.prop_enum(
             settings,
             "object_type",
             key,
             text=provider.label,
+            icon=icon,
         )
 
 

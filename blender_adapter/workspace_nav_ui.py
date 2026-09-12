@@ -3,9 +3,8 @@
 
 Blender's standard UI API deliberately uses the active theme color for selected
 buttons, so add-ons cannot safely assign an arbitrary background color per tab.
-We keep the navigation Blender-native while making each workspace read like a
-larger two-line card: centered icon above centered label, with a stronger active
-state and more breathing room.
+Keep the navigation Blender-native, but make every workspace one cohesive control
+so icon and label read as a single button instead of two stacked buttons.
 """
 
 _WORKSPACES = (
@@ -17,31 +16,17 @@ _WORKSPACES = (
 
 
 def _draw_workspace_nav(layout, settings):
-    """Draw four large workspace cards with icons centered above their labels."""
-    cards = layout.row(align=True)
-    cards.scale_y = 1.0
+    """Draw four large single-piece workspace buttons with icon + label together."""
+    row = layout.row(align=True)
+    row.scale_y = 1.65
 
     for key, label, icon in _WORKSPACES:
-        card = cards.column(align=True)
-        card.scale_x = 1.12
-
-        icon_button = card.row(align=True)
-        icon_button.scale_y = 1.9
-        icon_button.prop_enum(
-            settings,
-            "asset_assistant_workspace",
-            key,
-            text="",
-            icon=icon,
-        )
-
-        label_button = card.row(align=True)
-        label_button.scale_y = 1.2
-        label_button.prop_enum(
+        row.prop_enum(
             settings,
             "asset_assistant_workspace",
             key,
             text=label,
+            icon=icon,
         )
 
 
