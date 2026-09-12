@@ -27,11 +27,17 @@ def _scale_value(arguments, axis):
 
 def _bounds(proportions):
     points = generate_landmarks(proportions)
+    chin_z = points["chin"][2]
+    crown_z = points["crown"][2]
+    head_span = max(crown_z - chin_z, 1e-9)
     return {
         "hip_z": points["hip_center"][2],
         "shoulder_z": points["shoulder_center"][2],
-        "chin_z": points["chin"][2],
-        "crown_z": points["crown"][2],
+        "chin_z": chin_z,
+        "crown_z": crown_z,
+        "jaw_top_z": chin_z + head_span * 0.34,
+        "cheek_low_z": chin_z + head_span * 0.28,
+        "cheek_high_z": chin_z + head_span * 0.66,
         "shoulder_x": abs(points["shoulder.right"][0]),
         "hip_x": abs(points["hip.right"][0]),
     }
@@ -54,6 +60,10 @@ def _selected(target, vertex, proportions, bounds):
         return z >= chin_z
     if target == "face":
         return z >= chin_z and y >= -proportions.head_depth_cm * 0.05
+    if target == "jaw":
+        return chin_z <= z <= bounds["jaw_top_z"] and y >= -proportions.head_depth_cm * 0.12
+    if target == "cheeks":
+        return bounds["cheek_low_z"] <= z <= bounds["cheek_high_z"] and y >= -proportions.head_depth_cm * 0.08
     if target == "arm.left":
         return x < -proportions.neck_width_cm * 0.6 and z >= hip_z * 0.72
     if target == "arm.right":
@@ -111,6 +121,30 @@ def _profile(vertices, indices, target, arguments, proportions):
             jaw_weight = max(0.0, 1.0 - normalized * 2.0)
             result[index] = (x * (1.0 - amount * 0.10 * jaw_weight), y, z)
         return result
+    if target == "jaw" and profile == "tapered":
+        return _transform(vertices, indices, {
+            "x": 1.0 - amount * 0.18,
+            "y": 1.0 - amount * 0.05,
+            "z": 1.0,
+        })
+    if target == "jaw" and profile == "strong":
+        return _transform(vertices, indices, {
+            "x": 1.0 + amount * 0.12,
+            "y": 1.0 + amount * 0.04,
+            "z": 1.0,
+        })
+    if target == "cheeks" and profile == "high":
+        return _transform(vertices, indices, {
+            "x": 1.0 + amount * 0.08,
+            "y": 1.0 + amount * 0.05,
+            "z": 1.0 + amount * 0.02,
+        })
+    if target == "cheeks" and profile == "soft":
+        return _transform(vertices, indices, {
+            "x": 1.0 + amount * 0.05,
+            "y": 1.0 + amount * 0.10,
+            "z": 1.0,
+        })
     if target in ("arm.left", "arm.right") and profile == "lean":
         return _transform(vertices, indices, {"x": 0.94, "y": 0.94, "z": 1.0})
     if target in ("leg.left", "leg.right") and profile == "athletic":
