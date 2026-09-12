@@ -2,6 +2,8 @@
 
 This is the working source of truth for current development priorities.
 
+For a fresh ChatGPT conversation, read `docs/chat-handoff.md` first, then verify live GitHub main/open-PR/CI state before acting. The handoff file records current workflow rules, merged component work, active PR context, and next-step order to reduce stale-context mistakes.
+
 ## Product vision
 
 Asset Assistant is an open-source, artist-first 3D workflow assistant. Generation is optional: artists can generate, reopen, or import existing work and adopt it into the same preservation-aware workflow.
