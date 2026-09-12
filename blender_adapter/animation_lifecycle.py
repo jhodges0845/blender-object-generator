@@ -105,12 +105,28 @@ def _record_for_action(
     )
 
 
-def _persist_rig_scope(root, action):
+def _rig_scope_id(root):
     rig = _rig(root)
-    rig_id = rig.get(_RIG_ID)
+    rig_id = str(rig.get(_RIG_ID) or "").strip()
     if not rig_id:
         raise ValueError("animation lifecycle requires a stable Asset Assistant rig id")
-    action[_RIG_ID] = str(rig_id)
+    return rig_id
+
+
+def _persist_action_metadata(root, action, record):
+    """Persist Asset Assistant metadata atomically without touching Action curves."""
+    rig_id = _rig_scope_id(root)
+    try:
+        persist_animation_record(action, record)
+        action[_RIG_ID] = rig_id
+        action[_EXPORT_NAME] = record.export_name
+    except Exception:
+        clear_animation_record(action)
+        if _EXPORT_NAME in action:
+            del action[_EXPORT_NAME]
+        if _RIG_ID in action:
+            del action[_RIG_ID]
+        raise
 
 
 def register_animation_action(
@@ -141,9 +157,7 @@ def register_animation_action(
         root_motion=root_motion,
         source_reference=source_reference,
     )
-    persist_animation_record(action, record)
-    _persist_rig_scope(root, action)
-    action[_EXPORT_NAME] = record.export_name
+    _persist_action_metadata(root, action, record)
     return record
 
 
@@ -254,10 +268,8 @@ def replace_animation_action(
         source_reference=source_reference,
         ignored_action=current,
     )
-    # Validate the replacement fully before changing the current clip.
-    persist_animation_record(replacement, record)
-    _persist_rig_scope(root, replacement)
-    replacement[_EXPORT_NAME] = record.export_name
+    # Validate and persist the replacement fully before changing the current clip.
+    _persist_action_metadata(root, replacement, record)
     rig = _rig(root)
     was_active = rig.animation_data is not None and rig.animation_data.action == current
     try:
