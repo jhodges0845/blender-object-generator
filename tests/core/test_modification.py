@@ -28,6 +28,9 @@ class ModificationPlanningTests(unittest.TestCase):
                 AnimationSnapshot("walk-1", "Walk"),
                 AnimationSnapshot("flight-1", "Flight"),
             ),
+            "has_rig": True,
+            "has_materials": True,
+            "has_animations": True,
             "owns_geometry": True,
             "owns_rig": True,
             "owns_materials": True,
@@ -38,31 +41,36 @@ class ModificationPlanningTests(unittest.TestCase):
 
     def test_omitted_values_are_preserved_and_no_rebuild_is_requested(self):
         plan = plan_modification(self._avian_snapshot(), ModificationRequest())
-
         self.assertTrue(plan.safe_to_apply)
         self.assertEqual((), plan.requested_parameter_changes)
         self.assertEqual((), plan.requested_animation_renames)
         self.assertEqual((), plan.rebuild_components)
 
-    def test_parameter_change_requests_conservative_generated_rebuild(self):
+    def test_parameter_change_requests_existing_generated_components_only(self):
         plan = plan_modification(
             self._avian_snapshot(),
             ModificationRequest(parameter_changes=(("wingspan_cm", 110),)),
         )
-
         self.assertTrue(plan.safe_to_apply)
         self.assertEqual((("wingspan_cm", 110.0),), plan.requested_parameter_changes)
-        self.assertEqual(
-            ("geometry", "rig", "materials", "animations"),
-            plan.rebuild_components,
+        self.assertEqual(("geometry", "rig", "materials", "animations"), plan.rebuild_components)
+
+    def test_parameter_change_does_not_create_components_asset_does_not_have(self):
+        plan = plan_modification(
+            self._avian_snapshot(
+                animations=(), has_rig=False, has_materials=False, has_animations=False,
+                owns_rig=False, owns_materials=False, owns_animations=False,
+            ),
+            ModificationRequest(parameter_changes=(("wingspan_cm", 110),)),
         )
+        self.assertTrue(plan.safe_to_apply)
+        self.assertEqual(("geometry",), plan.rebuild_components)
 
     def test_animation_export_rename_is_metadata_only(self):
         plan = plan_modification(
             self._avian_snapshot(),
             ModificationRequest(animation_export_names=(("walk-1", "Bird Walk"),)),
         )
-
         self.assertTrue(plan.safe_to_apply)
         self.assertEqual((("walk-1", "Bird Walk"),), plan.requested_animation_renames)
         self.assertEqual((), plan.rebuild_components)
@@ -75,7 +83,6 @@ class ModificationPlanningTests(unittest.TestCase):
                 animation_export_names=(("walk-1", "Walk"),),
             ),
         )
-
         self.assertTrue(plan.safe_to_apply)
         self.assertEqual((), plan.requested_parameter_changes)
         self.assertEqual((), plan.requested_animation_renames)
@@ -83,24 +90,17 @@ class ModificationPlanningTests(unittest.TestCase):
 
     def test_invalid_parameter_is_rejected_before_mutation_plan(self):
         with self.assertRaisesRegex(ValueError, "outside its supported range"):
-            plan_modification(
-                self._avian_snapshot(),
-                ModificationRequest(parameter_changes=(("wingspan_cm", 9999),)),
-            )
+            plan_modification(self._avian_snapshot(), ModificationRequest(parameter_changes=(("wingspan_cm", 9999),)))
 
     def test_unknown_parameter_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unsupported parameter"):
-            plan_modification(
-                self._avian_snapshot(),
-                ModificationRequest(parameter_changes=(("beak_magic", 3),)),
-            )
+            plan_modification(self._avian_snapshot(), ModificationRequest(parameter_changes=(("beak_magic", 3),)))
 
     def test_unowned_generated_component_blocks_destructive_change(self):
         plan = plan_modification(
             self._avian_snapshot(owns_rig=False),
             ModificationRequest(parameter_changes=(("body_length_cm", 48),)),
         )
-
         self.assertFalse(plan.safe_to_apply)
         self.assertIn("Cannot safely replace unowned or ambiguous rig", plan.blockers)
 
@@ -109,7 +109,6 @@ class ModificationPlanningTests(unittest.TestCase):
             self._avian_snapshot(owns_animations=False),
             ModificationRequest(animation_export_names=(("idle-1", "Rest"),)),
         )
-
         self.assertFalse(plan.safe_to_apply)
         self.assertIn("Cannot safely rename unowned or ambiguous animations", plan.blockers)
 
@@ -117,17 +116,12 @@ class ModificationPlanningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate parameter change key"):
             plan_modification(
                 self._avian_snapshot(),
-                ModificationRequest(
-                    parameter_changes=(("wingspan_cm", 100), ("wingspan_cm", 110)),
-                ),
+                ModificationRequest(parameter_changes=(("wingspan_cm", 100), ("wingspan_cm", 110))),
             )
 
     def test_snapshot_provider_must_match_registry(self):
         with self.assertRaisesRegex(ValueError, "provider label"):
-            plan_modification(
-                self._avian_snapshot(provider_label="Bird"),
-                ModificationRequest(),
-            )
+            plan_modification(self._avian_snapshot(provider_label="Bird"), ModificationRequest())
 
 
 if __name__ == "__main__":
