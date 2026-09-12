@@ -7,10 +7,16 @@ from .animation_records import inspect_animation_record
 from .core import AnimationSnapshot
 
 
-def _snapshot_from_record(record):
+def _snapshot_from_record(action, record):
+    # Preserve the existing Modify clip key for generated Actions so rename/apply
+    # requests remain backward compatible. First-class identity is carried
+    # separately in animation_id.
+    legacy_clip_id = str(action.get("asset_assistant_clip") or "").strip()
+    clip_id = legacy_clip_id or record.animation_id
     return AnimationSnapshot(
-        clip_id=record.animation_id,
+        clip_id=clip_id,
         export_name=record.export_name,
+        animation_id=record.animation_id,
         display_name=record.display_name,
         source=record.source.value,
         rig_signature=record.rig_signature,
@@ -35,7 +41,8 @@ def animation_state(root, warnings):
         managed = ()
 
     clips = []
-    seen = set()
+    seen_clip_ids = set()
+    seen_animation_ids = set()
     owns_all = True
     for action in managed:
         try:
@@ -44,12 +51,18 @@ def animation_state(root, warnings):
             warnings.append(action.name + ": " + str(error))
             owns_all = False
             continue
-        if record.animation_id in seen:
+        snapshot = _snapshot_from_record(action, record)
+        if snapshot.clip_id in seen_clip_ids:
+            warnings.append("Duplicate managed animation clip identity: " + snapshot.clip_id)
+            owns_all = False
+            continue
+        if record.animation_id in seen_animation_ids:
             warnings.append("Duplicate managed animation identity: " + record.animation_id)
             owns_all = False
             continue
-        seen.add(record.animation_id)
-        clips.append(_snapshot_from_record(record))
+        seen_clip_ids.add(snapshot.clip_id)
+        seen_animation_ids.add(record.animation_id)
+        clips.append(snapshot)
         owns_all = owns_all and record.owns_curves
 
     # Keep older generated Actions visible until every saved asset has first-class records.
@@ -57,11 +70,11 @@ def animation_state(root, warnings):
         if any(candidate == action for candidate in managed):
             continue
         clip_id = str(action.get("asset_assistant_clip") or action.name)
-        if clip_id in seen:
+        if clip_id in seen_clip_ids:
             warnings.append("Duplicate generated animation clip identity: " + clip_id)
             owns_all = False
             continue
-        seen.add(clip_id)
+        seen_clip_ids.add(clip_id)
         clips.append(AnimationSnapshot(clip_id, clip_export_name(action)))
 
     if not clips:
