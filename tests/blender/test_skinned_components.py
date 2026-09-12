@@ -9,7 +9,12 @@ except ModuleNotFoundError:
 
 from blender_adapter.adapter import create_character
 from blender_adapter.components import component_records
-from blender_adapter.skinned_components import attach_skinned_component, inspect_skinned_component
+from blender_adapter.skinned_components import (
+    attach_skinned_component,
+    inspect_skinned_component,
+    remove_skinned_component,
+    replace_skinned_component,
+)
 from object_core.components import AttachmentMode, ComponentKind, ComponentRecord, RigBinding
 from object_core.models import BoneWeight, SkinWeights
 from object_core.objects import get_provider
@@ -56,11 +61,11 @@ class BlenderSkinnedComponentTests(unittest.TestCase):
             for part in mesh.parts
         )
 
-    def _record(self):
+    def _record(self, *, provider_key="clothing.proof"):
         return ComponentRecord(
             component_id="proof-skinned-001",
             kind=ComponentKind.CLOTHING,
-            provider_key="clothing.proof",
+            provider_key=provider_key,
             attachment_target="body",
             attachment_mode=AttachmentMode.SKINNED,
             rig_binding=RigBinding.PARENT,
@@ -127,6 +132,73 @@ class BlenderSkinnedComponentTests(unittest.TestCase):
         self.assertEqual((), component_records(root))
         self.assertFalse(any(
             obj.get("asset_assistant_component_id") == record.component_id
+            for obj in bpy.data.objects
+        ))
+
+    def test_remove_skinned_component_preserves_parent_armature(self):
+        root = self._generated_human()
+        mesh = self._proof_mesh()
+        record = self._record()
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        armature_name = armature.name
+        component_root = attach_skinned_component(root, mesh, self._weights(mesh), record)
+        component_name = component_root.name
+
+        removed = remove_skinned_component(root, record.component_id)
+
+        self.assertEqual(record, removed)
+        self.assertEqual((), component_records(root))
+        self.assertIsNone(bpy.data.objects.get(component_name))
+        self.assertIsNotNone(bpy.data.objects.get(armature_name))
+
+    def test_replace_skinned_component_preserves_identity_and_parent_rig(self):
+        root = self._generated_human()
+        mesh = self._proof_mesh()
+        original = self._record(provider_key="clothing.proof.v1")
+        armature = next(child for child in root.children if child.type == "ARMATURE")
+        original_root = attach_skinned_component(root, mesh, self._weights(mesh, "torso"), original)
+        original_name = original_root.name
+        replacement = self._record(provider_key="clothing.proof.v2")
+
+        previous, replacement_root = replace_skinned_component(
+            root,
+            mesh,
+            self._weights(mesh, "neck"),
+            replacement,
+            name="Replacement Clothing",
+        )
+
+        self.assertEqual(original, previous)
+        self.assertEqual(replacement, inspect_skinned_component(root, replacement.component_id))
+        self.assertEqual((replacement,), component_records(root))
+        self.assertEqual(root, replacement_root.parent)
+        self.assertIsNone(bpy.data.objects.get(original_name))
+        self.assertIn(armature, root.children)
+        for obj in (child for child in replacement_root.children if child.type == "MESH"):
+            self.assertIsNotNone(obj.vertex_groups.get("neck"))
+
+    def test_failed_skinned_replace_restores_previous_component(self):
+        root = self._generated_human()
+        mesh = self._proof_mesh()
+        original = self._record(provider_key="clothing.proof.v1")
+        original_root = attach_skinned_component(root, mesh, self._weights(mesh, "torso"), original)
+        original_name = original_root.name
+        replacement = self._record(provider_key="clothing.proof.v2")
+
+        with self.assertRaisesRegex(ValueError, "bone not present"):
+            replace_skinned_component(
+                root,
+                mesh,
+                self._weights(mesh, "missing.bone"),
+                replacement,
+                name="Bad Replacement",
+            )
+
+        self.assertEqual(original, inspect_skinned_component(root, original.component_id))
+        self.assertEqual((original,), component_records(root))
+        self.assertIsNotNone(bpy.data.objects.get(original_name))
+        self.assertFalse(any(
+            obj.name == "Bad Replacement"
             for obj in bpy.data.objects
         ))
 
