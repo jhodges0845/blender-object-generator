@@ -22,6 +22,14 @@ class AttachmentMode(str, Enum):
     SKINNED = "skinned"
 
 
+class RigBinding(str, Enum):
+    """Portable declaration of where skinned component deformation comes from."""
+
+    NONE = "none"
+    PARENT = "parent"
+    OWNED = "owned"
+
+
 @dataclass(frozen=True)
 class PhysicsIntent:
     """Portable dynamics intent; host adapters decide how or whether to realize it."""
@@ -44,6 +52,7 @@ class ComponentRecord:
     owns_geometry: bool = True
     owns_materials: bool = True
     owns_rig: bool = False
+    rig_binding: RigBinding = RigBinding.NONE
 
 
 def _validate_pairs(label, pairs):
@@ -71,11 +80,25 @@ def validate_component(record):
         raise TypeError("component kind must be a ComponentKind")
     if not isinstance(record.attachment_mode, AttachmentMode):
         raise TypeError("component attachment_mode must be an AttachmentMode")
+    if not isinstance(record.rig_binding, RigBinding):
+        raise TypeError("component rig_binding must be a RigBinding")
     for field in ("owns_geometry", "owns_materials", "owns_rig"):
         if not isinstance(getattr(record, field), bool):
             raise TypeError("component " + field + " must be a boolean")
-    if record.attachment_mode == AttachmentMode.SKINNED and not record.owns_rig:
-        raise ValueError("skinned components must own or declare rig data")
+
+    if record.attachment_mode == AttachmentMode.RIGID:
+        if record.rig_binding != RigBinding.NONE:
+            raise ValueError("rigid components cannot declare a rig binding")
+        if record.owns_rig:
+            raise ValueError("rigid components cannot own rig data")
+    else:
+        if record.rig_binding == RigBinding.NONE:
+            raise ValueError("skinned components must declare parent or owned rig binding")
+        if record.rig_binding == RigBinding.PARENT and record.owns_rig:
+            raise ValueError("parent-rig components must not own rig data")
+        if record.rig_binding == RigBinding.OWNED and not record.owns_rig:
+            raise ValueError("owned-rig components must declare rig ownership")
+
     _validate_pairs("component parameters", record.parameters)
     if record.physics is not None:
         if not isinstance(record.physics, PhysicsIntent):
@@ -95,6 +118,7 @@ def component_document(record):
         "provider_key": record.provider_key,
         "attachment_target": record.attachment_target,
         "attachment_mode": record.attachment_mode.value,
+        "rig_binding": record.rig_binding.value,
         "parameters": dict(record.parameters),
         "physics": None if record.physics is None else {
             "mode": record.physics.mode,
@@ -141,6 +165,22 @@ def component_from_document(document):
     except (TypeError, ValueError):
         raise ValueError("unsupported component attachment mode") from None
 
+    owns_rig = ownership.get("rig", False)
+    raw_rig_binding = document.get("rig_binding")
+    if raw_rig_binding is None:
+        # Backward compatibility with the original contract, where valid skinned
+        # records were required to set owns_rig=True.
+        rig_binding = (
+            RigBinding.OWNED
+            if attachment_mode == AttachmentMode.SKINNED and owns_rig
+            else RigBinding.NONE
+        )
+    else:
+        try:
+            rig_binding = RigBinding(raw_rig_binding)
+        except (TypeError, ValueError):
+            raise ValueError("unsupported component rig binding") from None
+
     record = ComponentRecord(
         component_id=document.get("component_id", ""),
         kind=kind,
@@ -151,7 +191,8 @@ def component_from_document(document):
         physics=physics,
         owns_geometry=ownership.get("geometry", True),
         owns_materials=ownership.get("materials", True),
-        owns_rig=ownership.get("rig", False),
+        owns_rig=owns_rig,
+        rig_binding=rig_binding,
     )
     return validate_component(record)
 
@@ -161,6 +202,7 @@ __all__ = [
     "ComponentKind",
     "ComponentRecord",
     "PhysicsIntent",
+    "RigBinding",
     "component_document",
     "component_from_document",
     "validate_component",
