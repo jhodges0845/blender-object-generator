@@ -51,7 +51,11 @@ class BlenderSemanticModificationPerformanceTests(unittest.TestCase):
             result = modification.apply_semantic_modification(root, plan)
 
         self.assertTrue(result.owns_geometry)
-        self.assertEqual((operation,), result.semantic_operations)
+        self.assertEqual(1, len(result.semantic_operations))
+        applied = result.semantic_operations[0]
+        self.assertEqual(operation.operation, applied.operation)
+        self.assertEqual(operation.target, applied.target)
+        self.assertEqual(dict(operation.arguments), dict(applied.arguments))
         self.assertEqual(1, expected_mesh.call_count)
 
 
