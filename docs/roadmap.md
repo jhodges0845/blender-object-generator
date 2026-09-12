@@ -4,13 +4,15 @@ This is the working source of truth for current development priorities. Keep imp
 
 ## Product vision
 
-**Asset Assistant** is an open-source, artist-first 3D workflow assistant. It should remove repetitive and technical friction without replacing the artist. Generated assets are starting points that remain editable and understandable.
+**Asset Assistant** is an open-source, artist-first 3D workflow assistant. It should remove repetitive and technical friction without replacing the artist. Generated assets are starting points, not mandatory session roots: artists should be able to generate or reopen/import an editable asset, attach reusable assets, work on animations independently, save checkpoints, and continue later.
 
 The intended architecture is:
 
-`Host-independent asset core -> provider -> Blender adapter -> validation/preparation -> target adapter -> exported asset -> artist review`
+`Host-independent asset core -> provider/source -> Blender adapter -> editable working state -> validation/preparation -> target adapter -> exported asset -> artist review`
 
-The project is broader than Human generation. The provider/capability model is intended to support characters, creatures, props, printable assets, and future asset families without making shared workflow code assume humanoid anatomy.
+The project is broader than Human generation. The provider/capability model is intended to support characters, creatures, props, printable assets, reusable components, and animation assets without making shared workflow code assume humanoid anatomy.
+
+See `docs/editable-asset-workflow.md` for the working-state/import/component/animation direction.
 
 ## Engineering guardrails
 
@@ -22,6 +24,8 @@ The project is broader than Human generation. The provider/capability model is i
 - Validation reports real limitations instead of manufacturing a green result.
 - A successful file write is not equivalent to destination certification.
 - Generated Blender data should remain editable by artists.
+- Generation is one asset source; imported/reopened assets must be supported through explicit validation/adoption rather than guessed ownership.
+- Editable working state is separate from destination export. `.blend` is the initial canonical working/checkpoint format; GLB/FBX/STL/3MF remain delivery formats.
 - Provider names and keys are canonical architecture identifiers; saved legacy identifiers are handled only through explicit compatibility mapping.
 - Unsupported Modify operations remain explicit blockers rather than silent no-ops.
 
@@ -111,15 +115,40 @@ Implemented:
 - [x] Avian semantic geometry execution;
 - [x] Human semantic geometry execution;
 - [x] external requests can compose parameter, semantic, and animation-name changes through safe staged routing;
+- [x] component inspection/request transport and validated single-component removal through external Modify;
 - [x] automated core/Blender coverage plus a real Human round-trip manual checkpoint.
 
 Still required for the richer product goal:
 
 - [ ] improve Human reusable base geometry enough that semantic edits can produce recognizable character identity;
-- [ ] define first-class attachable component architecture for hair, clothing, and accessories;
-- [ ] keep optional component physics as adapter-facing behavior rather than ordinary Human body semantics;
-- [ ] add provider/component persistence, ownership, inspection, and safe apply rules before making those component operations executable;
+- [x] define first-class attachable component architecture for hair, clothing, and accessories;
+- [x] keep optional component physics as adapter-facing behavior rather than ordinary Human body semantics;
+- [x] add component persistence, ownership, inspection, rigid/skinned lifecycle, and safe Modify removal rules;
+- [ ] add editable working-asset save/reopen and imported component adoption before building real component catalogs;
+- [ ] promote animations to first-class assets and add preservation-aware animation Modify;
 - [ ] validate generic Avian -> specific bird and generic Human -> specific character workflows end-to-end at useful visual quality.
+
+## Component foundation — complete, real component catalogs intentionally paused
+
+Hair, clothing, and accessories are first-class attachable components rather than Human body semantics. The foundation now includes portable records, rigid and parent-rig-skinned attachment, stable ownership metadata, inspection/tamper detection, safe remove/replace lifecycle operations with rollback, component state in Modify exchange, and safe external Modify removal.
+
+Real hair/clothing/accessory providers are intentionally paused until the editable asset/import/animation foundation below is complete. Components should be reusable imported assets as well as generated assets; the architecture must not force a generate-only workflow.
+
+## Editable asset persistence, import, and animation stage — active next stage
+
+Goal: allow artists to stop and resume work without regeneration, build characters from reusable imported assets, and tune animations through the same preservation-aware workflow used for model Modify.
+
+Current order:
+
+1. [ ] Add explicit editable working-asset save/checkpoint with `.blend` as the initial canonical format while keeping destination export separate.
+2. [ ] Add reopen/import validation for Asset Assistant `.blend` working assets and restore/inspect provider, ownership, component, rig, animation, and Modify state.
+3. [ ] Add imported component registration/adoption so artist-authored reusable hair/clothing/accessory assets can enter the existing component lifecycle without being generated by a provider.
+4. [ ] Define first-class portable animation records: stable ID, name/export name, provenance, rig compatibility, frame/FPS/loop/root-motion intent, and ownership.
+5. [ ] Add animation import/add/remove/replace lifecycle operations without regenerating the base asset.
+6. [ ] Add animation inspection/request transport and preservation-aware Modify planning.
+7. [ ] Implement a narrow first set of executable animation tuning semantics through provider/capability-owned interpretation rather than Human assumptions.
+8. [ ] Run a manual and automated save -> reopen -> component edit -> animation edit -> save -> engine export checkpoint.
+9. [ ] Resume real hair/clothing/accessory catalogs/providers only after this checkpoint.
 
 ## Performance and test-health checkpoint
 
@@ -135,21 +164,19 @@ Current findings/actions:
 - [ ] profile representative Human/Avian generation and Modify inspection/apply latency before changing preservation checks;
 - [ ] add informational performance instrumentation only where measurements are stable enough to avoid flaky CI.
 
-The audit found no evidence that tracked repository size or committed binaries are the main slowdown. The verified immediate issue is redundant CI work; richer geometry/inspection cost is the next profiling target.
-
 ## Hair, clothing, accessories, and physics direction
 
-Hair and clothing are not ordinary Human body-geometry edits. They should be separate attachable components because they can have their own geometry, materials, rigging/weights, collision, and optional dynamics.
+Hair, clothing, and accessories should be reusable assets that can be imported and attached to a base asset later. Generation may be offered as one source, but it must not be required.
 
 Planned separation:
 
 - Human: body/facial geometry, skin/material foundation, skeleton/weights, attachment context;
-- Hair: hairstyle geometry/materials plus optional dynamic metadata;
-- Clothing: garment geometry/materials plus rig/weight and optional cloth/collision metadata;
-- Accessories: rigid or skinned attachment behavior;
+- Hair: independent hairstyle asset geometry/materials plus optional dynamic metadata;
+- Clothing: independent garment asset geometry/materials plus rig/weight and optional cloth/collision metadata;
+- Accessories: independent rigid or skinned assets;
 - Host/engine adapters: translate optional physics intent into Blender/Godot/Unity/Unreal behavior.
 
-No component operation should advertise itself as executable until the real ownership/persistence/apply path exists.
+No component operation should advertise itself as executable unless the required geometry/weight source and ownership/preservation path exist.
 
 ## Target verification
 
@@ -167,28 +194,30 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 - [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations.
 - [ ] Broader Quadruped and Avian destination certification across Godot/Unity/Unreal during release hardening.
 
-## Current checkpoint — rich Modify quality before public alpha
+## Current checkpoint — editable continuity before component catalogs
 
-The original Modify transport/preservation workflow and structural UI overhaul are complete. The scope expanded after the external Modify proof demonstrated that the first public version should support genuinely useful provider-aware edits rather than parameter changes alone.
-
-The current blocker is therefore not Modify transport; it is **useful semantic/structural edit quality**.
+The component architecture foundation is complete enough to support rigid and parent-rig-skinned assets safely, but the product should not move directly into generated hair/clothing catalogs. The next architectural checkpoint is continuity: save/reopen an editable Asset Assistant working state, adopt reusable imported component assets, and make animation a first-class editable/Modify-able asset.
 
 Current order:
 
 1. [x] Complete provider foundations for Human, Quadruped, and Avian.
-2. [x] Complete preservation-aware Modify transport, external file handoff, and persistent semantic patch architecture.
+2. [x] Complete preservation-aware model Modify transport, external handoff, and persistent semantic patch architecture.
 3. [x] Complete structural Asset Assistant UI organization.
-4. [x] Implement Avian semantic geometry apply and Human semantic geometry apply.
-5. [ ] Finish the current Human reusable facial/base-geometry refinement checkpoint with visual confirmation of the strengthened landmark pass.
-6. [ ] Define and implement first-class component architecture for hair/clothing/accessories without baking physics into Human body semantics.
-7. [ ] Re-run end-to-end Avian and Human external Modify proofs at the intended visual-quality bar.
-8. [ ] Run full cross-provider regression, preservation, architecture, docs, and final test-coverage audit, using the new coverage baseline and CI timing evidence.
-9. [ ] Resume final release hardening and clean packaged-install smoke test in Blender 5.2.1.
-10. [ ] Make an explicit version/tag decision and publish a public alpha only when approved.
+4. [x] Implement Avian and Human semantic geometry apply.
+5. [x] Define and implement first-class rigid/skinned component architecture and safe lifecycle/Modify-removal foundation.
+6. [ ] Implement editable `.blend` save/checkpoint and validated reopen/import workflow.
+7. [ ] Implement reusable imported component adoption/registration.
+8. [ ] Promote animations to first-class portable assets with independent lifecycle and Modify workflow.
+9. [ ] Complete save/reopen/component/animation continuity regression and manual checkpoint.
+10. [ ] Return to Human visual-quality refinement and real hair/clothing/accessory providers.
+11. [ ] Re-run end-to-end Avian and Human external Modify proofs at the intended visual-quality bar.
+12. [ ] Run full cross-provider regression, preservation, architecture, docs, and final test-coverage audit.
+13. [ ] Resume final release hardening and clean packaged-install smoke test in Blender 5.2.1.
+14. [ ] Make an explicit version/tag decision and publish a public alpha only when approved.
 
 ### Shared follow-ups
 
-- Human Run animation-quality tuning: upper-arm swing, knee lift, torso pitch, and timing/phase polish.
+- Human Run animation-quality tuning should move through the first-class animation Modify workflow where practical: upper-arm swing, knee lift, torso pitch, and timing/phase polish.
 - Additional Avian gait/flight quality polish only if future visual review exposes a real issue.
 - Quadruped semantic executor.
 - Reusable UV/material/validation infrastructure only when additional real provider needs justify it.
@@ -198,4 +227,4 @@ Current order:
 
 ## Near-term release milestone
 
-> Asset Assistant can create useful editable starting assets across Human, Quadruped, and Avian body plans; inspect and richly modify a generated asset through a preservation-aware external handoff; keep anatomy/provider logic out of shared workflow code; present the workflow through a coherent artist-facing UI; validate truthfully; export through supported targets; and leave the result ready for continued artist or game-engine refinement.
+> Asset Assistant can create or reopen useful editable starting assets across supported body plans; preserve reusable attached assets and independent animations across working sessions; inspect and richly modify model and animation state through preservation-aware workflows; keep provider/source logic out of shared workflow code; validate truthfully; export through supported targets without sacrificing the editable working state; and leave the result ready for continued artist or game-engine refinement.
