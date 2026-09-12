@@ -44,7 +44,7 @@ def animation_snapshot_document(clip):
     """Serialize legacy or first-class animation inspection state."""
     document = {"clip_id": clip.clip_id, "export_name": clip.export_name}
     for key in (
-        "display_name", "source", "rig_signature", "frame_start", "frame_end", "fps",
+        "animation_id", "display_name", "source", "rig_signature", "frame_start", "frame_end", "fps",
         "looping", "root_motion", "owns_curves", "source_reference", "provider_key", "capability",
     ):
         value = getattr(clip, key, None)
