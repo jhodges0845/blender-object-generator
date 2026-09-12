@@ -138,15 +138,16 @@ def _bell(value, center, radius):
 
 
 def _shape_head_surface(vertices, proportions, chin_z, crown_z):
-    """Give the generated head a neutral face instead of an elliptical shell.
+    """Give the generated head readable neutral facial landmarks.
 
-    The Human mesh remains one connected surface with unchanged topology.  This
-    pass only moves existing head vertices, producing broad reusable facial
-    planes for later semantic jaw/cheek/face operations.
+    The Human mesh remains one connected surface with unchanged topology. This
+    pass only moves existing head vertices, strengthening the broad facial
+    landmarks that later semantic jaw/cheek/face operations can manipulate.
     """
     result = list(vertices)
     height = max(crown_z - chin_z, 1e-9)
     half_depth = max(proportions.head_depth_cm * 0.5, 1e-9)
+    half_width = max(proportions.head_width_cm * 0.5, 1e-9)
 
     for index, vertex in enumerate(vertices):
         x, y, z = vertex
@@ -154,6 +155,7 @@ def _shape_head_surface(vertices, proportions, chin_z, crown_z):
             continue
 
         level = max(0.0, min(1.0, (z - chin_z) / height))
+
         # Only the forward half of each head ring participates. Side/back skull
         # volume remains governed by the procedural head dimensions.
         front = max(0.0, min(1.0, y / half_depth))
@@ -161,21 +163,50 @@ def _shape_head_surface(vertices, proportions, chin_z, crown_z):
         if front <= 0.0:
             continue
 
-        # Neutral anatomy landmarks from bottom to top: chin, mouth, nose,
-        # recessed eye plane, brow and forehead. Magnitudes deliberately stay
-        # subtle so this is a reusable base rather than a named character.
-        chin = _bell(level, 0.10, 0.16) * 0.055
-        mouth_plane = _bell(level, 0.27, 0.12) * 0.012
-        nose = _bell(level, 0.43, 0.13) * 0.115
-        eye_recess = _bell(level, 0.58, 0.11) * -0.055
-        brow = _bell(level, 0.68, 0.11) * 0.035
-        forehead = _bell(level, 0.80, 0.16) * 0.020
-        y += proportions.head_depth_cm * (chin + mouth_plane + nose + eye_recess + brow + forehead) * front
+        # Center weighting lets the bridge/tip/lip landmarks read in profile
+        # without pushing the whole face forward like a muzzle.
+        center = max(0.0, min(1.0, 1.0 - abs(x) / half_width))
+        center = center * center
 
-        # A small mid-face narrowing separates cheek mass from the nose bridge
-        # while preserving exact left/right symmetry.
-        midface = _bell(level, 0.46, 0.20)
-        x *= 1.0 - 0.025 * midface * front
+        # Neutral broad landmarks. These are intentionally stronger than the
+        # first face-structure pass so they remain visible at ordinary viewport
+        # distance while still leaving character identity to semantic edits.
+        chin = _bell(level, 0.10, 0.15) * 0.075
+        mouth_plane = _bell(level, 0.27, 0.10) * 0.030
+        nose_mass = _bell(level, 0.42, 0.13) * 0.115
+        nose_bridge = _bell(level, 0.52, 0.18) * 0.050 * center
+        nose_tip = _bell(level, 0.40, 0.08) * 0.090 * center
+        lips = _bell(level, 0.27, 0.055) * 0.028 * center
+        eye_recess = _bell(level, 0.58, 0.10) * -0.075
+        brow = _bell(level, 0.68, 0.10) * 0.070
+        forehead = _bell(level, 0.80, 0.15) * 0.025
+
+        y += proportions.head_depth_cm * (
+            chin
+            + mouth_plane
+            + nose_mass
+            + nose_bridge
+            + nose_tip
+            + lips
+            + eye_recess
+            + brow
+            + forehead
+        ) * front
+
+        # Separate cheek/jaw width from the central nose bridge. Lower face
+        # tapers slightly, cheek level retains breadth, and the eye plane narrows
+        # enough to make the brow/cheek break readable from the front.
+        jaw_taper = _bell(level, 0.14, 0.16)
+        cheek = _bell(level, 0.42, 0.18)
+        eye_narrow = _bell(level, 0.58, 0.12)
+        width_scale = (
+            1.0
+            - 0.055 * jaw_taper * front
+            + 0.030 * cheek * front
+            - 0.030 * eye_narrow * front
+        )
+        x *= width_scale
+
         result[index] = (x, y, z)
 
     return result

@@ -34,6 +34,21 @@ class HumanFaceStructureTests(unittest.TestCase):
         brow = self._front_y_near(0.66)
         self.assertGreater(brow, eyes)
 
+    def test_profile_landmarks_have_visible_separation(self):
+        depth = self.proportions.head_depth_cm
+        nose = self._front_y_near(0.38)
+        eyes = self._front_y_near(0.52)
+        brow = self._front_y_near(0.66)
+        self.assertGreater(nose - eyes, depth * 0.08)
+        # The neutral base should retain a readable brow break without forcing
+        # an exaggerated brow ridge before character-specific semantic shaping.
+        self.assertGreater(brow - eyes, depth * 0.009)
+
+    def test_mouth_plane_projects_forward_of_chin_transition(self):
+        chin = self._front_y_near(0.12)
+        mouth = self._front_y_near(0.24)
+        self.assertGreater(mouth - chin, self.proportions.head_depth_cm * 0.02)
+
     def test_lower_face_and_forehead_remain_distinct(self):
         chin = self._front_y_near(0.12)
         forehead = self._front_y_near(0.80)
