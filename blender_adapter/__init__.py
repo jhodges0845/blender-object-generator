@@ -45,7 +45,7 @@ def register():
     avian_ui.prepare(ui)
     workflow_ui.prepare(ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui)
     ui_fastpath.install(ui)
-    animation_modify_exchange.install(modification)
+    animation_modify_exchange.install(modification, modify_ui)
     modify_fastpath.install(modify_ui)
     component_modify_exchange.install(modify_ui)
     component_modify_apply.install(modify_ui)
