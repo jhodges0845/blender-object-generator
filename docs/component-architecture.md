@@ -64,16 +64,18 @@ Components must remain preservation boundaries. The Blender execution slices now
 11. parent-rig skinned component creation for generated owned geometry;
 12. exact persisted skin-weight validation against Blender vertex groups;
 13. armature-modifier validation against the owning generated rig;
-14. transactional rollback when skinned binding validation fails.
+14. transactional rollback when skinned binding validation fails;
+15. validated skinned removal that deletes only the owned component tree and registry entry while preserving the parent armature;
+16. stable-id skinned replacement that keeps the previous weighted component intact until the replacement is created and re-inspected;
+17. failed skinned replacement rollback that restores the previous registry/object metadata and leaves the original weighted component usable.
 
 Still required before broader component Modify is executable:
 
-1. skinned remove/replace lifecycle integration;
-2. component state in Modify inspection/request transport;
-3. adapter-specific physics preparation only after ownership is known;
-4. artist-facing component creation/selection UI;
-5. real clothing/hair/accessory providers and visual-quality validation;
-6. component-owned rig execution for `rig_binding="owned"` if/when a provider requires it.
+1. component state in Modify inspection/request transport;
+2. adapter-specific physics preparation only after ownership is known;
+3. artist-facing component creation/selection UI;
+4. real clothing/hair/accessory providers and visual-quality validation;
+5. component-owned rig execution for `rig_binding="owned"` if/when a provider requires it.
 
 Artist-created or artist-edited component data must not be overwritten unless ownership is explicit and the operation is safe.
 
@@ -85,9 +87,15 @@ For `attachment_target="asset_root"`, the component root is parented directly to
 
 `remove_component()` first requires a clean rigid inspection result, then removes only the component-owned hierarchy and its registry entry. `replace_rigid_component()` preserves the stable component ID, temporarily keeps the previous component as the rollback source, creates and validates the replacement, and deletes the previous owned tree only after the new component is known-good.
 
-`blender_adapter.skinned_components.attach_skinned_component()` is the first executable skinned path. It requires `AttachmentMode.SKINNED`, `RigBinding.PARENT`, `owns_rig=False`, and `attachment_target="body"`. The caller supplies portable component geometry plus portable `SkinWeights`; Blender validates every referenced bone against the owning armature, creates exact vertex groups, adds an armature modifier targeting that armature, persists generated weight metadata, and re-inspects the component before committing the registry entry.
+`blender_adapter.skinned_components.attach_skinned_component()` requires `AttachmentMode.SKINNED`, `RigBinding.PARENT`, `owns_rig=False`, and `attachment_target="body"`. The caller supplies portable component geometry plus portable `SkinWeights`; Blender validates every referenced bone against the owning armature, creates exact vertex groups, adds an armature modifier targeting that armature, persists generated weight metadata, and re-inspects the component before committing the registry entry.
 
-`inspect_skinned_component()` detects modifier retargeting, missing or changed mesh parts, vertex-count drift, and exact generated weight changes. This first slice deliberately does not add skinned lifecycle mutation, artist-facing UI, a public clothing/hair catalog, or physics execution.
+`inspect_skinned_component()` detects modifier retargeting, missing or changed mesh parts, vertex-count drift, and exact generated weight changes.
+
+`remove_skinned_component()` requires a clean skinned inspection result before deleting the component-owned hierarchy and registry entry. It does not delete or mutate the owning asset armature.
+
+`replace_skinned_component()` preserves the stable component ID and uses the previous weighted component as the rollback source. The old tree remains intact while the replacement is created and fully re-inspected; only then is the old component deleted. If replacement creation or validation fails, the previous registry and component-root metadata are restored.
+
+These slices still do not provide artist-facing UI, a public clothing/hair catalog, component-owned rigs, or physics execution.
 
 ## Intended layering
 

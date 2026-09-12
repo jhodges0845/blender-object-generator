@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Blender execution for skinned components bound to an owning asset rig."""
+"""Blender execution and lifecycle for skinned components bound to an owning asset rig."""
 
 import json
 
@@ -10,6 +10,7 @@ from .components import (
     _COMPONENTS_KEY,
     _armature,
     _component_root,
+    _delete_component_tree,
     _documents,
     _require_asset_root,
     _set_documents,
@@ -17,6 +18,7 @@ from .components import (
 )
 from .core import (
     AttachmentMode,
+    ComponentRecord,
     ObjectMesh,
     RigBinding,
     component_document,
@@ -38,9 +40,10 @@ def _weights_document(skin_weights):
 
 
 def _validate_weights(mesh, skin_weights, armature):
+    skin_weights = tuple(skin_weights)
     parts = {part.name: part for part in mesh.parts}
     weights = {item.part_name: item for item in skin_weights}
-    if len(weights) != len(tuple(skin_weights)) or set(parts) != set(weights):
+    if len(weights) != len(skin_weights) or set(parts) != set(weights):
         raise ValueError("skinned component weights must match every mesh part exactly once")
     bone_names = {bone.name for bone in armature.data.bones}
     for part_name, item in weights.items():
@@ -146,6 +149,7 @@ def attach_skinned_component(root, mesh, skin_weights, record, *, name="Skinned 
         raise ValueError("component name must be a nonempty string")
 
     armature = _armature(root)
+    skin_weights = tuple(skin_weights)
     weights_by_part = _validate_weights(mesh, skin_weights, armature)
     coordinate_scale = root.get("coordinate_scale")
     if not isinstance(coordinate_scale, (int, float)) or coordinate_scale <= 0:
@@ -210,4 +214,64 @@ def attach_skinned_component(root, mesh, skin_weights, record, *, name="Skinned 
         raise
 
 
-__all__ = ["attach_skinned_component", "inspect_skinned_component"]
+def remove_skinned_component(root, component_id):
+    """Remove one validated parent-rig skinned component without touching the parent rig."""
+    record = inspect_skinned_component(root, component_id)
+    component_root = _component_root(root, component_id)
+    documents = [
+        document for document in _documents(root)
+        if document.get("component_id") != component_id
+    ]
+    _delete_component_tree(component_root)
+    _set_documents(root, documents)
+    return record
+
+
+def replace_skinned_component(root, mesh, skin_weights, record, *, name="Skinned Component"):
+    """Replace a parent-rig skinned component while preserving stable identity.
+
+    The previous weighted tree remains intact until the replacement has been
+    created and fully re-inspected. Failed replacement creation restores the
+    original registry and component-root metadata.
+    """
+    _require_asset_root(root)
+    if not isinstance(record, ComponentRecord):
+        raise TypeError("component must be a ComponentRecord")
+    old_record = inspect_skinned_component(root, record.component_id)
+    old_root = _component_root(root, record.component_id)
+    previous_registry = root.get(_COMPONENTS_KEY)
+    old_id = old_root.get(_COMPONENT_ID_KEY)
+    old_record_raw = old_root.get(_COMPONENT_RECORD_KEY)
+    remaining_documents = [
+        document for document in _documents(root)
+        if document.get("component_id") != record.component_id
+    ]
+
+    _set_documents(root, remaining_documents)
+    del old_root[_COMPONENT_ID_KEY]
+    del old_root[_COMPONENT_RECORD_KEY]
+    try:
+        replacement_root = attach_skinned_component(
+            root,
+            mesh,
+            skin_weights,
+            record,
+            name=name,
+        )
+    except Exception:
+        root[_COMPONENTS_KEY] = previous_registry
+        old_root[_COMPONENT_ID_KEY] = old_id
+        old_root[_COMPONENT_RECORD_KEY] = old_record_raw
+        raise
+
+    _delete_component_tree(old_root)
+    inspect_skinned_component(root, record.component_id)
+    return old_record, replacement_root
+
+
+__all__ = [
+    "attach_skinned_component",
+    "inspect_skinned_component",
+    "remove_skinned_component",
+    "replace_skinned_component",
+]
