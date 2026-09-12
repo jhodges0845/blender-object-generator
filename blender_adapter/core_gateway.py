@@ -19,3 +19,10 @@ ValidationIssue = import_module(_core_name + '.models.validation').ValidationIss
 _targets = import_module(_core_name + '.targets')
 get_target = _targets.get_target
 validate_for_target = _targets.validate_for_target
+
+_modification = import_module(_core_name + '.modification')
+ModifyAssetSnapshot = _modification.AssetSnapshot
+AnimationSnapshot = _modification.AnimationSnapshot
+ModificationRequest = _modification.ModificationRequest
+ModificationPlan = _modification.ModificationPlan
+plan_modification = _modification.plan_modification
