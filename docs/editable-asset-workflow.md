@@ -9,6 +9,8 @@ Asset Assistant separates an editable working asset from destination delivery fo
 - `.blend` is the first canonical editable save/checkpoint format because it can preserve Blender objects, armatures, Actions, modifiers, vertex groups, materials, Asset Assistant ownership metadata, component records, and future physics configuration.
 - GLB/glTF, FBX, STL, 3MF, and future target-specific packages remain destination/export formats. They are not assumed to preserve every Asset Assistant editing contract required to resume work.
 
+The `.blend` checkpoint action lives in the existing Export section, but it is not modeled as another engine/print target. It saves a copy of the complete Blender working state with `copy=True`, so the current open file/session path is not changed. This keeps editable checkpoints and destination exports adjacent in the artist workflow while preserving their different meanings.
+
 A successful engine export must never replace or destroy the editable working state.
 
 ## Base asset entry paths
