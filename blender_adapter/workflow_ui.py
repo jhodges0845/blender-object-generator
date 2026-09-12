@@ -6,7 +6,7 @@ _CATEGORY = "Asset Assistant"
 
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
             component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
-            animation_adoption_ui=None):
+            animation_adoption_ui=None, self_rigged_accessory=None):
     panels = (
         (ui.HUMANOID_PT_panel, "Generate", 0),
         (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
@@ -65,6 +65,9 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
                     row.operator("asset_assistant.generate_basic_shirt", text="Generate Basic Shirt", icon="MOD_CLOTH")
                 row = box.row(); row.enabled = target is not None
                 row.operator("asset_assistant.generate_ring_component", text="Generate Ring / Bracelet", icon="MESH_TORUS")
+                if self_rigged_accessory is not None:
+                    row = box.row(); row.enabled = target is not None
+                    row.operator("asset_assistant.generate_self_rigged_accessory", text="Generate Self-Rigged Accessory", icon="ARMATURE_DATA")
                 row = box.row(); row.enabled = target is not None
                 row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected External Mesh", icon="IMPORT")
                 box.label(text="Pick behavior and attachment in the dialog.")
