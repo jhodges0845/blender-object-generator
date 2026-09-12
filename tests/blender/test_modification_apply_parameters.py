@@ -29,8 +29,8 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
             if collection.users == 0:
                 bpy.data.collections.remove(collection)
 
-    def _avian(self, *, rig=False, materials=False, animation=False):
-        provider = get_provider("avian")
+    def _asset(self, provider_key, *, rig=False, materials=False, animation=False):
+        provider = get_provider(provider_key)
         values = {field.key: field.default for field in provider.parameters}
         root = create_character(provider.mesh(values), name=provider.label, scene=bpy.context.scene)
         root["object_type"] = provider.key
@@ -45,6 +45,9 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
         if animation:
             add_idle(root, bpy.context.scene)
         return root, provider, values
+
+    def _avian(self, *, rig=False, materials=False, animation=False):
+        return self._asset("avian", rig=rig, materials=materials, animation=animation)
 
     def test_parameter_change_replaces_owned_geometry_on_same_root(self):
         root, _, values = self._avian()
@@ -67,6 +70,41 @@ class BlenderModificationParameterApplyTests(unittest.TestCase):
         self.assertTrue(all(obj.as_pointer() != before_mesh_pointer for obj in root.children))
         self.assertTrue(result.owns_geometry)
         self.assertEqual(120.0, result.parameter_values()["wingspan_cm"])
+
+    def test_supported_parameter_regeneration_works_for_each_deforming_provider(self):
+        cases = (
+            ("human_experimental", "height_cm", 190.0),
+            ("quadruped", "body_length_cm", 82.0),
+            ("avian", "wingspan_cm", 120.0),
+        )
+        for provider_key, parameter, replacement in cases:
+            with self.subTest(provider=provider_key):
+                root, provider, values = self._asset(provider_key)
+                root.location = (1.0, 2.0, 3.0)
+                root_identity = root.as_pointer()
+
+                snapshot = inspect_generated_asset(root)
+                plan = plan_modification(
+                    snapshot,
+                    ModificationRequest(parameter_changes=((parameter, replacement),)),
+                )
+                self.assertTrue(plan.safe_to_apply)
+                self.assertEqual(("geometry",), plan.rebuild_components)
+
+                result = apply_parameter_modification(root, plan)
+
+                self.assertEqual(provider.key, result.provider_key)
+                self.assertEqual(root_identity, root.as_pointer())
+                self.assertEqual((1.0, 2.0, 3.0), tuple(root.location))
+                self.assertEqual(replacement, root[parameter])
+                self.assertEqual(replacement, result.parameter_values()[parameter])
+                self.assertTrue(result.owns_geometry)
+                for key, value in values.items():
+                    if key != parameter:
+                        self.assertEqual(value, root[key])
+
+                bpy.ops.object.select_all(action="SELECT")
+                bpy.ops.object.delete(use_global=False)
 
     def test_rig_materials_and_generated_animation_survive_regeneration(self):
         root, _, _ = self._avian(rig=True, materials=True, animation=True)
