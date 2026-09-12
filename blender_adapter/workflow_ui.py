@@ -5,7 +5,8 @@ _CATEGORY = "Asset Assistant"
 
 
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
-            component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None):
+            component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None,
+            animation_adoption_ui=None):
     panels = (
         (ui.HUMANOID_PT_panel, "Generate", 0),
         (modify_ui.ASSET_ASSISTANT_PT_modify, "Modify", 1),
@@ -26,6 +27,23 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None,
         panel.bl_options = options
 
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
+
+    if animation_adoption_ui is not None:
+        original_animation_draw = ui.HUMANOID_PT_animations.draw
+        if not getattr(original_animation_draw, "_asset_assistant_external_actions", False):
+            def draw_animation_with_external_actions(panel, context):
+                original_animation_draw(panel, context)
+                layout = panel.layout
+                layout.separator()
+                box = layout.box()
+                box.label(text="Existing / imported animations")
+                row = box.row()
+                target = getattr(context.scene.humanoid_settings, "target", None)
+                row.enabled = target is not None and sum(obj.type == "ARMATURE" for obj in target.children) == 1
+                row.operator("asset_assistant.adopt_animation_action", text="Adopt Existing Action", icon="ACTION")
+                box.label(text="Registers identity/export metadata without claiming artist curves.")
+            draw_animation_with_external_actions._asset_assistant_external_actions = True
+            ui.HUMANOID_PT_animations.draw = draw_animation_with_external_actions
 
     if component_adoption_ui is not None:
         original_generate_draw = ui.HUMANOID_PT_panel.draw
