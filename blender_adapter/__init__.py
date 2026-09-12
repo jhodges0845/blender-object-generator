@@ -5,9 +5,6 @@ import sys
 
 from . import core_gateway as core
 
-# Preserve the historical ``.core`` import path while the source file uses the
-# clearer ``core_gateway.py`` name. This keeps internal/third-party imports
-# working without keeping a misleading core.py file in the source tree.
 sys.modules[__name__ + ".core"] = core
 
 bl_info = {
@@ -23,36 +20,17 @@ bl_info = {
 
 def register():
     from . import (
-        animation_modify_exchange,
-        animation_names_ui,
-        animation_tuning_ui,
-        avian_ui,
-        component_adoption_ui,
-        component_modify_apply,
-        component_modify_exchange,
-        cura_scale_ui,
-        hair_component_ui,
-        modification,
-        modify_fastpath,
-        modify_ui,
-        run_ui,
-        ui,
-        ui_fastpath,
-        workflow_ui,
-        working_asset_ui,
+        animation_modify_exchange, animation_names_ui, animation_tuning_ui, avian_ui,
+        clothing_component_ui, component_adoption_ui, component_modify_apply,
+        component_modify_exchange, cura_scale_ui, hair_component_ui, modification,
+        modify_fastpath, modify_ui, run_ui, ui, ui_fastpath, workflow_ui, working_asset_ui,
     )
-    # Keep stable class/operator IDs for compatibility while presenting one
-    # ordered Asset Assistant workflow to artists.
     run_ui.prepare(ui)
     avian_ui.prepare(ui)
     animation_tuning_ui.prepare(ui)
     workflow_ui.prepare(
-        ui,
-        modify_ui,
-        animation_names_ui,
-        working_asset_ui,
-        component_adoption_ui,
-        hair_component_ui,
+        ui, modify_ui, animation_names_ui, working_asset_ui,
+        component_adoption_ui, hair_component_ui, clothing_component_ui,
     )
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
@@ -68,20 +46,16 @@ def register():
     working_asset_ui.register()
     component_adoption_ui.register()
     hair_component_ui.register()
+    clothing_component_ui.register()
 
 
 def unregister():
     from . import (
-        animation_names_ui,
-        animation_tuning_ui,
-        component_adoption_ui,
-        cura_scale_ui,
-        hair_component_ui,
-        modify_ui,
-        run_ui,
-        ui,
-        working_asset_ui,
+        animation_names_ui, animation_tuning_ui, clothing_component_ui,
+        component_adoption_ui, cura_scale_ui, hair_component_ui, modify_ui,
+        run_ui, ui, working_asset_ui,
     )
+    clothing_component_ui.unregister()
     hair_component_ui.unregister()
     component_adoption_ui.unregister()
     working_asset_ui.unregister()
