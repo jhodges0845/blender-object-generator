@@ -3,13 +3,13 @@
 import json
 import unittest
 
-from object_core.modification import AnimationSnapshot, AssetSnapshot, plan_modification
+from object_core.modification import AnimationSnapshot, AssetSnapshot, SemanticOperation, plan_modification
 from object_core.modify_exchange import INSPECTION_SCHEMA, REQUEST_SCHEMA, inspection_json, request_from_json
 
 
 class ModifyExchangeTests(unittest.TestCase):
-    def _snapshot(self):
-        return AssetSnapshot(
+    def _snapshot(self, **overrides):
+        values = dict(
             asset_id="asset-123",
             provider_key="avian",
             provider_label="Avian",
@@ -20,17 +20,29 @@ class ModifyExchangeTests(unittest.TestCase):
             has_rig=True, has_materials=True, has_animations=True,
             owns_geometry=True, owns_rig=True, owns_materials=True, owns_animations=True,
         )
+        values.update(overrides)
+        return AssetSnapshot(**values)
 
-    def test_inspection_export_contains_semantic_targets_and_return_template(self):
+    def test_inspection_export_contains_semantic_targets_execution_state_and_return_template(self):
         document = json.loads(inspection_json(self._snapshot()))
         self.assertEqual(INSPECTION_SCHEMA, document["schema"])
         self.assertEqual("asset-123", document["asset"]["asset_id"])
-        target_keys = {target["key"] for target in document["asset"]["semantic_targets"]}
-        self.assertIn("beak", target_keys)
-        self.assertIn("wing.left", target_keys)
+        targets = {target["key"]: target for target in document["asset"]["semantic_targets"]}
+        self.assertIn("beak", targets)
+        self.assertIn("shape", targets["beak"]["executable_operations"])
+        self.assertNotIn("surface", targets["beak"]["executable_operations"])
         template = document["request_template"]
         self.assertEqual(REQUEST_SCHEMA, template["schema"])
         self.assertEqual([], template["semantic_operations"])
+
+    def test_inspection_round_trips_applied_semantic_patch_state(self):
+        snapshot = self._snapshot(semantic_operations=(
+            SemanticOperation("shape", "beak", (("profile", "hooked"), ("amount", 0.8))),
+        ))
+        document = json.loads(inspection_json(snapshot))
+        applied = document["asset"]["applied_semantic_operations"]
+        self.assertEqual("beak", applied[0]["target"])
+        self.assertEqual("hooked", applied[0]["arguments"]["profile"])
 
     def test_returned_parameter_request_still_plans_normally(self):
         payload = json.dumps({
@@ -48,7 +60,7 @@ class ModifyExchangeTests(unittest.TestCase):
         self.assertEqual((), plan.requested_semantic_operations)
         self.assertTrue(plan.safe_to_apply)
 
-    def test_semantic_request_is_provider_validated_and_safely_blocked_until_apply_exists(self):
+    def test_executable_avian_semantic_request_is_ready_to_apply(self):
         payload = json.dumps({
             "schema": REQUEST_SCHEMA,
             "asset_id": "asset-123",
@@ -57,14 +69,25 @@ class ModifyExchangeTests(unittest.TestCase):
             "animation_export_names": {},
             "semantic_operations": [
                 {"operation": "shape", "target": "beak", "arguments": {"profile": "hooked", "amount": 0.8}},
-                {"operation": "scale", "target": "chest", "arguments": {"xyz": [1.15, 1.0, 1.1]}},
+                {"operation": "scale", "target": "chest", "arguments": {"x": 1.15, "z": 1.1}},
             ],
         })
         snapshot = self._snapshot()
         plan = plan_modification(snapshot, request_from_json(payload, snapshot))
         self.assertEqual(("beak", "chest"), tuple(op.target for op in plan.requested_semantic_operations))
+        self.assertTrue(plan.safe_to_apply)
+        self.assertEqual(("geometry",), plan.rebuild_components)
+
+    def test_non_executable_semantic_operation_is_explicitly_blocked(self):
+        payload = json.dumps({
+            "schema": REQUEST_SCHEMA,
+            "asset_id": "asset-123",
+            "provider_key": "avian",
+            "semantic_operations": [{"operation": "surface", "target": "beak", "arguments": {}}],
+        })
+        plan = plan_modification(self._snapshot(), request_from_json(payload, self._snapshot()))
         self.assertFalse(plan.safe_to_apply)
-        self.assertTrue(any("semantic apply layer" in blocker for blocker in plan.blockers))
+        self.assertTrue(any("does not yet support surface on beak" in blocker for blocker in plan.blockers))
 
     def test_unknown_semantic_target_is_rejected(self):
         payload = json.dumps({

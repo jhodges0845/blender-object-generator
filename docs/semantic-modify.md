@@ -29,26 +29,43 @@ Example request fragment:
 }
 ```
 
-The shared planner validates that the selected provider actually exposes `beak` and allows `shape`. It does not decide what a hooked beak means geometrically.
+The shared planner validates that the selected provider exposes `beak`, allows `shape`, and declares that pair executable. It does not decide what a hooked beak means geometrically.
 
 ## Provider manifests
 
-The first semantic manifests expose useful editing surfaces without promising that every operation is executable yet:
+The semantic target manifest describes the provider's editable vocabulary. Inspection export now distinguishes declared operations from `executable_operations`, so an external editor can avoid returning operations the installed provider cannot yet apply.
 
-- Human: body, torso, shoulders, head, face, left/right arms, left/right legs, hair, clothing, accessories.
-- Quadruped: body, chest, head, muzzle, ears, four legs, tail, coat, accessories.
-- Avian: body, chest, head, beak, left/right wings, tail, left/right legs, left/right feet, plumage.
+The first concrete semantic geometry executor is Avian. It supports topology-preserving `shape` and `scale` operations over generated body, chest, head, beak, wings, tail, legs, and feet. Provider-owned shape profiles currently include hooked beak, powerful chest, broad wings, and fan tail. Surface/plumage operations remain declared but explicitly blocked until their apply path exists.
 
-These declarations are intentionally provider-owned and may evolve as concrete apply implementations become available.
+Human and Quadruped retain their semantic manifests but remain blocked for semantic mutation until their own provider executors are implemented. Shared Modify code does not infer anatomy for them.
+
+## Persistent patch state
+
+Applied semantic edits are stored on the generated root as an Asset Assistant semantic operation recipe. The procedural provider parameters remain unchanged. Inspection replays the stored recipe over the provider's generated base before verifying geometry ownership, so a successfully applied semantic asset remains recognized as generated rather than becoming an unexplained artist edit.
+
+This makes edits composable:
+
+`generated base + existing semantic patch + newly requested semantic patch`
+
+A later inspection exports `applied_semantic_operations`, allowing another external round trip to build on the current design rather than starting from the unmodified base.
+
+Semantic geometry apply preserves topology. Blender updates generated vertex positions in place, leaves the existing root, rig, materials, animation identities, and skin-weight topology intact, then re-inspects the result. A failure rolls vertex positions and stored patch metadata back.
+
+Parameter regeneration also reapplies the existing semantic patch to the newly generated base before swapping generated components, so manual parameter changes do not erase semantic design work.
 
 ## Exchange v2
 
-Modify inspection JSON v2 includes the provider's semantic target manifest. Modify request JSON v2 adds `semantic_operations` while preserving the existing parameter and animation-name fields. Version-1 request files remain accepted for compatibility.
+Modify inspection JSON v2 includes:
 
-## Current safety state
+- provider semantic targets;
+- executable operation lists;
+- currently applied semantic operations;
+- generated parameters, animation names, ownership state, and warnings.
 
-This milestone validates, transports, and plans semantic operations, but intentionally blocks mutation with an explicit planner blocker until the Blender semantic apply layer exists. This avoids a dangerous failure mode where an imported semantic request appears accepted but is silently ignored or only partially applied.
+Modify request JSON v2 adds `semantic_operations` while preserving parameter and animation-name fields. Version-1 request files remain accepted for compatibility.
 
-## Next implementation milestone
+## Current implementation boundary
 
-The next milestone is a non-destructive semantic apply layer that can persist a provider-owned modification patch over generated geometry/material/component state. It must remain re-inspectable and composable so later requests can build on earlier ones instead of destroying the procedural source.
+Avian geometry semantic edits can now complete the full inspection -> external request -> preview -> apply -> re-inspect round trip. Unsupported operations remain explicit blockers rather than silent no-ops.
+
+This is not yet the full rich-asset goal. Human character shaping, hair, clothing/accessory components, detailed materials, and Quadruped semantic execution remain follow-up provider work. The architecture is intentionally set up so those capabilities can be added provider-by-provider without adding named-character or species logic to the shared Modify engine.

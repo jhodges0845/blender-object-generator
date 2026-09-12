@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Inspect Blender data and safely apply approved Modify operations."""
 
+import json
 from math import isclose
 
 from .animation import clip_export_name, generated_actions
-from .core import AnimationSnapshot, ModificationPlan, ModifyAssetSnapshot, canonical_provider_key, get_provider
+from .core import (
+    AnimationSnapshot,
+    ModificationPlan,
+    ModifyAssetSnapshot,
+    SemanticOperation,
+    canonical_provider_key,
+    get_provider,
+)
 from .workflow import is_generated
 
 
@@ -14,6 +22,7 @@ _EXPORT_NAME = "asset_assistant_export_name"
 _GENERATED_CLIP = "asset_assistant_clip"
 _GENERATED_RIG = "asset_assistant_rig"
 _GENERATED_MATERIAL = "asset_assistant_generated_material"
+_SEMANTIC_PATCH = "asset_assistant_semantic_operations"
 
 
 def _identity_matrix(matrix):
@@ -31,7 +40,63 @@ def _saved_parameters(root, provider, warnings):
     return tuple(values)
 
 
-def _geometry_owned(root, provider, values, warnings):
+def _plain_value(value):
+    if isinstance(value, tuple):
+        if value and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str) for item in value):
+            return {key: _plain_value(item) for key, item in value}
+        return [_plain_value(item) for item in value]
+    return value
+
+
+def _semantic_document(operation):
+    return {
+        "operation": operation.operation,
+        "target": operation.target,
+        "arguments": {key: _plain_value(value) for key, value in operation.arguments},
+    }
+
+
+def _semantic_operations(root, warnings):
+    payload = root.get(_SEMANTIC_PATCH)
+    if not payload:
+        return ()
+    if not isinstance(payload, str):
+        warnings.append("Stored semantic patch metadata is invalid.")
+        return ()
+    try:
+        document = json.loads(payload)
+    except (TypeError, ValueError):
+        warnings.append("Stored semantic patch metadata is not valid JSON.")
+        return ()
+    if not isinstance(document, list):
+        warnings.append("Stored semantic patch metadata must be a list.")
+        return ()
+    operations = []
+    for item in document:
+        if not isinstance(item, dict):
+            warnings.append("Stored semantic patch contains an invalid operation.")
+            return ()
+        operation = item.get("operation")
+        target = item.get("target")
+        arguments = item.get("arguments", {})
+        if not isinstance(operation, str) or not isinstance(target, str) or not isinstance(arguments, dict):
+            warnings.append("Stored semantic patch contains invalid fields.")
+            return ()
+        operations.append(SemanticOperation(operation, target, tuple(arguments.items())))
+    return tuple(operations)
+
+
+def _expected_mesh(provider, values, semantic_operations):
+    mesh = provider.mesh(dict(values))
+    if semantic_operations:
+        semantic_mesh = getattr(provider, "semantic_mesh", None)
+        if not callable(semantic_mesh):
+            raise ValueError("Provider cannot reproduce stored semantic geometry.")
+        mesh = semantic_mesh(mesh, dict(values), semantic_operations)
+    return mesh
+
+
+def _geometry_owned(root, provider, values, semantic_operations, warnings):
     meshes = [obj for obj in root.children if obj.type == "MESH"]
     if not meshes:
         warnings.append("Generated geometry is missing.")
@@ -43,9 +108,9 @@ def _geometry_owned(root, provider, values, warnings):
         warnings.append("One or more generated mesh transforms were edited.")
         return False
     try:
-        expected = provider.mesh(dict(values))
+        expected = _expected_mesh(provider, values, semantic_operations)
     except (KeyError, TypeError, ValueError):
-        warnings.append("Current generation parameters cannot reproduce the provider geometry.")
+        warnings.append("Current generation parameters and semantic patch cannot reproduce provider geometry.")
         return False
     actual = {obj.get("part_name", obj.get("body_part")): obj for obj in meshes}
     expected_parts = {part.name: part for part in expected.parts}
@@ -111,9 +176,6 @@ def _material_state(root, provider, values, warnings):
     except (KeyError, TypeError, ValueError):
         warnings.append("Provider materials cannot be reproduced from saved parameters.")
         return True, False
-    # New generated materials carry an explicit ownership marker, so Blender's
-    # automatic .001/.002 name suffixes do not turn a second generated asset into
-    # an ambiguous one. Exact names remain a compatibility path for older files.
     actual_names = {material.name for material in materials}
     marked_generated = all(bool(material.get(_GENERATED_MATERIAL)) for material in materials)
     owned = marked_generated or actual_names == expected_names
@@ -150,7 +212,8 @@ def inspect_generated_asset(root):
         warnings.append("Legacy provider key " + str(stored_key) + " resolves to " + canonical_key + ".")
 
     values = _saved_parameters(root, provider, warnings)
-    owns_geometry = _geometry_owned(root, provider, values, warnings)
+    semantic_operations = _semantic_operations(root, warnings)
+    owns_geometry = _geometry_owned(root, provider, values, semantic_operations, warnings)
     has_rig, owns_rig = _rig_state(root, warnings)
     has_materials, owns_materials = _material_state(root, provider, values, warnings)
     animations, has_animations, owns_animations = _animation_state(root, warnings)
@@ -166,6 +229,7 @@ def inspect_generated_asset(root):
         provider_label=provider.label,
         parameters=values,
         animations=animations,
+        semantic_operations=semantic_operations,
         has_rig=has_rig,
         has_materials=has_materials,
         has_animations=has_animations,
@@ -193,7 +257,7 @@ def _check_plan_matches(root, plan):
 def apply_metadata_modification(root, plan):
     """Apply an approved metadata-only plan transactionally."""
     snapshot = _check_plan_matches(root, plan)
-    if plan.rebuild_components or plan.requested_parameter_changes:
+    if plan.rebuild_components or plan.requested_parameter_changes or plan.requested_semantic_operations:
         raise ValueError("This apply path only supports metadata-only modifications.")
     if plan.requested_animation_renames and not snapshot.owns_animations:
         raise ValueError("Generated animation ownership is ambiguous; nothing was changed.")
@@ -237,6 +301,11 @@ def _staged_asset(root, provider, values, snapshot):
     if bpy.context.scene.objects.get(root.name) != root or bpy.context.mode != "OBJECT":
         raise ValueError("Modify regeneration requires the asset in the active scene and Object Mode.")
     mesh = provider.mesh(values)
+    if snapshot.semantic_operations:
+        semantic_mesh = getattr(provider, "semantic_mesh", None)
+        if not callable(semantic_mesh):
+            raise ValueError("Provider cannot reapply the stored semantic patch.")
+        mesh = semantic_mesh(mesh, values, snapshot.semantic_operations)
     materials = provider.materials(values) if snapshot.has_materials else ()
     skeleton = None
     weights = None
@@ -278,6 +347,8 @@ def apply_parameter_modification(root, plan):
     snapshot = _check_plan_matches(root, plan)
     if not plan.requested_parameter_changes:
         raise ValueError("This apply path requires at least one provider parameter change.")
+    if plan.requested_semantic_operations:
+        raise ValueError("Apply semantic operations separately from parameter regeneration.")
     if not plan.rebuild_components or "geometry" not in plan.rebuild_components:
         raise ValueError("Parameter modification plan must rebuild generated geometry.")
     if plan.requested_animation_renames:
@@ -408,4 +479,66 @@ def apply_parameter_modification(root, plan):
     for obj in old_children:
         bpy.data.objects.remove(obj, do_unlink=True)
     _remove_staged_root(staged, remove_children=False)
+    return result
+
+
+def apply_semantic_modification(root, plan):
+    """Apply semantic geometry as a persistent procedural patch with unchanged topology."""
+    snapshot = _check_plan_matches(root, plan)
+    if not plan.requested_semantic_operations:
+        raise ValueError("This apply path requires semantic operations.")
+    if plan.requested_parameter_changes or plan.requested_animation_renames:
+        raise ValueError("Apply semantic operations separately from other Modify changes.")
+    if plan.rebuild_components != ("geometry",):
+        raise ValueError("Semantic mesh apply currently supports geometry-only patches.")
+    if not snapshot.owns_geometry:
+        raise ValueError("Generated geometry ownership is ambiguous; nothing was changed.")
+
+    provider = get_provider(snapshot.provider_key)
+    semantic_mesh = getattr(provider, "semantic_mesh", None)
+    if not callable(semantic_mesh):
+        raise ValueError("Provider does not implement semantic geometry apply.")
+    values = snapshot.parameter_values()
+    combined = snapshot.semantic_operations + plan.requested_semantic_operations
+    mesh = semantic_mesh(provider.mesh(values), values, combined)
+    expected_parts = {part.name: part for part in mesh.parts}
+    actual = {obj.get("part_name", obj.get("body_part")): obj for obj in root.children if obj.type == "MESH"}
+    if set(actual) != set(expected_parts):
+        raise ValueError("Semantic patch changed generated mesh part identities.")
+    scale = root.get("coordinate_scale")
+    if not isinstance(scale, (int, float)) or scale <= 0:
+        raise ValueError("Generated coordinate scale is missing or invalid.")
+
+    before_vertices = {}
+    for name, part in expected_parts.items():
+        obj = actual[name]
+        if len(obj.data.vertices) != len(part.vertices) or len(obj.data.polygons) != len(part.faces):
+            raise ValueError("Semantic patch must preserve generated mesh topology.")
+        if any(tuple(polygon.vertices) != tuple(face) for polygon, face in zip(obj.data.polygons, part.faces)):
+            raise ValueError("Semantic patch must preserve generated mesh topology.")
+        before_vertices[obj] = tuple(tuple(vertex.co) for vertex in obj.data.vertices)
+
+    previous_patch = root.get(_SEMANTIC_PATCH)
+    payload = json.dumps([_semantic_document(operation) for operation in combined], sort_keys=True)
+    try:
+        for name, part in expected_parts.items():
+            obj = actual[name]
+            for vertex, coordinate in zip(obj.data.vertices, part.vertices):
+                vertex.co = tuple(value * scale for value in coordinate)
+            obj.data.update()
+        root[_SEMANTIC_PATCH] = payload
+        result = inspect_generated_asset(root)
+        if not result.owns_geometry:
+            raise RuntimeError("Semantic patch failed post-apply ownership validation.")
+    except Exception:
+        for obj, coordinates in before_vertices.items():
+            for vertex, coordinate in zip(obj.data.vertices, coordinates):
+                vertex.co = coordinate
+            obj.data.update()
+        if previous_patch is None:
+            if _SEMANTIC_PATCH in root:
+                del root[_SEMANTIC_PATCH]
+        else:
+            root[_SEMANTIC_PATCH] = previous_patch
+        raise
     return result

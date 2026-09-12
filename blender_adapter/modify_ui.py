@@ -15,6 +15,7 @@ from .core import (
 from .modification import (
     apply_metadata_modification,
     apply_parameter_modification,
+    apply_semantic_modification,
     inspect_generated_asset,
 )
 from .workflow import find_character, provider_for
@@ -86,9 +87,12 @@ def _refresh_validation(context):
 def _request_summary(plan):
     changed = [key for key, _ in plan.requested_parameter_changes]
     renamed = [clip for clip, _ in plan.requested_animation_renames]
+    semantic = [operation.operation + " " + operation.target for operation in plan.requested_semantic_operations]
     lines = []
     if changed:
         lines.append("Parameter changes: " + ", ".join(changed))
+    if semantic:
+        lines.append("Semantic changes: " + ", ".join(semantic))
     if renamed:
         lines.append("Animation renames: " + ", ".join(renamed))
     if plan.rebuild_components:
@@ -104,7 +108,7 @@ def _apply_external_request(context, root, request):
     plan = plan_modification(snapshot, request)
     if plan.blockers:
         raise ValueError("Modify is blocked: " + "; ".join(plan.blockers))
-    if not plan.requested_parameter_changes and not plan.requested_animation_renames:
+    if not (plan.requested_parameter_changes or plan.requested_semantic_operations or plan.requested_animation_renames):
         raise ValueError("Imported request contains no changes to apply.")
 
     if plan.requested_parameter_changes:
@@ -113,6 +117,14 @@ def _apply_external_request(context, root, request):
         )
         parameter_plan = plan_modification(snapshot, parameter_request)
         apply_parameter_modification(root, parameter_plan)
+
+    if plan.requested_semantic_operations:
+        refreshed = inspect_generated_asset(root)
+        semantic_request = ModificationRequest(
+            semantic_operations=plan.requested_semantic_operations,
+        )
+        semantic_plan = plan_modification(refreshed, semantic_request)
+        apply_semantic_modification(root, semantic_plan)
 
     if plan.requested_animation_renames:
         refreshed = inspect_generated_asset(root)
@@ -143,6 +155,8 @@ class ASSET_ASSISTANT_OT_modify_inspect(bpy.types.Operator):
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
         lines = [provider.label + " inspected."]
+        if snapshot.semantic_operations:
+            lines.append(str(len(snapshot.semantic_operations)) + " semantic patch operation(s) active.")
         lines.extend(snapshot.warnings or ("No preservation warnings detected.",))
         _store_report(context.scene, "INSPECTED", lines)
         self.report({"INFO"}, provider.label + " loaded for Modify.")
@@ -248,6 +262,8 @@ class ASSET_ASSISTANT_OT_modify_apply_imported(bpy.types.Operator):
             return {"CANCELLED"}
 
         lines = ["Imported changes applied successfully.", "Validation refreshed after Modify."]
+        if result.semantic_operations:
+            lines.append(str(len(result.semantic_operations)) + " semantic patch operation(s) active.")
         lines.extend(result.warnings)
         _store_report(context.scene, "IMPORTED_APPLIED", lines)
         self.report({"INFO"}, "Imported changes applied and validation refreshed.")

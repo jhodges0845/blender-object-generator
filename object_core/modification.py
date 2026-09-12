@@ -15,12 +15,25 @@ class AnimationSnapshot:
 
 
 @dataclass(frozen=True)
+class SemanticOperation:
+    """Portable provider-aware edit against a declared semantic target."""
+
+    operation: str
+    target: str
+    arguments: Tuple[Tuple[str, object], ...] = ()
+
+    def argument_values(self):
+        return dict(self.arguments)
+
+
+@dataclass(frozen=True)
 class AssetSnapshot:
     asset_id: str
     provider_key: str
     provider_label: str
     parameters: Tuple[Tuple[str, object], ...]
     animations: Tuple[AnimationSnapshot, ...] = ()
+    semantic_operations: Tuple[SemanticOperation, ...] = ()
     has_rig: bool = False
     has_materials: bool = False
     has_animations: bool = False
@@ -32,18 +45,6 @@ class AssetSnapshot:
 
     def parameter_values(self):
         return dict(self.parameters)
-
-
-@dataclass(frozen=True)
-class SemanticOperation:
-    """Portable provider-aware edit against a declared semantic target."""
-
-    operation: str
-    target: str
-    arguments: Tuple[Tuple[str, object], ...] = ()
-
-    def argument_values(self):
-        return dict(self.arguments)
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,23 @@ def _conservative_parameter_impact(provider, snapshot):
     return tuple(components)
 
 
+def _semantic_apply_blockers(provider, operations):
+    if not operations:
+        return []
+    supported = set(getattr(provider, "semantic_apply_capabilities", ()))
+    if not callable(getattr(provider, "semantic_mesh", None)):
+        return [provider.label + " does not yet implement semantic geometry apply"]
+    blockers = []
+    for operation in operations:
+        capability = (operation.target, operation.operation)
+        if capability not in supported:
+            blockers.append(
+                provider.label + " semantic apply does not yet support "
+                + operation.operation + " on " + operation.target
+            )
+    return blockers
+
+
 def plan_modification(snapshot, request):
     if not isinstance(snapshot, AssetSnapshot):
         raise TypeError("snapshot must be an AssetSnapshot")
@@ -172,7 +190,13 @@ def plan_modification(snapshot, request):
             normalized_renames.append((clip_id, cleaned))
 
     semantic = _normalize_semantic_operations(provider, request.semantic_operations)
-    rebuild = _conservative_parameter_impact(provider, snapshot) if (normalized_changes or semantic) else ()
+    if normalized_changes:
+        rebuild = _conservative_parameter_impact(provider, snapshot)
+    elif semantic:
+        rebuild = ("geometry",)
+    else:
+        rebuild = ()
+
     blockers = []
     ownership = {"geometry": snapshot.owns_geometry, "rig": snapshot.owns_rig, "materials": snapshot.owns_materials, "animations": snapshot.owns_animations}
     for component in rebuild:
@@ -180,8 +204,7 @@ def plan_modification(snapshot, request):
             blockers.append("Cannot safely replace unowned or ambiguous " + component)
     if normalized_renames and not snapshot.owns_animations:
         blockers.append("Cannot safely rename unowned or ambiguous animations")
-    if semantic:
-        blockers.append("Semantic operations are valid but require the semantic apply layer before they can mutate Blender data")
+    blockers.extend(_semantic_apply_blockers(provider, semantic))
 
     return ModificationPlan(
         asset_id=snapshot.asset_id,
