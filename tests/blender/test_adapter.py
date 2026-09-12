@@ -96,24 +96,24 @@ class BlenderAdapterTests(unittest.TestCase):
                  ("quadruped", "Quadruped"),
                  ("avian", "Avian")],
             )
-            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Create")
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_label, "Asset Assistant")
             self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_category, "Asset Assistant")
-            for panel_name, label, order, stage in (
-                    ('HUMANOID_PT_panel', 'Create', 0, 'MODEL'),
-                    ('ASSET_ASSISTANT_PT_modify', 'Modify', 1, None),
-                    ('HUMANOID_PT_rigging', 'Rig', 2, 'RIGGING'),
-                    ('HUMANOID_PT_animations', 'Animate', 3, 'ANIMATION'),
-                    ('HUMANOID_PT_validation', 'Validate', 4, 'VALIDATION'),
-                    ('HUMANOID_PT_export', 'Export', 5, 'EXPORT')):
+            self.assertEqual(bpy.types.HUMANOID_PT_panel.bl_order, 0)
+            self.assertTrue(getattr(bpy.types.HUMANOID_PT_panel.draw, "_asset_assistant_workspace", False))
+            for panel_name in (
+                    'ASSET_ASSISTANT_PT_modify',
+                    'HUMANOID_PT_rigging',
+                    'HUMANOID_PT_animations',
+                    'HUMANOID_PT_validation',
+                    'HUMANOID_PT_export'):
                 panel = getattr(bpy.types, panel_name)
                 self.assertTrue(panel.is_registered)
-                self.assertEqual(panel.bl_label, label)
                 self.assertEqual(panel.bl_category, "Asset Assistant")
-                self.assertEqual(panel.bl_order, order)
-                if stage is not None:
-                    self.assertEqual(panel.stage, stage)
+                self.assertFalse(panel.poll(bpy.context))
             tabs = self.scene.humanoid_settings.bl_rna.properties["workflow_tab"].enum_items
             self.assertEqual([tab.identifier for tab in tabs], ["MODEL", "RIGGING", "ANIMATION", "VALIDATION", "EXPORT"])
+            workspace_tabs = self.scene.humanoid_settings.bl_rna.properties["asset_assistant_workspace"].enum_items
+            self.assertEqual([tab.identifier for tab in workspace_tabs], ["CREATE", "ANIMATE", "COMPONENTS", "EXPORT"])
             self.scene.cursor.location = (2, 3, 4)
             for preset in BodyType:
                 self.scene.humanoid_settings.human_experimental_body_type = preset.value
