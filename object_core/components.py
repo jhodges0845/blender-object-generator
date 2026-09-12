@@ -2,8 +2,10 @@
 """Host-independent contracts for attachable asset components.
 
 Components such as hair, clothing, and accessories are separate owned assets.
-They are not ordinary Human body semantics and may carry adapter-facing physics
-intent without teaching the shared core about Blender, Godot, Unity, or Unreal.
+They may be generated or imported independently of a base body. Behavior is
+orthogonal to component kind so the same workflow can support a static ring,
+parent-skinned glove, self-rigged gauntlet, or physics-assisted hair without
+teaching the shared core about Blender, Godot, Unity, or Unreal.
 """
 
 from dataclasses import dataclass
@@ -30,6 +32,16 @@ class RigBinding(str, Enum):
     OWNED = "owned"
 
 
+class ComponentBehavior(str, Enum):
+    """Portable behavior profile, independent of what the component represents."""
+
+    STATIC = "static"
+    RIGID = "rigid"
+    PARENT_SKINNED = "parent_skinned"
+    SELF_RIGGED = "self_rigged"
+    PHYSICS_ASSISTED = "physics_assisted"
+
+
 @dataclass(frozen=True)
 class PhysicsIntent:
     """Portable dynamics intent; host adapters decide how or whether to realize it."""
@@ -53,6 +65,7 @@ class ComponentRecord:
     owns_materials: bool = True
     owns_rig: bool = False
     rig_binding: RigBinding = RigBinding.NONE
+    behavior: Optional[ComponentBehavior] = None
 
 
 def _validate_pairs(label, pairs):
@@ -66,6 +79,19 @@ def _validate_pairs(label, pairs):
         if not isinstance(key, str) or not key.strip() or key in keys:
             raise ValueError(label + " keys must be nonempty and unique")
         keys.add(key)
+
+
+def effective_behavior(record):
+    """Return explicit behavior or the backward-compatible behavior implied by attachment."""
+    if record.behavior is not None:
+        return record.behavior
+    if record.attachment_mode == AttachmentMode.RIGID:
+        return ComponentBehavior.RIGID
+    if record.rig_binding == RigBinding.PARENT:
+        return ComponentBehavior.PARENT_SKINNED
+    if record.rig_binding == RigBinding.OWNED:
+        return ComponentBehavior.SELF_RIGGED
+    return ComponentBehavior.STATIC
 
 
 def validate_component(record):
@@ -82,6 +108,8 @@ def validate_component(record):
         raise TypeError("component attachment_mode must be an AttachmentMode")
     if not isinstance(record.rig_binding, RigBinding):
         raise TypeError("component rig_binding must be a RigBinding")
+    if record.behavior is not None and not isinstance(record.behavior, ComponentBehavior):
+        raise TypeError("component behavior must be a ComponentBehavior or None")
     for field in ("owns_geometry", "owns_materials", "owns_rig"):
         if not isinstance(getattr(record, field), bool):
             raise TypeError("component " + field + " must be a boolean")
@@ -98,6 +126,19 @@ def validate_component(record):
             raise ValueError("parent-rig components must not own rig data")
         if record.rig_binding == RigBinding.OWNED and not record.owns_rig:
             raise ValueError("owned-rig components must declare rig ownership")
+
+    behavior = effective_behavior(record)
+    if behavior in (ComponentBehavior.STATIC, ComponentBehavior.RIGID):
+        if record.attachment_mode != AttachmentMode.RIGID or record.rig_binding != RigBinding.NONE:
+            raise ValueError("static/rigid behavior requires rigid attachment without a rig")
+    elif behavior == ComponentBehavior.PARENT_SKINNED:
+        if record.attachment_mode != AttachmentMode.SKINNED or record.rig_binding != RigBinding.PARENT:
+            raise ValueError("parent-skinned behavior requires parent rig binding")
+    elif behavior == ComponentBehavior.SELF_RIGGED:
+        if record.attachment_mode != AttachmentMode.SKINNED or record.rig_binding != RigBinding.OWNED:
+            raise ValueError("self-rigged behavior requires an owned rig")
+    elif behavior == ComponentBehavior.PHYSICS_ASSISTED and record.physics is None:
+        raise ValueError("physics-assisted behavior requires physics intent")
 
     _validate_pairs("component parameters", record.parameters)
     if record.physics is not None:
@@ -119,6 +160,7 @@ def component_document(record):
         "attachment_target": record.attachment_target,
         "attachment_mode": record.attachment_mode.value,
         "rig_binding": record.rig_binding.value,
+        "behavior": effective_behavior(record).value,
         "parameters": dict(record.parameters),
         "physics": None if record.physics is None else {
             "mode": record.physics.mode,
@@ -168,8 +210,6 @@ def component_from_document(document):
     owns_rig = ownership.get("rig", False)
     raw_rig_binding = document.get("rig_binding")
     if raw_rig_binding is None:
-        # Backward compatibility with the original contract, where valid skinned
-        # records were required to set owns_rig=True.
         rig_binding = (
             RigBinding.OWNED
             if attachment_mode == AttachmentMode.SKINNED and owns_rig
@@ -180,6 +220,14 @@ def component_from_document(document):
             rig_binding = RigBinding(raw_rig_binding)
         except (TypeError, ValueError):
             raise ValueError("unsupported component rig binding") from None
+
+    raw_behavior = document.get("behavior")
+    behavior = None
+    if raw_behavior is not None:
+        try:
+            behavior = ComponentBehavior(raw_behavior)
+        except (TypeError, ValueError):
+            raise ValueError("unsupported component behavior") from None
 
     record = ComponentRecord(
         component_id=document.get("component_id", ""),
@@ -193,17 +241,20 @@ def component_from_document(document):
         owns_materials=ownership.get("materials", True),
         owns_rig=owns_rig,
         rig_binding=rig_binding,
+        behavior=behavior,
     )
     return validate_component(record)
 
 
 __all__ = [
     "AttachmentMode",
+    "ComponentBehavior",
     "ComponentKind",
     "ComponentRecord",
     "PhysicsIntent",
     "RigBinding",
     "component_document",
     "component_from_document",
+    "effective_behavior",
     "validate_component",
 ]
