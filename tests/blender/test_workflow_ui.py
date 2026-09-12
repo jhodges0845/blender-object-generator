@@ -72,6 +72,27 @@ class WorkflowSidebarTests(unittest.TestCase):
         self.assertTrue(getattr(ui.HUMANOID_PT_validation.draw, "_asset_assistant_confidence_header", False))
         self.assertTrue(getattr(ui.HUMANOID_PT_export.draw, "_asset_assistant_confidence_header", False))
 
+    def test_repeated_registration_keeps_one_export_fastpath_layer(self):
+        from blender_adapter import ui
+
+        first_draw = ui.HUMANOID_PT_export.draw
+        self.assertTrue(getattr(first_draw, "_asset_assistant_fastpath", False))
+
+        self.addon.unregister()
+        self.addon.register()
+
+        second_draw = ui.HUMANOID_PT_export.draw
+        self.assertTrue(getattr(second_draw, "_asset_assistant_fastpath", False))
+        self.assertFalse(
+            getattr(getattr(second_draw, "_asset_assistant_wrapped_draw", None), "_asset_assistant_fastpath", False),
+            "Export fast path stacked on top of another fast path",
+        )
+        self.assertTrue(getattr(second_draw, "_asset_assistant_polished_shell", False))
+        self.assertTrue(getattr(second_draw, "_asset_assistant_confidence_header", False))
+
+    def test_supported_blender_metadata_matches_required_runtime(self):
+        self.assertEqual((5, 2, 1), self.addon.bl_info["blender"])
+
     def test_component_hierarchy_keeps_existing_operator_contracts(self):
         from blender_adapter import workflow_ui
 
@@ -85,17 +106,18 @@ class WorkflowSidebarTests(unittest.TestCase):
                 self.calls.append((operator_id, text, icon, self.enabled))
 
         class FakeBox:
-            def __init__(self, calls):
+            def __init__(self, calls, labels):
                 self.calls = calls
+                self.labels = labels
 
             def box(self):
-                return FakeBox(self.calls)
+                return FakeBox(self.calls, self.labels)
 
             def row(self):
                 return FakeRow(self.calls)
 
-            def label(self, **_kwargs):
-                return None
+            def label(self, text="", **_kwargs):
+                self.labels.append(text)
 
         class HairUi:
             pass
@@ -109,8 +131,9 @@ class WorkflowSidebarTests(unittest.TestCase):
             pass
 
         calls = []
+        labels = []
         workflow_ui._draw_component_actions(
-            FakeBox(calls), object(), HairUi, ClothingUi, AccessoryUi)
+            FakeBox(calls, labels), object(), HairUi, ClothingUi, AccessoryUi)
 
         self.assertEqual(
             [operator_id for operator_id, _text, _icon, _enabled in calls],
@@ -123,6 +146,9 @@ class WorkflowSidebarTests(unittest.TestCase):
             ],
         )
         self.assertTrue(all(enabled for _operator_id, _text, _icon, enabled in calls))
+        self.assertIn("Adopted mesh geometry becomes Asset Assistant-managed.", labels)
+        self.assertIn("Existing materials remain artist-owned.", labels)
+        self.assertNotIn("Existing geometry and artist materials remain yours.", labels)
 
     def test_animation_adoption_remains_separate_and_preserves_operator_contract(self):
         from blender_adapter import workflow_ui

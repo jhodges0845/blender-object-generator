@@ -11,7 +11,7 @@ bl_info = {
     "name": "Asset Assistant",
     "author": "Asset Assistant contributors",
     "version": (0, 9, 0),
-    "blender": (2, 92, 0),
+    "blender": (5, 2, 1),
     "location": "3D View > Sidebar > Asset Assistant",
     "description": "Generate, modify, rig, animate, validate, and export editable 3D assets",
     "category": "3D View",
