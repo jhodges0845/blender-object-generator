@@ -15,12 +15,25 @@ class AnimationSnapshot:
 
 
 @dataclass(frozen=True)
+class SemanticOperation:
+    """Portable provider-aware edit against a declared semantic target."""
+
+    operation: str
+    target: str
+    arguments: Tuple[Tuple[str, object], ...] = ()
+
+    def argument_values(self):
+        return dict(self.arguments)
+
+
+@dataclass(frozen=True)
 class AssetSnapshot:
     asset_id: str
     provider_key: str
     provider_label: str
     parameters: Tuple[Tuple[str, object], ...]
     animations: Tuple[AnimationSnapshot, ...] = ()
+    semantic_operations: Tuple[SemanticOperation, ...] = ()
     has_rig: bool = False
     has_materials: bool = False
     has_animations: bool = False
@@ -32,18 +45,6 @@ class AssetSnapshot:
 
     def parameter_values(self):
         return dict(self.parameters)
-
-
-@dataclass(frozen=True)
-class SemanticOperation:
-    """Portable provider-aware edit against a declared semantic target."""
-
-    operation: str
-    target: str
-    arguments: Tuple[Tuple[str, object], ...] = ()
-
-    def argument_values(self):
-        return dict(self.arguments)
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,11 @@ def _normalize_semantic_operations(provider, operations):
             raise ValueError(operation.operation + " is not supported for semantic target " + operation.target)
         args = _as_unique_dict(operation.arguments, "semantic argument")
         normalized_args = tuple(sorted((key, _validate_json_value(value, key)) for key, value in args.items()))
-        normalized.append(SemanticOperation(operation.operation, operation.target, normalized_args))
+        normalized_operation = SemanticOperation(operation.operation, operation.target, normalized_args)
+        validator = getattr(provider, "validate_semantic_operation", None)
+        if callable(validator):
+            validator(normalized_operation)
+        normalized.append(normalized_operation)
     return tuple(normalized)
 
 
@@ -180,8 +185,8 @@ def plan_modification(snapshot, request):
             blockers.append("Cannot safely replace unowned or ambiguous " + component)
     if normalized_renames and not snapshot.owns_animations:
         blockers.append("Cannot safely rename unowned or ambiguous animations")
-    if semantic:
-        blockers.append("Semantic operations are valid but require the semantic apply layer before they can mutate Blender data")
+    if semantic and not callable(getattr(provider, "apply_semantics", None)):
+        blockers.append(provider.label + " semantic operations are valid but this provider does not yet implement semantic apply")
 
     return ModificationPlan(
         asset_id=snapshot.asset_id,
