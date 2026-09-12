@@ -48,12 +48,17 @@ def test_generated_assets_keep_display_name_separate_from_type_and_source(monkey
     assert {row["text"] for row in details.labels} == {
         "Type: Human",
         "Source: Generated",
-        "Managed by Asset Assistant",
     }
 
 
-def test_source_label_supports_imported_and_legacy_assets():
+def test_source_label_supports_imported_legacy_and_external_assets():
     assert asset_identity_ui._source_label(_Target(asset_assistant_source="IMPORTED")) == "Imported"
     assert asset_identity_ui._source_label(_Target(asset_assistant_source="ADOPTED")) == "Imported / Adopted"
     assert asset_identity_ui._source_label(_Target(generator="object_generator")) == "Generated"
-    assert asset_identity_ui._source_label(_Target()) == "Managed Asset"
+    assert asset_identity_ui._source_label(_Target()) == "External / Unclassified"
+
+
+def test_component_label_uses_component_language():
+    assert asset_identity_ui._component_label(0) == "0 Components"
+    assert asset_identity_ui._component_label(1) == "1 Component"
+    assert asset_identity_ui._component_label(2) == "2 Components"
