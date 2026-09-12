@@ -3,8 +3,16 @@
 
 from .animation import clip_export_name, generated_actions
 from .animation_lifecycle import managed_actions
-from .animation_records import inspect_animation_record
+from .animation_records import (
+    animation_record,
+    has_animation_record,
+    inspect_animation_record,
+    persist_animation_record,
+    update_animation_export_name,
+)
 from .core import AnimationSnapshot
+
+_EXPORT_NAME = "asset_assistant_export_name"
 
 
 def _snapshot_from_record(action, record):
@@ -82,12 +90,66 @@ def animation_state(root, warnings):
     return tuple(sorted(clips, key=lambda clip: clip.clip_id)), True, owns_all
 
 
-def install(modification):
-    """Install first-class animation inspection into Blender Modify without changing core ownership rules."""
-    if getattr(modification._animation_state, "_asset_assistant_first_class", False):
-        return
-    animation_state._asset_assistant_first_class = True
-    modification._animation_state = animation_state
+def _metadata_apply_with_records(modification, root, plan):
+    """Apply metadata-only Modify while keeping persisted animation records synchronized."""
+    snapshot = modification._check_plan_matches(root, plan)
+    if plan.rebuild_components or plan.requested_parameter_changes or plan.requested_semantic_operations:
+        raise ValueError("This apply path only supports metadata-only modifications.")
+    if plan.requested_animation_renames and not snapshot.owns_animations:
+        raise ValueError("Generated animation ownership is ambiguous; nothing was changed.")
+
+    actions = {str(action.get("asset_assistant_clip") or action.name): action
+               for action in generated_actions(root)}
+    requested = dict(plan.requested_animation_renames)
+    missing = [clip_id for clip_id in requested if clip_id not in actions]
+    if missing:
+        raise ValueError("Modification plan references missing generated animation: " + missing[0])
+
+    final_names = {clip_id: requested.get(clip_id, clip_export_name(action)).strip()
+                   for clip_id, action in actions.items()}
+    if any(not name for name in final_names.values()):
+        raise ValueError("Animation export name cannot be empty.")
+    if len(set(final_names.values())) != len(final_names):
+        raise ValueError("Animation export names must remain unique; nothing was changed.")
+
+    previous = {}
+    try:
+        for clip_id, export_name in requested.items():
+            action = actions[clip_id]
+            previous[clip_id] = (
+                action.get(_EXPORT_NAME),
+                animation_record(action) if has_animation_record(action) else None,
+            )
+            if has_animation_record(action):
+                update_animation_export_name(action, export_name)
+            action[_EXPORT_NAME] = export_name
+    except Exception:
+        for clip_id, (old_export, old_record) in previous.items():
+            action = actions[clip_id]
+            if old_record is not None:
+                persist_animation_record(action, old_record)
+            if old_export is None:
+                if _EXPORT_NAME in action:
+                    del action[_EXPORT_NAME]
+            else:
+                action[_EXPORT_NAME] = old_export
+        raise
+    return modification.inspect_generated_asset(root)
+
+
+def install(modification, modify_ui=None):
+    """Install first-class inspection and record-aware metadata Modify behavior."""
+    if not getattr(modification._animation_state, "_asset_assistant_first_class", False):
+        animation_state._asset_assistant_first_class = True
+        modification._animation_state = animation_state
+
+    def record_aware_metadata_apply(root, plan):
+        return _metadata_apply_with_records(modification, root, plan)
+
+    record_aware_metadata_apply._asset_assistant_animation_records = True
+    modification.apply_metadata_modification = record_aware_metadata_apply
+    if modify_ui is not None:
+        modify_ui.apply_metadata_modification = record_aware_metadata_apply
 
 
 __all__ = ["animation_state", "install"]
