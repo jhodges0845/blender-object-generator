@@ -51,22 +51,23 @@ We are starting this work now rather than waiting for the manual checkpoint. Kee
 
 - [x] Portable behavior profiles: static, rigid, parent-skinned, self-rigged, physics-assisted.
 - [x] Backward-compatible behavior inference for existing component records.
-- [ ] Expose behavior selection through the existing Generate/Import component workflow rather than a new parallel UI.
-- [ ] Working-state validation gate before editable save for component/rig/ownership integrity.
-- [ ] Fresh target validation remains mandatory before export.
+- [x] Expose currently executable behavior selection through the existing Generate/Import component workflow rather than a new parallel UI.
+- [x] Working-state validation gate before editable save for base/component/ownership integrity.
+- [x] Fresh target validation remains mandatory before destination export.
 
 ### External asset adoption
 
 - [x] Imported rigid artist mesh adoption.
 - [x] Imported parent-rig-skinned mesh adoption.
-- [ ] General external-object inspection/adoption entry point: inspect before claiming ownership.
+- [x] Existing Generate entry stage can adopt a selected external mesh as Hair, Clothing, or Accessory with Static, Rigid, or Parent-Skinned behavior where supported.
+- [ ] General external-object inspection/adoption entry point: inspect richer external scenes before claiming ownership.
 - [ ] Report supported/reduced-capability/blocked adoption state instead of forcing regeneration.
 - [ ] Adopt recognizable external rigs/materials/weights while preserving artist ownership boundaries.
 - [ ] Reuse first-class imported animation registration for external Actions.
 
 ### First production proofs
 
-1. **Accessory proof first:** a simple rigid accessory (ring/pendant-style) created/imported separately and attached through the existing workflow. Prove remove/replace, material preservation, save/reopen and export.
+1. **Accessory proof active:** generated Ring/Bracelet is a separate lightweight component asset with editable radius/thickness, Static/Rigid behavior and root/bone attachment. Imported meshes use the same entry stage and lifecycle. Existing remove/replace, persistence and export paths apply; checkpoint save now validates component ownership first.
 2. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
 3. **Hair proof:** separate hair asset with low-cost static/rigid path first, then bone-driven/parent-skinned motion. Physics is optional and layered later.
 4. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.

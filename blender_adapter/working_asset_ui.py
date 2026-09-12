@@ -29,11 +29,33 @@ def _restore_scene_value(scene, key, previous):
         del scene[key]
 
 
+def validate_working_state(scene):
+    """Validate Asset Assistant identity/ownership continuity before saving editable state."""
+    roots = tuple(obj for obj in scene.objects if is_generated(obj))
+    if not roots:
+        raise ValueError("Editable checkpoint requires at least one recognizable Asset Assistant base asset.")
+
+    snapshots = []
+    for root in roots:
+        # Inspection validates base identity and provider state. Enrichment walks
+        # managed components/animations and rejects stale or tampered ownership.
+        snapshots.append(enrich_snapshot(root, inspect_generated_asset(root)))
+
+    scene[_CHECKPOINT_STATUS_KEY] = "READY"
+    scene[_CHECKPOINT_MESSAGE_KEY] = (
+        str(len(snapshots)) + " Asset Assistant asset(s) validated for editable save."
+    )
+    return tuple(snapshots)
+
+
 def save_editable_checkpoint(filepath, save_operator, scene=None):
-    """Write an editable Blender copy without changing the active working file."""
+    """Validate and write an editable Blender copy without changing the active working file."""
     path = Path(filepath)
     if path.suffix.lower() != ".blend":
         path = path.with_suffix(".blend")
+
+    if scene is not None:
+        validate_working_state(scene)
 
     previous_kind = previous_version = None
     if scene is not None:
@@ -61,14 +83,8 @@ def validate_checkpoint_scene(scene):
     if scene.get(_CHECKPOINT_VERSION_KEY) != _CHECKPOINT_VERSION:
         raise ValueError("This Asset Assistant checkpoint version is not supported by this add-on build.")
 
+    snapshots = validate_working_state(scene)
     roots = tuple(obj for obj in scene.objects if is_generated(obj))
-    if not roots:
-        raise ValueError("Editable checkpoint contains no recognizable Asset Assistant base assets.")
-
-    snapshots = []
-    for root in roots:
-        snapshot = inspect_generated_asset(root)
-        snapshots.append(enrich_snapshot(root, snapshot))
 
     settings = getattr(scene, "humanoid_settings", None)
     if settings is not None:
@@ -107,9 +123,6 @@ def _validate_reopened_checkpoint(_unused):
                 _record_checkpoint_error(scene, error)
         return
 
-    # When the Asset Assistant Open operator explicitly promised a checkpoint,
-    # keep the previous error behavior for an unmarked .blend. Native Blender
-    # loads of ordinary files remain untouched.
     if expected:
         error = ValueError("This .blend file is not marked as an Asset Assistant editable checkpoint.")
         for scene in bpy.data.scenes:
@@ -131,10 +144,10 @@ def open_editable_checkpoint(filepath, open_operator):
 
 class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelper):
     bl_idname = "asset_assistant.save_editable_checkpoint"
-    bl_label = "Save Editable Checkpoint"
+    bl_label = "Validate + Save Editable Checkpoint"
     bl_description = (
-        "Save a complete editable .blend copy without changing the current working file; "
-        "game and print exports remain separate"
+        "Validate Asset Assistant ownership/continuity, then save a complete editable .blend copy "
+        "without changing the current working file"
     )
     filename_ext = ".blend"
     filter_glob: bpy.props.StringProperty(default="*.blend", options={"HIDDEN"})
@@ -151,10 +164,11 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
     def execute(self, context):
         try:
             filepath = save_editable_checkpoint(self.filepath, bpy.ops.wm.save_as_mainfile, context.scene)
-        except (RuntimeError, OSError, ValueError) as error:
+        except (RuntimeError, OSError, ValueError, TypeError, AttributeError) as error:
+            _record_checkpoint_error(context.scene, error)
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
-        self.report({"INFO"}, "Editable checkpoint saved: " + filepath)
+        self.report({"INFO"}, "Validated and saved editable checkpoint: " + filepath)
         return {"FINISHED"}
 
 
@@ -207,6 +221,7 @@ __all__ = [
     "save_editable_checkpoint",
     "open_editable_checkpoint",
     "validate_checkpoint_scene",
+    "validate_working_state",
     "register",
     "unregister",
 ]

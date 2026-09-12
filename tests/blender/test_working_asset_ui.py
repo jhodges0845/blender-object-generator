@@ -16,6 +16,7 @@ from blender_adapter.working_asset_ui import (
     open_editable_checkpoint,
     save_editable_checkpoint,
     validate_checkpoint_scene,
+    validate_working_state,
 )
 from object_core.objects import get_provider
 
@@ -78,6 +79,7 @@ class EditableCheckpointTests(unittest.TestCase):
 
     def test_checkpoint_marks_saved_copy_but_restores_current_scene(self):
         scene = bpy.context.scene
+        self._human()
         observed = []
 
         def fake_save(**kwargs):
@@ -92,6 +94,11 @@ class EditableCheckpointTests(unittest.TestCase):
         self.assertEqual([("asset-assistant-editable-checkpoint", 1)], observed)
         self.assertNotIn("asset_assistant_working_state_kind", scene)
         self.assertNotIn("asset_assistant_working_state_version", scene)
+        self.assertEqual("READY", scene["asset_assistant_working_state_status"])
+
+    def test_working_state_requires_recognizable_asset_before_save(self):
+        with self.assertRaisesRegex(ValueError, "requires at least one recognizable"):
+            validate_working_state(bpy.context.scene)
 
     def test_checkpoint_rejects_incomplete_blender_save(self):
         with self.assertRaisesRegex(RuntimeError, "did not finish"):

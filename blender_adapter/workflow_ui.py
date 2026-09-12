@@ -23,10 +23,6 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
         panel.bl_label = label
         panel.bl_category = _CATEGORY
         panel.bl_order = order
-
-        # Keep the entry point open on first use while reducing the initial
-        # sidebar to a clear Generate-first workflow. Blender still remembers
-        # an artist's manual expand/collapse choices for the session.
         options = set(getattr(panel, "bl_options", set()))
         if order == 0:
             options.discard("DEFAULT_CLOSED")
@@ -34,32 +30,44 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
             options.add("DEFAULT_CLOSED")
         panel.bl_options = options
 
-    # This remains a child of Animate, but keep its declared category aligned so
-    # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
 
     if component_adoption_ui is not None:
-        original_modify_draw = modify_ui.ASSET_ASSISTANT_PT_modify.draw
-        if not getattr(original_modify_draw, "_asset_assistant_component_adoption", False):
-            def draw_modify_with_component_adoption(panel, context):
-                original_modify_draw(panel, context)
+        # Components enter through the same first stage as base assets: generate
+        # a supported starting point or import/select external geometry and adopt
+        # it. No separate Hair/Clothing/Accessory sidebar workflow is introduced.
+        original_generate_draw = ui.HUMANOID_PT_panel.draw
+        if not getattr(original_generate_draw, "_asset_assistant_components", False):
+            def draw_generate_with_components(panel, context):
+                original_generate_draw(panel, context)
                 layout = panel.layout
                 layout.separator()
                 box = layout.box()
                 box.label(text="Reusable components")
-                box.operator(
+                target = getattr(context.scene.humanoid_settings, "target", None)
+                if target is None:
+                    box.label(text="Choose or generate a base asset first.")
+                generated = box.row()
+                generated.enabled = target is not None
+                generated.operator(
+                    "asset_assistant.generate_ring_component",
+                    text="Generate Ring / Bracelet",
+                    icon="MESH_TORUS",
+                )
+                imported = box.row()
+                imported.enabled = target is not None
+                imported.operator(
                     "asset_assistant.adopt_selected_component",
-                    text="Adopt Selected Component",
+                    text="Adopt Selected External Mesh",
                     icon="IMPORT",
                 )
-                box.label(text="Transfers one external mesh into Asset Assistant ownership.")
+                box.label(text="Pick behavior and attachment in the dialog.")
+                box.label(text="Hair, clothing and accessories stay separate from the body.")
 
-            draw_modify_with_component_adoption._asset_assistant_component_adoption = True
-            modify_ui.ASSET_ASSISTANT_PT_modify.draw = draw_modify_with_component_adoption
+            draw_generate_with_components._asset_assistant_components = True
+            ui.HUMANOID_PT_panel.draw = draw_generate_with_components
 
     if working_asset_ui is not None:
-        # Reopening an editable checkpoint is the alternative entry path to
-        # generating a new base asset, so keep it inside Generate.
         original_generate_draw = ui.HUMANOID_PT_panel.draw
         if not getattr(original_generate_draw, "_asset_assistant_checkpoint_open", False):
             def draw_generate_with_open(panel, context):
@@ -81,9 +89,6 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
             draw_generate_with_open._asset_assistant_checkpoint_open = True
             ui.HUMANOID_PT_panel.draw = draw_generate_with_open
 
-        # Editable working-state checkpoints belong in Export, but are not engine
-        # destination targets. Append one independent .blend action to the existing
-        # Export panel instead of adding another sidebar section or target adapter.
         original_export_draw = ui.HUMANOID_PT_export.draw
         if not getattr(original_export_draw, "_asset_assistant_checkpoint_action", False):
             def draw_export_with_checkpoint(panel, context):
@@ -94,10 +99,10 @@ def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_
                 box.label(text="Editable working state")
                 box.operator(
                     "asset_assistant.save_editable_checkpoint",
-                    text="Save Editable Checkpoint (.blend)",
+                    text="Validate + Save Editable Checkpoint (.blend)",
                     icon="FILE_TICK",
                 )
-                box.label(text="Preserves the full Blender editing state.")
+                box.label(text="Validates ownership/continuity before saving.")
 
             draw_export_with_checkpoint._asset_assistant_checkpoint_action = True
             ui.HUMANOID_PT_export.draw = draw_export_with_checkpoint
