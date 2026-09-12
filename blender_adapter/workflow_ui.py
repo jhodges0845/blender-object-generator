@@ -24,6 +24,16 @@ def prepare(ui, modify_ui, animation_names_ui):
         panel.bl_category = _CATEGORY
         panel.bl_order = order
 
+        # Keep the entry point open on first use while reducing the initial
+        # sidebar to a clear Generate-first workflow. Blender still remembers
+        # an artist's manual expand/collapse choices for the session.
+        options = set(getattr(panel, "bl_options", set()))
+        if order == 0:
+            options.discard("DEFAULT_CLOSED")
+        else:
+            options.add("DEFAULT_CLOSED")
+        panel.bl_options = options
+
     # This remains a child of Animate, but keep its declared category aligned so
     # Blender never exposes a stray legacy Animations tab.
     animation_names_ui.ASSET_ASSISTANT_PT_animation_names.bl_category = _CATEGORY
