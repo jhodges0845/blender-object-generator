@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Blender persistence and attachment for first-class asset components."""
+"""Blender persistence, attachment, and lifecycle for first-class asset components."""
 
 import json
 
@@ -37,6 +37,10 @@ def _documents(root):
     if not isinstance(documents, list):
         raise ValueError("component registry must contain a JSON array")
     return documents
+
+
+def _set_documents(root, documents):
+    root[_COMPONENTS_KEY] = json.dumps(list(documents), sort_keys=True)
 
 
 def component_records(root):
@@ -137,13 +141,21 @@ def _attach_component_root(root, component_root, record):
     component_root.parent_bone = bone_name
 
 
-def attach_rigid_component(root, mesh, record, *, name="Accessory"):
-    """Create and persist one rigid component on the asset root or a named bone.
+def _delete_component_tree(component_root):
+    import bpy
 
-    Portable targets currently supported by Blender are ``asset_root`` and
-    ``bone:<bone-name>``. Skinned components, replacement, removal, and physics
-    execution remain separate preservation milestones.
-    """
+    objects = list(_descendants(component_root))
+    objects.append(component_root)
+    meshes = [obj.data for obj in objects if obj.type == "MESH" and obj.data is not None]
+    for obj in reversed(objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+    for data in meshes:
+        if data.users == 0:
+            bpy.data.meshes.remove(data)
+
+
+def attach_rigid_component(root, mesh, record, *, name="Accessory"):
+    """Create and persist one rigid component on the asset root or a named bone."""
     import bpy
 
     _require_asset_root(root)
@@ -167,7 +179,6 @@ def attach_rigid_component(root, mesh, record, *, name="Accessory"):
     collection = root.users_collection[0]
     created_objects = []
     created_meshes = []
-    component_root = None
     previous_registry = root.get(_COMPONENTS_KEY)
     document = component_document(record)
     try:
@@ -192,7 +203,7 @@ def attach_rigid_component(root, mesh, record, *, name="Accessory"):
 
         documents = _documents(root)
         documents.append(document)
-        root[_COMPONENTS_KEY] = json.dumps(documents, sort_keys=True)
+        _set_documents(root, documents)
         inspect_component(root, record.component_id)
         return component_root
     except Exception:
@@ -209,4 +220,59 @@ def attach_rigid_component(root, mesh, record, *, name="Accessory"):
         raise
 
 
-__all__ = ["attach_rigid_component", "component_records", "inspect_component"]
+def remove_component(root, component_id):
+    """Remove one validated owned component and its registry entry."""
+    record = inspect_component(root, component_id)
+    component_root = _component_root(root, component_id)
+    documents = [
+        document for document in _documents(root)
+        if document.get("component_id") != component_id
+    ]
+    _delete_component_tree(component_root)
+    _set_documents(root, documents)
+    return record
+
+
+def replace_rigid_component(root, mesh, record, *, name="Accessory"):
+    """Replace a rigid component while preserving its stable component id.
+
+    The old component remains intact until the replacement has been created and
+    successfully re-inspected. If replacement creation fails, registry and object
+    metadata are restored to the previous component.
+    """
+    _require_asset_root(root)
+    if not isinstance(record, ComponentRecord):
+        raise TypeError("component must be a ComponentRecord")
+    old_record = inspect_component(root, record.component_id)
+    old_root = _component_root(root, record.component_id)
+    previous_registry = root.get(_COMPONENTS_KEY)
+    old_id = old_root.get(_COMPONENT_ID_KEY)
+    old_record_raw = old_root.get(_COMPONENT_RECORD_KEY)
+    remaining_documents = [
+        document for document in _documents(root)
+        if document.get("component_id") != record.component_id
+    ]
+
+    _set_documents(root, remaining_documents)
+    del old_root[_COMPONENT_ID_KEY]
+    del old_root[_COMPONENT_RECORD_KEY]
+    try:
+        replacement_root = attach_rigid_component(root, mesh, record, name=name)
+    except Exception:
+        root[_COMPONENTS_KEY] = previous_registry
+        old_root[_COMPONENT_ID_KEY] = old_id
+        old_root[_COMPONENT_RECORD_KEY] = old_record_raw
+        raise
+
+    _delete_component_tree(old_root)
+    inspect_component(root, record.component_id)
+    return old_record, replacement_root
+
+
+__all__ = [
+    "attach_rigid_component",
+    "component_records",
+    "inspect_component",
+    "remove_component",
+    "replace_rigid_component",
+]
