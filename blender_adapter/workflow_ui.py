@@ -86,7 +86,8 @@ def _draw_component_actions(box, target, hair_component_ui, clothing_component_u
     row.enabled = target is not None
     row.operator("asset_assistant.adopt_selected_component", text="Adopt Selected Mesh", icon="IMPORT")
     imported.label(text="Choose attachment and behavior in the adoption dialog.")
-    imported.label(text="Existing geometry and artist materials remain yours.")
+    imported.label(text="Adopted mesh geometry becomes Asset Assistant-managed.")
+    imported.label(text="Existing materials remain artist-owned.")
 
 
 def _draw_animation_adoption(box, target):
