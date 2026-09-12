@@ -37,6 +37,7 @@ class WorkflowSidebarTests(unittest.TestCase):
         names = animation_names_ui.ASSET_ASSISTANT_PT_animation_names
         self.assertEqual("Asset Assistant", names.bl_category)
         self.assertEqual("HUMANOID_PT_animations", names.bl_parent_id)
+        self.assertEqual("Clip Library", names.bl_label)
 
     def test_only_create_starts_expanded(self):
         from blender_adapter import modify_ui, ui
