@@ -5,6 +5,7 @@ from math import isfinite
 
 from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
+from .semantic import SemanticTarget
 from .avian_animation import generate_avian_flight, generate_avian_idle, generate_avian_walk
 from .avian_geometry import generate_avian_deformable_mesh
 from .avian_rigging import generate_avian_skeleton, generate_avian_skin_weights
@@ -16,6 +17,21 @@ AVIAN_PARAMETERS = (
     Parameter("body_height_cm", "Body Height (cm)", 20, 6, 70),
     Parameter("wingspan_cm", "Wingspan (cm)", 90, 20, 320),
     Parameter("tail_length_cm", "Tail Length (cm)", 22, 4, 100),
+)
+
+AVIAN_SEMANTIC_TARGETS = (
+    SemanticTarget("body", "Body", "region", ("shape", "scale", "surface")),
+    SemanticTarget("chest", "Chest", "region", ("shape", "scale")),
+    SemanticTarget("head", "Head", "region", ("shape", "scale", "surface")),
+    SemanticTarget("beak", "Beak", "region", ("shape", "scale", "surface")),
+    SemanticTarget("wing.left", "Left Wing", "region", ("shape", "scale", "surface")),
+    SemanticTarget("wing.right", "Right Wing", "region", ("shape", "scale", "surface")),
+    SemanticTarget("tail", "Tail", "region", ("shape", "scale", "surface")),
+    SemanticTarget("leg.left", "Left Leg", "region", ("shape", "scale", "surface")),
+    SemanticTarget("leg.right", "Right Leg", "region", ("shape", "scale", "surface")),
+    SemanticTarget("foot.left", "Left Foot", "region", ("shape", "scale")),
+    SemanticTarget("foot.right", "Right Foot", "region", ("shape", "scale")),
+    SemanticTarget("plumage", "Plumage", "component", ("surface", "add_detail")),
 )
 
 
@@ -43,6 +59,7 @@ class AvianProvider:
     locomotion_label = "Walk"
     uses_skin_weights = True
     parameters = AVIAN_PARAMETERS
+    semantic_targets = AVIAN_SEMANTIC_TARGETS
 
     def dimensions(self, values):
         return _dimensions(self.parameters, values)

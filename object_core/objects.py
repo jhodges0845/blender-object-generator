@@ -15,11 +15,9 @@ from .providers import (
     HumanoidProvider,
     Parameter,
     QuadrupedProvider,
+    SemanticTarget,
 )
 
-
-# Saved assets from the pre-Quadruped naming era can still resolve their provider.
-# New assets always store the canonical provider key.
 LEGACY_PROVIDER_KEYS = {"dog": "quadruped"}
 
 
@@ -33,17 +31,12 @@ def validate_provider(provider):
         if not isinstance(getattr(provider, field, None), bool):
             raise TypeError(provider.key + ": " + field + " must be a boolean")
     supports_locomotion = getattr(provider, "supports_locomotion", False)
-    if not isinstance(supports_locomotion, bool):
-        raise TypeError(provider.key + ": supports_locomotion must be a boolean")
     supports_flight = getattr(provider, "supports_flight", False)
-    if not isinstance(supports_flight, bool):
-        raise TypeError(provider.key + ": supports_flight must be a boolean")
     supports_run = getattr(provider, "supports_run", False)
-    if not isinstance(supports_run, bool):
-        raise TypeError(provider.key + ": supports_run must be a boolean")
     supports_materials = getattr(provider, "supports_materials", False)
-    if not isinstance(supports_materials, bool):
-        raise TypeError(provider.key + ": supports_materials must be a boolean")
+    for name, value in (("supports_locomotion", supports_locomotion), ("supports_flight", supports_flight), ("supports_run", supports_run), ("supports_materials", supports_materials)):
+        if not isinstance(value, bool):
+            raise TypeError(provider.key + ": " + name + " must be a boolean")
     if provider.supports_idle and not provider.supports_rig:
         raise ValueError(provider.key + ": idle support requires rig support")
     if supports_locomotion and not provider.supports_rig:
@@ -59,20 +52,13 @@ def validate_provider(provider):
         raise ValueError(provider.key + ": locomotion_label must be a nonempty string when declared")
 
     required = ["mesh"]
-    if provider.supports_rig:
-        required.append("skeleton")
-    if provider.supports_idle:
-        required.append("idle")
-    if supports_locomotion:
-        required.append("locomotion")
-    if supports_flight:
-        required.append("flight")
-    if supports_run:
-        required.append("run")
-    if provider.uses_skin_weights:
-        required.append("skin_weights")
-    if supports_materials:
-        required.append("materials")
+    if provider.supports_rig: required.append("skeleton")
+    if provider.supports_idle: required.append("idle")
+    if supports_locomotion: required.append("locomotion")
+    if supports_flight: required.append("flight")
+    if supports_run: required.append("run")
+    if provider.uses_skin_weights: required.append("skin_weights")
+    if supports_materials: required.append("materials")
     for method in required:
         if not callable(getattr(provider, method, None)):
             raise TypeError(provider.key + ": required method " + method + " must be callable")
@@ -87,13 +73,25 @@ def validate_provider(provider):
         if not isinstance(parameter.key, str) or not parameter.key.strip() or parameter.key in keys:
             raise ValueError(provider.key + ": parameter keys must be nonempty and unique")
         keys.add(parameter.key)
+
+    semantic_targets = getattr(provider, "semantic_targets", ())
+    if not isinstance(semantic_targets, tuple):
+        raise TypeError(provider.key + ": semantic_targets must be a tuple")
+    semantic_keys = set()
+    for target in semantic_targets:
+        if not isinstance(target, SemanticTarget):
+            raise TypeError(provider.key + ": semantic_targets must contain SemanticTarget definitions")
+        if not target.key.strip() or target.key in semantic_keys:
+            raise ValueError(provider.key + ": semantic target keys must be nonempty and unique")
+        if not target.label.strip() or not target.kind.strip() or not target.operations:
+            raise ValueError(provider.key + ": semantic targets require label, kind, and operations")
+        if any(not isinstance(op, str) or not op.strip() for op in target.operations):
+            raise ValueError(provider.key + ": semantic target operations must be nonempty strings")
+        semantic_keys.add(target.key)
     return provider
 
 
-OBJECT_TYPES = {
-    provider.key: validate_provider(provider)
-    for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider(), QuadrupedProvider(), AvianProvider())
-}
+OBJECT_TYPES = {provider.key: validate_provider(provider) for provider in (HumanoidProvider(), HumanExperimentalProvider(), BoxProvider(), QuadrupedProvider(), AvianProvider())}
 
 
 def canonical_provider_key(key):
@@ -112,21 +110,4 @@ def get_provider(key):
     return provider
 
 
-# Preserve the existing import surface for callers that imported these symbols
-# from object_core.objects before provider implementations were split out.
-__all__ = [
-    "Parameter",
-    "AVIAN_PARAMETERS",
-    "AvianProvider",
-    "QUADRUPED_PARAMETERS",
-    "QuadrupedProvider",
-    "HUMAN_PARAMETERS",
-    "HumanoidProvider",
-    "HumanExperimentalProvider",
-    "BoxProvider",
-    "validate_provider",
-    "OBJECT_TYPES",
-    "LEGACY_PROVIDER_KEYS",
-    "canonical_provider_key",
-    "get_provider",
-]
+__all__ = ["Parameter", "AVIAN_PARAMETERS", "AvianProvider", "QUADRUPED_PARAMETERS", "QuadrupedProvider", "HUMAN_PARAMETERS", "HumanoidProvider", "HumanExperimentalProvider", "BoxProvider", "validate_provider", "OBJECT_TYPES", "LEGACY_PROVIDER_KEYS", "canonical_provider_key", "get_provider"]
