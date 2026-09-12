@@ -437,28 +437,41 @@ class _WorkflowPanel:
             if not has_rig:
                 layout.label(text="Add a rig before animating.")
             else:
-                layout.prop(settings, 'animation_clip')
+                workspace = layout.box()
+                workspace.label(text="Generated Clip", icon="ACTION")
+                workspace.prop(settings, 'animation_clip', text="Clip")
                 clip_name, capability = _animation_choice(settings)
                 supported = bool(getattr(provider, capability, False))
                 if not supported:
-                    layout.label(text=provider.label + ' does not support ' + clip_name.lower() + '.')
+                    workspace.label(text=provider.label + ' does not support ' + clip_name.lower() + '.', icon="INFO")
                     return
+
+                tuning = workspace.box()
+                tuning.label(text="Tune Motion", icon="PREFERENCES")
                 if settings.animation_clip == 'IDLE':
-                    layout.prop(settings, "idle_duration")
-                    layout.prop(settings, "idle_strength")
+                    tuning.prop(settings, "idle_duration")
+                    tuning.prop(settings, "idle_strength")
                 else:
-                    layout.prop(settings, 'walk_duration')
-                    layout.prop(settings, 'walk_strength')
-                layout.prop(settings, "idle_set_range")
+                    tuning.prop(settings, 'walk_duration')
+                    tuning.prop(settings, 'walk_strength')
+                tuning.prop(settings, "idle_set_range")
+
                 existing = generated_action(root, clip_name)
-                layout.operator('humanoid.select_animation_clip',
-                                text=('Select ' + clip_name if existing else 'Generate ' + clip_name))
-                layout.operator("humanoid.preview_idle")
-                layout.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
-                layout.label(text=('Existing generated keys are preserved.' if existing
-                                   else 'Creates a separate editable action.'))
-                layout.label(text='All generated clips are exported together.')
-                layout.label(text="Artist actions, NLA and drivers are never overwritten.")
+                action = workspace.row()
+                action.scale_y = 1.25
+                action.operator('humanoid.select_animation_clip',
+                                text=('Select ' + clip_name if existing else 'Generate ' + clip_name),
+                                icon="CHECKMARK" if existing else "ADD")
+                workspace.label(text=('Existing generated keys are preserved.' if existing
+                                      else 'Creates a separate editable action.'))
+
+                preview = workspace.box()
+                preview.label(text="Preview", icon="PLAY")
+                controls = preview.row(align=True)
+                controls.operator("humanoid.preview_idle", text="Motion Pose", icon="POSE_HLT")
+                controls.operator("screen.animation_play", text="Play / Pause", icon="PLAY")
+                preview.label(text='All generated clips are exported together.')
+                preview.label(text="Artist actions, NLA and drivers are never overwritten.")
         else:
             layout.prop(settings, "output_target")
             if settings.output_target == 'CURA':
