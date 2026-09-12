@@ -34,7 +34,7 @@ The project is broader than Human generation. The provider/capability model is i
 - [x] Godot, Unity, Unreal, and Cura target profiles/adapters.
 - [x] GLB/glTF, FBX, and STL export paths.
 - [x] Provider-aware rigging and animation workflow gating.
-- [x] Idle, provider-named locomotion, and Run capability-driven animation workflow.
+- [x] Idle, Walk, Flight, and Run capability-driven animation workflow where supported by each provider.
 - [x] Blender 5.2 layered-action support and active-scene glTF scoping.
 - [x] CI on standalone Python 3.9-3.12 plus Blender 2.92.0 and 5.2.1.
 - [x] Cached Blender runtimes in CI.
@@ -61,22 +61,23 @@ Interactive Blender review confirmed generation, rigging, animation, and surfaci
 
 ## Avian provider — foundation complete
 
-Avian is the second non-Human deforming-provider proof and demonstrates that shared locomotion does not need to mean Walk.
+Avian is the second non-Human deforming-provider proof and now covers both airborne and ground locomotion.
 
 The completed Avian foundation includes:
 
 - [x] canonical `avian` / Avian provider identity and parameter contract
-- [x] deterministic connected low-poly body with integrated wings and tail
-- [x] Avian spine/neck/head, upper/lower wing, and tail skeleton
-- [x] normalized local skin weights plus wing-root, wing-segment, neck/head, and tail deformation coverage
+- [x] deterministic connected low-poly body with integrated wings, tail, legs, and feet
+- [x] Avian spine/neck/head, upper/lower wing, tail, upper/lower leg, and foot skeleton
+- [x] normalized local skin weights plus wing, neck/head, tail, leg, and foot deformation coverage
 - [x] deterministic face-corner UVs and portable textured plumage material intent
-- [x] provider-specific Idle and Flight motion using the shared editable Blender action pipeline
-- [x] distinct `Flight` clip identity rather than disguising Avian motion as Walk
-- [x] capability isolation so Human and Quadruped do not expose Flight
-- [x] representative automated Godot GLB and Unity FBX export coverage for Avian skinning plus Idle/Flight packaging
+- [x] provider-specific Idle, Walk, and Flight motion using the shared editable Blender action pipeline
+- [x] distinct Walk and Flight clip identities; choosing Walk no longer creates Flight
+- [x] Run intentionally unsupported for Avian
+- [x] representative automated Godot GLB and Unity FBX export coverage for Avian skinning plus Idle/Walk/Flight packaging
+- [x] interactive Blender 5.2.1 visual confirmation of Avian leg placement and Walk motion
 - [x] documentation and architecture closeout confirming Avian anatomy stays provider-specific and target adapters remain provider-neutral
 
-Manual visual review of Avian Idle/Flight motion remains desirable before release, because automated tests cannot judge animation aesthetics. Broader destination import/playback certification is tracked under release hardening.
+Broader destination import/playback certification is tracked under release hardening.
 
 ## Target verification
 
@@ -90,31 +91,68 @@ Initial smoke checks exist for all four destinations. Human has direct Godot, Un
 - [x] Human Godot, Unity and Unreal game-target checkpoints.
 - [x] Quadruped Blender generation/rig/animation/material checkpoint.
 - [x] Avian automated Godot GLB and Unity FBX animation-packaging checkpoint.
-- [ ] Avian interactive Blender visual-quality checkpoint for Idle/Flight.
+- [x] Avian interactive Blender visual-quality checkpoint for leg placement and Walk motion.
 - [ ] Detailed Cura certification pass covering representative Human dimensions, orientation, slicing warnings, and physical-print considerations.
 - [ ] Broader Quadruped and Avian destination certification across Godot/Unity/Unreal during release hardening.
 
-## Current milestone — release hardening / publish readiness
+## Current checkpoint — pre-release scope reopened
 
-Provider expansion is no longer the immediate priority. Human, Quadruped, and Avian now cover three meaningfully different deforming body/motion plans and have exercised the provider architecture enough to shift focus toward product readiness.
+The provider foundation is stable enough to checkpoint. Release hardening had begun, but two product features are now explicit blockers for the first public alpha: **Modify** and a **UI overhaul**.
 
-Near-term order:
+See `docs/pre-release-scope-checkpoint.md` for the checkpoint details.
 
-1. [ ] Run a cross-provider test-coverage and architecture audit for release-severity gaps.
-2. [ ] Complete the remaining manual Avian visual checkpoint and any motion-quality fixes it reveals.
-3. [ ] Recheck representative Human / Quadruped / Avian exports and document destination evidence without treating a successful file write as full certification.
-4. [ ] Review UI clarity, especially the Animations sidebar naming against Blender 5.x's built-in Animation category.
-5. [ ] Review installation, version support, packaging, license/readme, and first-run instructions for publication.
-6. [ ] Classify remaining Cura, destination-certification, and animation-polish work as blocker vs post-release follow-up.
+### P0 — Modify workflow
+
+Asset Assistant needs a first-class modification path for an existing generated asset instead of requiring regeneration for every meaningful change.
+
+Target workflow:
+
+`Select existing Asset Assistant asset -> Inspect / capture current state -> prepare requested changes -> apply targeted modification -> revalidate -> continue editing/exporting`
+
+Requirements:
+
+1. [ ] Define a structured inspection/snapshot contract for the current generated asset state.
+2. [ ] Define the supported first-release modification set and preservation boundaries before wiring UI behavior.
+3. [ ] Apply targeted changes without silently overwriting unrelated artist-authored animation, materials, or other edits.
+4. [ ] Reuse host-independent/provider contracts where practical rather than embedding provider anatomy rules in generic Blender code.
+5. [ ] Revalidate after modification and report unsupported/unsafe changes truthfully.
+6. [ ] Add ordinary Python and Blender integration coverage for inspect -> modify -> preserve -> validate behavior.
+7. [ ] Document the workflow and limitations clearly enough that an artist can use it without understanding internal scene metadata.
+
+### P0 — UI overhaul
+
+The current Blender UI grew incrementally with each capability. Before release it should be reorganized around the artist's workflow rather than the implementation history.
+
+Requirements:
+
+1. [ ] Establish a clear hierarchy around **Generate / Modify / Rig / Animate / Validate / Export**.
+2. [ ] Make the current asset and current workflow step obvious.
+3. [ ] Show provider-relevant actions and avoid presenting unsupported operations as normal choices.
+4. [ ] Reduce repeated explanatory copy and visual clutter while retaining discoverability.
+5. [ ] Keep advanced controls available without making the default workflow feel engineering-centric.
+6. [ ] Review panel/category names against Blender's built-in UI to reduce naming confusion.
+7. [ ] Preserve existing operator/data compatibility where required while allowing the visible UI to change substantially.
+8. [ ] Run an interactive usability pass in Blender 5.2.1 before release.
+
+## Revised pre-release order
+
+1. [x] Checkpoint provider state and update documentation after Avian legs/Walk validation.
+2. [ ] Design and implement the Modify workflow.
+3. [ ] Design and implement the UI overhaul around Generate / Modify / Rig / Animate / Validate / Export.
+4. [ ] Run a full cross-provider regression, preservation, architecture, and test-coverage audit.
+5. [ ] Resume release hardening: installation, packaging, tagged release automation, documentation, and reproducible artifacts.
+6. [ ] Run a clean packaged-install smoke test in Blender 5.2.1.
+7. [ ] Publish the first public alpha only after the above blockers are complete.
 
 ### Shared follow-ups
 
 - Human Run animation-quality tuning: upper-arm swing, knee lift, torso pitch and timing/phase polish.
-- Avian Flight animation-quality tuning after visual review.
+- Additional Avian gait/flight quality polish only if future visual review exposes a real issue.
 - Reusable UV/material/validation infrastructure only when additional real provider needs justify it.
 - Watertight print-preparation work for providers that explicitly support 3D printing.
 - Optional Godot `.tscn` packaging research while retaining GLB as the portable default.
+- Broader destination certification beyond the evidence needed for the first alpha.
 
 ## Near-term release milestone
 
-> Asset Assistant can create useful editable starting assets across Human, Quadruped and Avian body plans, route each through only the workflow capabilities it actually supports, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
+> Asset Assistant can create useful editable starting assets across Human, Quadruped and Avian body plans, inspect and modify an existing generated asset through a preservation-aware workflow, present the end-to-end process through a coherent artist-facing UI, validate truthfully, export through supported targets, and leave the result ready for an artist to refine.
