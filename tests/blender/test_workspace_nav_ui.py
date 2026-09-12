@@ -8,31 +8,51 @@ class _Settings:
     asset_assistant_workspace = "ANIMATE"
 
 
-class _Row:
+class _Node:
     def __init__(self):
         self.scale_y = 1.0
+        self.scale_x = 1.0
         self.calls = []
+        self.children = []
+
+    def row(self, align=False):
+        assert align is True
+        child = _Node()
+        self.children.append(child)
+        return child
+
+    def column(self, align=False):
+        assert align is True
+        child = _Node()
+        self.children.append(child)
+        return child
 
     def prop_enum(self, settings, prop, key, **kwargs):
         self.calls.append((prop, key, kwargs))
 
 
-class _Layout:
-    def __init__(self):
-        self.created_row = None
-
-    def row(self, align=False):
-        assert align is True
-        self.created_row = _Row()
-        return self.created_row
+class _Layout(_Node):
+    pass
 
 
-def test_workspace_tabs_have_distinct_icons_and_strong_height():
+def test_workspace_tabs_are_large_stacked_cards_with_distinct_icons():
     layout = _Layout()
     workspace_nav_ui._draw_workspace_nav(layout, _Settings())
 
-    row = layout.created_row
-    assert row.scale_y == 1.55
-    assert [call[1] for call in row.calls] == ["CREATE", "ANIMATE", "COMPONENTS", "EXPORT"]
-    assert [call[2]["icon"] for call in row.calls] == ["USER", "ACTION", "CUBE", "EXPORT"]
-    assert row.calls[1][2]["text"].strip() == "Animate"
+    cards = layout.children[0]
+    assert len(cards.children) == 4
+
+    expected = [
+        ("CREATE", "Create", "USER"),
+        ("ANIMATE", "Animate", "ACTION"),
+        ("COMPONENTS", "Components", "CUBE"),
+        ("EXPORT", "Export", "EXPORT"),
+    ]
+
+    for card, (key, label, icon) in zip(cards.children, expected):
+        assert card.scale_x == 1.12
+        icon_row, label_row = card.children
+        assert icon_row.scale_y == 1.9
+        assert label_row.scale_y == 1.2
+        assert icon_row.calls == [("asset_assistant_workspace", key, {"text": "", "icon": icon})]
+        assert label_row.calls == [("asset_assistant_workspace", key, {"text": label})]
