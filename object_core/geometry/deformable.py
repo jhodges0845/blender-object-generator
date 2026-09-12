@@ -123,6 +123,64 @@ def _append_branch(vertices, faces, root, centers, widths, depths):
     faces.append(tuple(rings[-1]))
 
 
+def _smoothstep(edge0, edge1, value):
+    if edge0 == edge1:
+        return 0.0
+    t = max(0.0, min(1.0, (value - edge0) / (edge1 - edge0)))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _bell(value, center, radius):
+    distance = abs(value - center)
+    if distance >= radius:
+        return 0.0
+    return 1.0 - _smoothstep(0.0, radius, distance)
+
+
+def _shape_head_surface(vertices, proportions, chin_z, crown_z):
+    """Give the generated head a neutral face instead of an elliptical shell.
+
+    The Human mesh remains one connected surface with unchanged topology.  This
+    pass only moves existing head vertices, producing broad reusable facial
+    planes for later semantic jaw/cheek/face operations.
+    """
+    result = list(vertices)
+    height = max(crown_z - chin_z, 1e-9)
+    half_depth = max(proportions.head_depth_cm * 0.5, 1e-9)
+
+    for index, vertex in enumerate(vertices):
+        x, y, z = vertex
+        if z < chin_z:
+            continue
+
+        level = max(0.0, min(1.0, (z - chin_z) / height))
+        # Only the forward half of each head ring participates. Side/back skull
+        # volume remains governed by the procedural head dimensions.
+        front = max(0.0, min(1.0, y / half_depth))
+        front = front * front
+        if front <= 0.0:
+            continue
+
+        # Neutral anatomy landmarks from bottom to top: chin, mouth, nose,
+        # recessed eye plane, brow and forehead. Magnitudes deliberately stay
+        # subtle so this is a reusable base rather than a named character.
+        chin = _bell(level, 0.10, 0.16) * 0.055
+        mouth_plane = _bell(level, 0.27, 0.12) * 0.012
+        nose = _bell(level, 0.43, 0.13) * 0.115
+        eye_recess = _bell(level, 0.58, 0.11) * -0.055
+        brow = _bell(level, 0.68, 0.11) * 0.035
+        forehead = _bell(level, 0.80, 0.16) * 0.020
+        y += proportions.head_depth_cm * (chin + mouth_plane + nose + eye_recess + brow + forehead) * front
+
+        # A small mid-face narrowing separates cheek mass from the nose bridge
+        # while preserving exact left/right symmetry.
+        midface = _bell(level, 0.46, 0.20)
+        x *= 1.0 - 0.025 * midface * front
+        result[index] = (x, y, z)
+
+    return result
+
+
 def _generate_face_atlas_uvs(vertices, faces, padding=0.08):
     """Pack deterministic per-face UV islands into the 0-1 square.
 
@@ -200,7 +258,7 @@ def generate_deformable_mesh(proportions: HumanoidProportions) -> ObjectMesh:
         ),
     )
 
-    vertices = list(body.vertices)
+    vertices = _shape_head_surface(body.vertices, p, chin_z, crown_z)
     body_faces = list(body.faces)
     openings = {
         ("hip", "left"): body_faces[_side_face_index(0, 0)],
