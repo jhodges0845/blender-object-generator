@@ -24,6 +24,9 @@ class _UI:
 class _Settings:
     object_type = "human_experimental"
     asset_assistant_create_advanced = False
+    asset_assistant_workspace = "CREATE"
+    asset_assistant_create_view = "GENERATE"
+    target = None
 
 
 class _Scene:
@@ -37,6 +40,7 @@ class _Context:
 class _Node:
     def __init__(self):
         self.scale_y = 1.0
+        self.scale_x = 1.0
         self.children = []
         self.labels = []
         self.props = []
@@ -85,7 +89,7 @@ def _walk(node):
         yield from _walk(child)
 
 
-def test_create_generate_uses_four_large_asset_tiles_and_primary_action():
+def test_create_generate_uses_four_tall_asset_tiles_and_primary_action():
     panel = _Panel()
     workspace_create_ui._draw_generate(panel, _Context(), _UI(), working_asset_ui=object())
 
@@ -99,12 +103,15 @@ def test_create_generate_uses_four_large_asset_tiles_and_primary_action():
         "box", "box",
     ]
 
-    icon_rows = [node for node in nodes if node.scale_y == 1.75 and node.enums]
+    icon_rows = [node for node in nodes if node.scale_y == 2.4 and node.enums]
     assert len(icon_rows) == 4
+
+    action_rows = [node for node in nodes if node.scale_y == 2.0 and node.operators]
+    assert len(action_rows) == 1
 
     operators = [call for node in nodes for call in node.operators]
     assert ("humanoid.generate_blockout", {"text": "Generate Human", "icon": "ADD"}) in operators
-    assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Editable Checkpoint", "icon": "FILE_FOLDER"}) in operators
+    assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Existing Asset", "icon": "FILE_FOLDER"}) in operators
 
 
 def test_create_generate_keeps_first_three_parameters_visible_and_collapses_rest():
@@ -116,3 +123,19 @@ def test_create_generate_keeps_first_three_parameters_visible_and_collapses_rest
     assert "field_waist" not in props
     assert "field_shoulders" not in props
     assert "asset_assistant_create_advanced" in props
+
+
+def test_empty_generate_screen_hides_empty_current_asset_card():
+    called = []
+    original = workspace_create_ui._ORIGINAL_ASSET_SUMMARY
+    try:
+        workspace_create_ui._ORIGINAL_ASSET_SUMMARY = lambda layout, context: called.append((layout, context))
+        workspace_create_ui._draw_contextual_asset_summary(_Node(), _Context())
+        assert called == []
+
+        _Context.scene.humanoid_settings.asset_assistant_create_view = "MODIFY"
+        workspace_create_ui._draw_contextual_asset_summary(_Node(), _Context())
+        assert len(called) == 1
+    finally:
+        _Context.scene.humanoid_settings.asset_assistant_create_view = "GENERATE"
+        workspace_create_ui._ORIGINAL_ASSET_SUMMARY = original
