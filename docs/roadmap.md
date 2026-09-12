@@ -67,11 +67,12 @@ We are starting this work now rather than waiting for the manual checkpoint. Kee
 
 ### First production proofs
 
-1. **Accessory proof active:** generated Ring/Bracelet is a separate lightweight component asset with editable radius/thickness, Static/Rigid behavior and root/bone attachment. Imported meshes use the same entry stage and lifecycle. Existing remove/replace, persistence and export paths apply; checkpoint save now validates component ownership first.
-2. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
-3. **Hair proof:** separate hair asset with low-cost static/rigid path first, then bone-driven/parent-skinned motion. Physics is optional and layered later.
-4. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
-5. Only after those proofs, generalize catalog/provider UX.
+1. **Accessory proof implemented:** generated Ring/Bracelet is a separate lightweight component asset with editable radius/thickness, Static/Rigid behavior and root/bone attachment. Imported meshes use the same entry stage and lifecycle. Existing remove/replace, persistence and export paths apply; checkpoint save validates component ownership first.
+2. **Hair low-cost proof active:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length and Static/Rigid behavior. Rigged Humans default to the head bone; unrigged assets fall back to asset-root attachment. It intentionally requires no simulation or extra bones and remains replaceable by richer hair later.
+3. **Self-rigged accessory proof:** mechanical gauntlet-style contract with independent rig/animation ownership; do not make this a game-specific provider.
+4. **Hair motion tier:** add bone-driven/parent-skinned motion to the same hair component workflow. Physics remains optional and layered later.
+5. **Clothing proof:** parent-rig-skinned garment with explicit material ownership.
+6. Only after those proofs, generalize catalog/provider UX.
 
 ### Performance rule
 
