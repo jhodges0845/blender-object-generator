@@ -36,7 +36,7 @@ def _asset_owner(obj):
     return None
 
 
-def _validate_import_candidate(root, mesh_object, record):
+def _validate_import_candidate(root, mesh_object, record, *, allow_target_hierarchy=False):
     _require_asset_root(root)
     validate_component(record)
     if not record.owns_geometry:
@@ -47,10 +47,15 @@ def _validate_import_candidate(root, mesh_object, record):
         raise ValueError("adoption requires one Blender mesh object")
     owner = _asset_owner(mesh_object)
     if owner is not None:
-        raise ValueError("mesh is already part of an Asset Assistant asset")
+        if owner != root:
+            raise ValueError("mesh belongs to a different Asset Assistant asset")
+        if not allow_target_hierarchy:
+            raise ValueError("mesh is already part of an Asset Assistant asset")
+        if "part_name" in mesh_object or "body_part" in mesh_object:
+            raise ValueError("generated body geometry cannot be adopted as a component")
     if mesh_object.children:
         raise ValueError("adoption currently requires a mesh with no child objects")
-    if mesh_object.get(_COMPONENT_ID_KEY):
+    if _COMPONENT_ID_KEY in mesh_object:
         raise ValueError("mesh is already registered as an Asset Assistant component")
     if any(item.component_id == record.component_id for item in component_records(root)):
         raise ValueError("component id is already attached to this asset")
@@ -152,11 +157,14 @@ def _imported_skin_document(mesh_object, armature):
         influences = []
         for assignment in vertex.groups:
             group = mesh_object.vertex_groups[assignment.group]
+            weight = float(assignment.weight)
+            if weight <= 0.0:
+                continue
             if group.name not in bone_names:
                 raise ValueError(
                     "skinned mesh vertex groups must map only to bones in the parent Asset Assistant rig"
                 )
-            influences.append([group.name, float(assignment.weight)])
+            influences.append([group.name, weight])
         if not influences:
             raise ValueError("skinned mesh must weight every vertex to the parent Asset Assistant rig")
         vertices.append(sorted(influences, key=lambda item: item[0]))
@@ -166,13 +174,14 @@ def _imported_skin_document(mesh_object, armature):
 def adopt_skinned_component(root, mesh_object, record, *, name=None):
     """Adopt one artist-authored weighted mesh into the parent-rig component lifecycle.
 
-    Existing vertex groups are preserved. Zero or one existing armature modifier is
-    accepted; adoption retargets or creates that modifier against the owning Asset
-    Assistant armature and persists the observed weights for later tamper detection.
+    Existing vertex groups and a valid parent-rig armature modifier are preserved.
+    If the mesh has no armature modifier, adoption adds the Asset Assistant parent
+    rig modifier after validating all existing vertex-group weights. An existing
+    armature modifier is never silently retargeted or reconfigured.
     """
     import bpy
 
-    _validate_import_candidate(root, mesh_object, record)
+    _validate_import_candidate(root, mesh_object, record, allow_target_hierarchy=True)
     if record.attachment_mode != AttachmentMode.SKINNED:
         raise ValueError("skinned adoption requires a skinned component record")
     if record.rig_binding != RigBinding.PARENT:
@@ -187,6 +196,14 @@ def adopt_skinned_component(root, mesh_object, record, *, name=None):
     armature_modifiers = [modifier for modifier in mesh_object.modifiers if modifier.type == "ARMATURE"]
     if len(armature_modifiers) > 1:
         raise ValueError("skinned adoption requires zero or one armature modifier")
+    existing_modifier = armature_modifiers[0] if armature_modifiers else None
+    if existing_modifier is not None:
+        if existing_modifier.object != armature:
+            raise ValueError("existing armature modifier must already target the owning Asset Assistant rig")
+        if not existing_modifier.use_vertex_groups or existing_modifier.use_bone_envelopes:
+            raise ValueError(
+                "existing armature modifier must already use vertex groups without bone envelopes"
+            )
 
     component_name = name or mesh_object.name or "Imported Skinned Component"
     if not isinstance(component_name, str) or not component_name.strip():
@@ -199,16 +216,7 @@ def adopt_skinned_component(root, mesh_object, record, *, name=None):
     previous_parent_bone = mesh_object.parent_bone
     previous_world = mesh_object.matrix_world.copy()
     metadata_state = _object_metadata_state(mesh_object)
-    existing_modifier = armature_modifiers[0] if armature_modifiers else None
-    modifier_state = None
     created_modifier = None
-    if existing_modifier is not None:
-        modifier_state = (
-            existing_modifier.object,
-            existing_modifier.use_vertex_groups,
-            existing_modifier.use_bone_envelopes,
-        )
-
     document = component_document(record)
     component_root = None
     try:
@@ -227,13 +235,11 @@ def adopt_skinned_component(root, mesh_object, record, *, name=None):
         mesh_object[_COMPONENT_ID_KEY] = record.component_id
         mesh_object[_PART_NAME_KEY] = mesh_object.name
 
-        modifier = existing_modifier
-        if modifier is None:
-            modifier = mesh_object.modifiers.new(name=_MODIFIER_NAME, type="ARMATURE")
-            created_modifier = modifier
-        modifier.object = armature
-        modifier.use_vertex_groups = True
-        modifier.use_bone_envelopes = False
+        if existing_modifier is None:
+            created_modifier = mesh_object.modifiers.new(name=_MODIFIER_NAME, type="ARMATURE")
+            created_modifier.object = armature
+            created_modifier.use_vertex_groups = True
+            created_modifier.use_bone_envelopes = False
 
         documents = _documents(root)
         documents.append(document)
@@ -247,12 +253,11 @@ def adopt_skinned_component(root, mesh_object, record, *, name=None):
         else:
             root[_COMPONENTS_KEY] = previous_registry
 
-        if created_modifier is not None and created_modifier.name in mesh_object.modifiers:
-            mesh_object.modifiers.remove(created_modifier)
-        elif existing_modifier is not None and modifier_state is not None:
-            existing_modifier.object = modifier_state[0]
-            existing_modifier.use_vertex_groups = modifier_state[1]
-            existing_modifier.use_bone_envelopes = modifier_state[2]
+        if created_modifier is not None:
+            try:
+                mesh_object.modifiers.remove(created_modifier)
+            except (ReferenceError, RuntimeError):
+                pass
 
         _restore_object_metadata(mesh_object, metadata_state)
         mesh_object.parent = previous_parent
