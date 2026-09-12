@@ -12,6 +12,8 @@ _ASSET_ID = "asset_assistant_asset_id"
 _RIG_ID = "asset_assistant_rig_id"
 _EXPORT_NAME = "asset_assistant_export_name"
 _GENERATED_CLIP = "asset_assistant_clip"
+_GENERATED_RIG = "asset_assistant_rig"
+_GENERATED_MATERIAL = "asset_assistant_generated_material"
 
 
 def _identity_matrix(matrix):
@@ -83,10 +85,16 @@ def _rig_state(root, warnings):
     if not owned:
         warnings.append("The attached rig is not marked as Asset Assistant-generated.")
     data = rig.animation_data
+    generated = set(generated_actions(root))
     if data and (data.nla_tracks or data.drivers):
         warnings.append("The rig has NLA tracks or drivers that Modify must preserve.")
+        owned = False
+    if data and data.action and data.action not in generated:
+        warnings.append("The rig has an artist-owned active action that Modify must preserve.")
+        owned = False
     if any(bone.constraints for bone in rig.pose.bones):
         warnings.append("The rig has pose constraints that Modify must preserve.")
+        owned = False
     return True, owned
 
 
@@ -103,8 +111,12 @@ def _material_state(root, provider, values, warnings):
     except (KeyError, TypeError, ValueError):
         warnings.append("Provider materials cannot be reproduced from saved parameters.")
         return True, False
+    # New generated materials carry an explicit ownership marker, so Blender's
+    # automatic .001/.002 name suffixes do not turn a second generated asset into
+    # an ambiguous one. Exact names remain a compatibility path for older files.
     actual_names = {material.name for material in materials}
-    owned = actual_names == expected_names
+    marked_generated = all(bool(material.get(_GENERATED_MATERIAL)) for material in materials)
+    owned = marked_generated or actual_names == expected_names
     if not owned:
         warnings.append("Material assignments differ from the generated provider materials.")
     return True, owned
@@ -165,24 +177,24 @@ def inspect_generated_asset(root):
     )
 
 
-def apply_metadata_modification(root, plan):
-    """Apply an approved metadata-only plan transactionally.
-
-    Destructive provider-parameter regeneration is intentionally not handled here;
-    callers must not silently turn a metadata apply into scene replacement.
-    """
+def _check_plan_matches(root, plan):
     if not isinstance(plan, ModificationPlan):
         raise TypeError("plan must be a ModificationPlan")
     if plan.blockers:
         raise ValueError("Modification plan has blockers: " + "; ".join(plan.blockers))
-    if plan.rebuild_components or plan.requested_parameter_changes:
-        raise ValueError("This apply path only supports metadata-only modifications.")
-
     snapshot = inspect_generated_asset(root)
     if snapshot.asset_id != plan.asset_id:
         raise ValueError("Modification plan no longer matches the selected asset.")
     if snapshot.provider_key != plan.provider_key:
         raise ValueError("Modification plan provider no longer matches the selected asset.")
+    return snapshot
+
+
+def apply_metadata_modification(root, plan):
+    """Apply an approved metadata-only plan transactionally."""
+    snapshot = _check_plan_matches(root, plan)
+    if plan.rebuild_components or plan.requested_parameter_changes:
+        raise ValueError("This apply path only supports metadata-only modifications.")
     if plan.requested_animation_renames and not snapshot.owns_animations:
         raise ValueError("Generated animation ownership is ambiguous; nothing was changed.")
 
@@ -193,9 +205,8 @@ def apply_metadata_modification(root, plan):
     if missing:
         raise ValueError("Modification plan references missing generated animation: " + missing[0])
 
-    final_names = {}
-    for clip_id, action in actions.items():
-        final_names[clip_id] = requested.get(clip_id, clip_export_name(action)).strip()
+    final_names = {clip_id: requested.get(clip_id, clip_export_name(action)).strip()
+                   for clip_id, action in actions.items()}
     if any(not name for name in final_names.values()):
         raise ValueError("Animation export name cannot be empty.")
     if len(set(final_names.values())) != len(final_names):
@@ -216,3 +227,185 @@ def apply_metadata_modification(root, plan):
                 action[_EXPORT_NAME] = old_value
         raise
     return inspect_generated_asset(root)
+
+
+def _staged_asset(root, provider, values, snapshot):
+    """Build replacement generated components before touching the live asset."""
+    import bpy
+    from .adapter import create_character
+
+    if bpy.context.scene.objects.get(root.name) != root or bpy.context.mode != "OBJECT":
+        raise ValueError("Modify regeneration requires the asset in the active scene and Object Mode.")
+    mesh = provider.mesh(values)
+    materials = provider.materials(values) if snapshot.has_materials else ()
+    skeleton = None
+    weights = None
+    if snapshot.has_rig:
+        skeleton = provider.skeleton(values)
+        if provider.uses_skin_weights:
+            weights = provider.skin_weights(mesh, values)
+    staged = create_character(
+        mesh,
+        name=root.name + ".ModifyStaging",
+        scene=bpy.context.scene,
+        skeleton=skeleton,
+        skin_weights=weights,
+        materials=materials,
+    )
+    staged["object_type"] = provider.key
+    for key, value in values.items():
+        staged[key] = value
+    return staged
+
+
+def _remove_staged_root(staged, *, remove_children=True):
+    import bpy
+
+    collections = tuple(staged.users_collection)
+    if remove_children:
+        for child in tuple(staged.children):
+            bpy.data.objects.remove(child, do_unlink=True)
+    bpy.data.objects.remove(staged, do_unlink=True)
+    for collection in collections:
+        if collection.users == 0:
+            bpy.data.collections.remove(collection)
+
+
+def apply_parameter_modification(root, plan):
+    """Stage and swap provider-owned generated components for parameter changes."""
+    import bpy
+
+    snapshot = _check_plan_matches(root, plan)
+    if not plan.requested_parameter_changes:
+        raise ValueError("This apply path requires at least one provider parameter change.")
+    if not plan.rebuild_components or "geometry" not in plan.rebuild_components:
+        raise ValueError("Parameter modification plan must rebuild generated geometry.")
+    if plan.requested_animation_renames:
+        raise ValueError("Apply animation renames separately before parameter regeneration.")
+
+    ownership = {
+        "geometry": snapshot.owns_geometry,
+        "rig": snapshot.owns_rig,
+        "materials": snapshot.owns_materials,
+        "animations": snapshot.owns_animations,
+    }
+    for component in plan.rebuild_components:
+        if not ownership.get(component, False):
+            raise ValueError("Generated " + component + " ownership is ambiguous; nothing was changed.")
+
+    provider = get_provider(snapshot.provider_key)
+    values = snapshot.parameter_values()
+    values.update(dict(plan.requested_parameter_changes))
+    staged = _staged_asset(root, provider, values, snapshot)
+
+    old_meshes = [obj for obj in root.children if obj.type == "MESH"]
+    old_rigs = [obj for obj in root.children if obj.type == "ARMATURE"]
+    staged_meshes = [obj for obj in staged.children if obj.type == "MESH"]
+    staged_rigs = [obj for obj in staged.children if obj.type == "ARMATURE"]
+    old_rig = old_rigs[0] if old_rigs else None
+    new_rig = staged_rigs[0] if staged_rigs else None
+    actions = tuple(generated_actions(root))
+
+    if snapshot.has_rig and (len(old_rigs) != 1 or len(staged_rigs) != 1):
+        _remove_staged_root(staged)
+        raise ValueError("Rig staging did not produce exactly one generated armature.")
+    if snapshot.has_animations:
+        if not snapshot.has_rig or old_rig is None or new_rig is None:
+            _remove_staged_root(staged)
+            raise ValueError("Generated animations require a staged rig for safe regeneration.")
+        if {bone.name for bone in old_rig.data.bones} != {bone.name for bone in new_rig.data.bones}:
+            _remove_staged_root(staged)
+            raise ValueError("Provider bone identities changed; generated animations cannot be preserved safely.")
+
+    original_collection = root.users_collection[0] if root.users_collection else None
+    if original_collection is None:
+        _remove_staged_root(staged)
+        raise ValueError("Generated asset is not linked to a collection.")
+
+    old_children = tuple(old_meshes + old_rigs)
+    old_names = {obj: obj.name for obj in old_children}
+    parameter_before = {key: root.get(key) for key, _ in plan.requested_parameter_changes}
+    action_metadata = {action: (action.get(_RIG_ID), action.get(_GENERATED_RIG)) for action in actions}
+    old_active = old_rig.animation_data.action if old_rig and old_rig.animation_data else None
+
+    try:
+        for obj in old_children:
+            obj.name = obj.name + ".ModifyBackup"
+            obj.parent = staged
+
+        for obj in tuple(staged_meshes + staged_rigs):
+            if original_collection not in obj.users_collection:
+                original_collection.objects.link(obj)
+            obj.parent = root
+
+        old_mesh_by_part = {obj.get("part_name", obj.get("body_part")): obj for obj in old_meshes}
+        for obj in staged_meshes:
+            part = obj.get("part_name", obj.get("body_part"))
+            if part in old_mesh_by_part:
+                obj.name = old_names[old_mesh_by_part[part]]
+        if old_rig is not None and new_rig is not None:
+            new_rig.name = old_names[old_rig]
+
+        for key, value in plan.requested_parameter_changes:
+            root[key] = value
+
+        if actions:
+            new_rig_id = new_rig.get(_RIG_ID)
+            if not new_rig_id:
+                raise ValueError("Staged rig is missing its generated ownership id.")
+            for action in actions:
+                action[_RIG_ID] = new_rig_id
+                action[_GENERATED_RIG] = new_rig.name
+            data = new_rig.animation_data_create()
+            if old_active in actions:
+                data.action = old_active
+                if hasattr(old_active, "slots") and len(old_active.slots):
+                    data.action_slot = old_active.slots[0]
+
+        result = inspect_generated_asset(root)
+        if not result.owns_geometry:
+            raise RuntimeError("Replacement geometry failed post-apply ownership validation.")
+        if snapshot.has_rig and not result.owns_rig:
+            raise RuntimeError("Replacement rig failed post-apply ownership validation.")
+        if snapshot.has_materials and not result.owns_materials:
+            raise RuntimeError("Replacement materials failed post-apply ownership validation.")
+        if snapshot.has_animations and not result.owns_animations:
+            raise RuntimeError("Generated animations failed post-apply ownership validation.")
+    except Exception:
+        for obj in tuple(staged_meshes + staged_rigs):
+            try:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            except ReferenceError:
+                pass
+        for obj in old_children:
+            try:
+                obj.parent = root
+                obj.name = old_names[obj]
+                if original_collection not in obj.users_collection:
+                    original_collection.objects.link(obj)
+            except ReferenceError:
+                pass
+        for key, old_value in parameter_before.items():
+            if old_value is None:
+                if key in root:
+                    del root[key]
+            else:
+                root[key] = old_value
+        for action, (old_rig_id, old_rig_name) in action_metadata.items():
+            if old_rig_id is None:
+                if _RIG_ID in action:
+                    del action[_RIG_ID]
+            else:
+                action[_RIG_ID] = old_rig_id
+            if old_rig_name is None:
+                if _GENERATED_RIG in action:
+                    del action[_GENERATED_RIG]
+            else:
+                action[_GENERATED_RIG] = old_rig_name
+        _remove_staged_root(staged, remove_children=False)
+        raise
+
+    for obj in old_children:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    _remove_staged_root(staged, remove_children=False)
+    return result

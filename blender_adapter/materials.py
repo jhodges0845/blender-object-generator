@@ -5,6 +5,7 @@ from .targets import asset_objects
 
 
 _GENERATED_TEXTURE_MARKER = 'asset_assistant_generated_texture'
+_GENERATED_MATERIAL_MARKER = 'asset_assistant_generated_material'
 
 
 def _principled_material(name, base_color, metallic, roughness, base_color_texture=None):
@@ -57,6 +58,7 @@ def apply_generated_materials(root, specs):
             spec.roughness,
             spec.base_color_texture,
         )
+        material[_GENERATED_MATERIAL_MARKER] = True
         created.append(material)
         for part_name in spec.part_names:
             obj = by_part[part_name]
