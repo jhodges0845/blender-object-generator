@@ -10,24 +10,18 @@ def _section_header(layout, title, subtitle="", icon="NONE"):
     """Create a compact Blender-native section heading."""
     layout.label(text=title, icon=icon)
     if subtitle:
-        note = layout.row()
-        note.active = False
-        note.label(text=subtitle)
+        layout.label(text=subtitle)
 
 
 def _asset_summary(layout, context):
-    """Render compact current-asset context without dominating the empty state."""
     settings = getattr(context.scene, "humanoid_settings", None)
     target = getattr(settings, "target", None) if settings else None
     card = layout.box()
     title = card.row(align=True)
     title.label(text="CURRENT ASSET", icon="OBJECT_DATA")
     if target is None:
-        empty = card.row()
-        empty.active = False
-        empty.label(text="Nothing selected yet")
+        card.label(text="Nothing selected yet")
         return
-
     title.label(text=target.name)
     children = tuple(target.children)
     has_rig = any(obj.type == "ARMATURE" for obj in children)
@@ -88,39 +82,31 @@ def _draw_artist_modify(panel, context, ui, modify_ui):
     layout = panel.layout
     settings = context.scene.humanoid_settings
     root = modify_ui._character(context)
-
     if root is None:
         empty = layout.box()
         empty.label(text="Choose an Asset Assistant asset to edit.", icon="INFO")
         empty.prop(settings, "target", text="Asset")
         return
-
     try:
         provider = modify_ui.provider_for(root)
     except (ValueError, TypeError, AttributeError) as error:
         layout.label(text=str(error), icon="ERROR")
         return
-
     intro = layout.box()
-    row = intro.row(align=True)
-    row.label(text=root.name, icon="OBJECT_DATA")
-    row.label(text=provider.label)
+    intro.label(text="SOURCE VALUES", icon="IMPORT")
+    intro.label(text=provider.label + " settings from " + root.name)
     load = intro.row(); load.scale_y = 1.2
     load.operator("asset_assistant.modify_inspect", text="Load Current Values", icon="IMPORT")
-
     params = layout.box()
     _section_header(params, "ADJUSTMENTS", "Tune the asset, preview the impact, then apply", "MODIFIER")
     for field in provider.parameters:
         params.prop(settings, modify_ui._field_name(ui, provider, field))
-
     actions = layout.box()
     preview = actions.row(); preview.scale_y = 1.2
     preview.operator("asset_assistant.modify_preview", text="Preview Changes", icon="PREVIEW_RANGE")
     apply_row = actions.row(); apply_row.scale_y = 1.45
     apply_row.operator("asset_assistant.modify_apply", text="Apply Changes", icon="CHECKMARK")
-    safety = actions.row(); safety.active = False
-    safety.label(text="Ownership is re-checked before anything changes.")
-
+    actions.label(text="Ownership is re-checked before anything changes.")
     status = context.scene.get(modify_ui._STATUS_KEY)
     summary = context.scene.get(modify_ui._SUMMARY_KEY, "")
     if status or summary:
@@ -130,18 +116,28 @@ def _draw_artist_modify(panel, context, ui, modify_ui):
             report.label(text=status.replace("_", " ").title())
         for line in str(summary).splitlines():
             report.label(text=line, icon="ERROR" if line.startswith("Blocked:") else "NONE")
-
     advanced = layout.box()
     advanced.prop(settings, "asset_assistant_modify_advanced", text="Advanced / External Edit", toggle=True)
     if settings.asset_assistant_modify_advanced:
-        note = advanced.row(); note.active = False
-        note.label(text="Portable handoff for external tools or assisted editing")
+        advanced.label(text="Portable handoff for external tools or assisted editing")
         advanced.operator("asset_assistant.modify_export_inspection", text="Export Inspection File", icon="EXPORT")
         advanced.operator("asset_assistant.modify_import_request", text="Import Change File", icon="IMPORT")
         advanced.operator("asset_assistant.modify_apply_imported", text="Apply Imported Changes", icon="CHECKMARK")
         imported_path = context.scene.get(modify_ui._IMPORTED_PATH_KEY)
         if imported_path:
             advanced.label(text="Loaded: " + Path(imported_path).name)
+
+
+def _draw_asset_type_picker(layout, settings, ui):
+    box = layout.box()
+    box.label(text="BASE ASSET", icon="OBJECT_DATA")
+    rows = (("human_experimental", "quadruped"), ("avian", "box"))
+    for keys in rows:
+        row = box.row(align=True); row.scale_y = 1.25
+        for key in keys:
+            provider = ui.get_provider(key)
+            row.prop_enum(settings, "object_type", key, text=provider.label)
+    return box
 
 
 def _draw_create(panel, context, ui, modify_ui, working_asset_ui):
@@ -151,23 +147,15 @@ def _draw_create(panel, context, ui, modify_ui, working_asset_ui):
     panel.layout.separator()
     if settings.asset_assistant_create_view == "GENERATE":
         _section_header(panel.layout, "BUILD A NEW ASSET", "Pick a base, shape it, then generate", "OUTLINER_OB_MESH")
-        selector = panel.layout.box()
-        selector.label(text="BASE ASSET", icon="OBJECT_DATA")
-        selector.prop(settings, "object_type", text="Type")
+        _draw_asset_type_picker(panel.layout, settings, ui)
         provider = ui.get_provider(settings.object_type)
-        provider_note = selector.row(); provider_note.active = False
-        provider_note.label(text="Starting point: " + provider.label)
-
         params = panel.layout.box()
         params.label(text="SHAPE & PROPORTIONS", icon="PREFERENCES")
         for field in provider.parameters:
             params.prop(settings, ui._field_name(provider, field))
-
         action = panel.layout.row(); action.scale_y = 1.65
         action.operator("humanoid.generate_blockout", text="Generate " + provider.label, icon="ADD")
-        hint = panel.layout.row(); hint.active = False
-        hint.label(text="Creates a new editable Asset Assistant model.")
-
+        panel.layout.label(text="Creates a new editable Asset Assistant model.")
         if working_asset_ui is not None:
             panel.layout.separator()
             resume = panel.layout.box()
@@ -189,8 +177,7 @@ def _draw_animate(panel, context, ui, animation_names_ui, animation_adoption_ui)
     target = getattr(context.scene.humanoid_settings, "target", None)
     if target is not None:
         panel.layout.separator()
-        clip_box = panel.layout.box()
-        clip_box.label(text="CLIP LIBRARY", icon="ACTION")
+        clip_box = panel.layout.box(); clip_box.label(text="CLIP LIBRARY", icon="ACTION")
         animation_names_ui.ASSET_ASSISTANT_PT_animation_names.draw(type("ClipLibraryProxy", (), {"layout": clip_box})(), context)
     if animation_adoption_ui is not None:
         panel.layout.separator(); _draw_animation_adoption(panel.layout.box(), target)
@@ -235,16 +222,19 @@ def _draw_export(panel, context, ui, working_asset_ui):
         checkpoint.operator("asset_assistant.save_editable_checkpoint", text="Validate + Save Checkpoint", icon="FILE_TICK")
 
 
+def _draw_workspace_nav(layout, settings):
+    top = layout.row(align=True); top.scale_y = 1.25
+    top.prop_enum(settings, "asset_assistant_workspace", "CREATE", text="Create")
+    top.prop_enum(settings, "asset_assistant_workspace", "ANIMATE", text="Animate")
+    bottom = layout.row(align=True); bottom.scale_y = 1.25
+    bottom.prop_enum(settings, "asset_assistant_workspace", "COMPONENTS", text="Components")
+    bottom.prop_enum(settings, "asset_assistant_workspace", "EXPORT", text="Export")
+
+
 def _draw_workspace(panel, context, ui, modify_ui, animation_names_ui, working_asset_ui, component_adoption_ui, hair_component_ui, clothing_component_ui, animation_adoption_ui, self_rigged_accessory):
     layout = panel.layout; settings = context.scene.humanoid_settings
-    hero = layout.box()
-    title = hero.row(align=True); title.scale_y = 1.35
-    title.label(text="Asset Assistant", icon="TOOL_SETTINGS")
-    subtitle = hero.row(); subtitle.active = False
-    subtitle.label(text="Production workspace for Blender")
-    nav = layout.row(align=True); nav.scale_y = 1.35
-    nav.prop(settings, "asset_assistant_workspace", expand=True)
-    layout.separator(factor=0.6)
+    _draw_workspace_nav(layout, settings)
+    layout.separator(factor=0.5)
     _asset_summary(layout, context)
     layout.separator()
     if settings.asset_assistant_workspace == "CREATE": _draw_create(panel, context, ui, modify_ui, working_asset_ui)
@@ -261,7 +251,7 @@ def _hide_legacy_panel(panel_type):
 def prepare(ui, modify_ui, animation_names_ui, working_asset_ui=None, component_adoption_ui=None, hair_component_ui=None, clothing_component_ui=None, animation_adoption_ui=None, self_rigged_accessory=None):
     annotations = ui.HUMANOID_PG_settings.__annotations__
     if "asset_assistant_workspace" not in annotations:
-        annotations["asset_assistant_workspace"] = ui.EnumProperty(name="Workspace", default="CREATE", items=[("CREATE", "Create", "Create, modify or rig an asset"), ("ANIMATE", "Animate", "Create, preview and manage animation clips"), ("COMPONENTS", "Parts", "Manage components, hair, clothing and accessories"), ("EXPORT", "Export", "Validate and export for a target application")])
+        annotations["asset_assistant_workspace"] = ui.EnumProperty(name="Workspace", default="CREATE", items=[("CREATE", "Create", "Create, modify or rig an asset"), ("ANIMATE", "Animate", "Create, preview and manage animation clips"), ("COMPONENTS", "Components", "Manage components, hair, clothing and accessories"), ("EXPORT", "Export", "Validate and export for a target application")])
     if "asset_assistant_create_view" not in annotations:
         annotations["asset_assistant_create_view"] = ui.EnumProperty(name="Create View", default="GENERATE", items=[("GENERATE", "Generate", "Create a new base asset"), ("MODIFY", "Modify", "Safely modify the current asset"), ("RIG", "Rig", "Rig or pose the current asset")])
     if "asset_assistant_modify_advanced" not in annotations:
