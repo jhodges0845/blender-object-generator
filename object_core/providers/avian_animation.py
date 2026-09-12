@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Portable Avian idle and flight animation generation."""
+"""Portable Avian idle, walk, and flight animation generation."""
 
 from dataclasses import dataclass
 from math import cos, isfinite, pi, radians
 from typing import Tuple
 
-from ..animation import IdleClip, RotationTrack
+from ..animation import IdleClip, RotationTrack, WalkClip
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,26 @@ def generate_avian_idle(duration=4.0, strength=1.0):
         RotationTrack("tail.2", (1.0, 0.0, 0.0), _wave(duration, 3.5, strength, phase=pi)),
     )
     return IdleClip(float(duration), tracks)
+
+
+def generate_avian_walk(duration=1.2, strength=1.0):
+    """Return a short-step in-place bird walk with alternating legs and body follow-through."""
+    _validate(duration, strength, 0.5, 4.0)
+    tracks = (
+        RotationTrack("leg.upper.left", (1.0, 0.0, 0.0), _wave(duration, 20.0, strength)),
+        RotationTrack("leg.upper.right", (1.0, 0.0, 0.0), _wave(duration, 20.0, strength, phase=pi)),
+        RotationTrack("leg.lower.left", (1.0, 0.0, 0.0), _wave(duration, 14.0, strength, phase=pi / 3)),
+        RotationTrack("leg.lower.right", (1.0, 0.0, 0.0), _wave(duration, 14.0, strength, phase=4 * pi / 3)),
+        RotationTrack("foot.left", (1.0, 0.0, 0.0), _wave(duration, 10.0, strength, phase=2 * pi / 3)),
+        RotationTrack("foot.right", (1.0, 0.0, 0.0), _wave(duration, 10.0, strength, phase=5 * pi / 3)),
+        RotationTrack("spine", (0.0, 0.0, 1.0), _wave(duration, 3.0, strength, phase=pi / 2)),
+        RotationTrack("neck", (1.0, 0.0, 0.0), _wave(duration, 4.0, strength, phase=pi)),
+        RotationTrack("head", (1.0, 0.0, 0.0), _wave(duration, 5.0, strength, phase=0.0)),
+        RotationTrack("tail.1", (0.0, 0.0, 1.0), _wave(duration, 5.0, strength, phase=pi)),
+        RotationTrack("wing.upper.left", (0.0, 1.0, 0.0), _wave(duration, 2.0, strength, phase=pi)),
+        RotationTrack("wing.upper.right", (0.0, 1.0, 0.0), _wave(duration, -2.0, strength, phase=pi)),
+    )
+    return WalkClip(float(duration), tracks)
 
 
 def generate_avian_flight(duration=0.9, strength=1.0):

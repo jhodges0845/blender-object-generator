@@ -13,7 +13,7 @@ except ModuleNotFoundError:
     bpy = None
 
 from blender_adapter.adapter import create_character
-from blender_adapter.animation import add_idle, add_locomotion, activate_generated_action
+from blender_adapter.animation import add_flight, add_idle, add_locomotion, activate_generated_action
 from blender_adapter.materials import prepare_materials
 from blender_adapter.targets import get_adapter
 from blender_adapter.workflow import add_basic_rig
@@ -46,7 +46,8 @@ class AvianExportTests(unittest.TestCase):
         self.rig = add_basic_rig(self.root, bpy.context)
         prepare_materials(self.root)
         add_idle(self.root, self.scene)
-        add_locomotion(self.root, self.scene, duration=0.9)
+        add_locomotion(self.root, self.scene, duration=1.2)
+        add_flight(self.root, self.scene, duration=0.9)
         self.active = activate_generated_action(self.root, 'Idle')
         self.temp = TemporaryDirectory()
 
@@ -61,14 +62,14 @@ class AvianExportTests(unittest.TestCase):
                 data.remove(item, do_unlink=True)
         self.temp.cleanup()
 
-    def test_godot_glb_contains_avian_idle_and_flight(self):
+    def test_godot_glb_contains_avian_idle_walk_and_flight(self):
         adapter = get_adapter('GODOT', asset_use='ANIMATED')
         result = adapter.export(self.root, bpy.context, Path(self.temp.name) / 'avian.glb')
 
         self.assertTrue(result.success, result.issues)
         document = read_glb(result.filepath)
         animations = document.get('animations', [])
-        self.assertEqual({animation.get('name') for animation in animations}, {'Idle', 'Flight'})
+        self.assertEqual({animation.get('name') for animation in animations}, {'Idle', 'Walk', 'Flight'})
         self.assertTrue(document.get('skins'))
         self.assertTrue(document.get('meshes'))
         self.assertIs(self.rig.animation_data.action, self.active)
@@ -81,6 +82,7 @@ class AvianExportTests(unittest.TestCase):
         self.assertTrue(result.success, result.issues)
         payload = Path(result.filepath).read_bytes()
         self.assertIn(b'Idle', payload)
+        self.assertIn(b'Walk', payload)
         self.assertIn(b'Flight', payload)
         self.assertIn(b'Deformer', payload)
         self.assertIn(b'Cluster', payload)

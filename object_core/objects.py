@@ -48,8 +48,8 @@ def validate_provider(provider):
         raise ValueError(provider.key + ": idle support requires rig support")
     if supports_locomotion and not provider.supports_rig:
         raise ValueError(provider.key + ": locomotion support requires rig support")
-    if supports_flight and not supports_locomotion:
-        raise ValueError(provider.key + ": flight support requires locomotion support")
+    if supports_flight and not provider.supports_rig:
+        raise ValueError(provider.key + ": flight support requires rig support")
     if supports_run and not provider.supports_rig:
         raise ValueError(provider.key + ": run support requires rig support")
     if provider.uses_skin_weights and not provider.supports_rig:
@@ -65,6 +65,8 @@ def validate_provider(provider):
         required.append("idle")
     if supports_locomotion:
         required.append("locomotion")
+    if supports_flight:
+        required.append("flight")
     if supports_run:
         required.append("run")
     if provider.uses_skin_weights:

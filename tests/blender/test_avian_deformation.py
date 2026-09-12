@@ -86,6 +86,9 @@ class AvianDeformationTests(unittest.TestCase):
         for bone_name, axis in (
             ("wing.upper.left", "x"),
             ("wing.lower.left", "x"),
+            ("leg.upper.left", "x"),
+            ("leg.lower.left", "x"),
+            ("foot.left", "x"),
             ("tail.1", "x"),
             ("tail.2", "x"),
             ("neck", "x"),
@@ -99,6 +102,19 @@ class AvianDeformationTests(unittest.TestCase):
         target = self._indices_weighted_to("wing.upper.left", minimum=0.20)
         opposite = self._indices_weighted_to("wing.lower.right", minimum=0.20)
         bone = self.rig.pose.bones["wing.upper.left"]
+        bone.rotation_mode = "XYZ"
+        bone.rotation_euler.x = 0.40
+        after = self._evaluated_points()
+        target_move = max((after[index] - before[index]).length for index in target)
+        opposite_move = max((after[index] - before[index]).length for index in opposite)
+        self.assertGreater(target_move, 0.003)
+        self.assertLess(opposite_move, target_move * 0.20)
+
+    def test_leg_motion_stays_local_to_its_side(self):
+        before = self._evaluated_points()
+        target = self._indices_weighted_to("leg.upper.left", minimum=0.20)
+        opposite = self._indices_weighted_to("leg.lower.right", minimum=0.20)
+        bone = self.rig.pose.bones["leg.upper.left"]
         bone.rotation_mode = "XYZ"
         bone.rotation_euler.x = 0.40
         after = self._evaluated_points()

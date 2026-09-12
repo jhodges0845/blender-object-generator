@@ -5,7 +5,7 @@ from math import isfinite
 
 from ..models import ImageTextureSpec, MaterialSpec
 from .base import Parameter
-from .avian_animation import generate_avian_flight, generate_avian_idle
+from .avian_animation import generate_avian_flight, generate_avian_idle, generate_avian_walk
 from .avian_geometry import generate_avian_deformable_mesh
 from .avian_rigging import generate_avian_skeleton, generate_avian_skin_weights
 
@@ -40,7 +40,7 @@ class AvianProvider:
     supports_rig = supports_materials = supports_idle = supports_locomotion = True
     supports_flight = True
     supports_run = False
-    locomotion_label = "Flight"
+    locomotion_label = "Walk"
     uses_skin_weights = True
     parameters = AVIAN_PARAMETERS
 
@@ -61,6 +61,9 @@ class AvianProvider:
         return generate_avian_idle(duration, strength)
 
     def locomotion(self, duration, strength):
+        return generate_avian_walk(duration, strength)
+
+    def flight(self, duration, strength):
         return generate_avian_flight(duration, strength)
 
     def materials(self, values):

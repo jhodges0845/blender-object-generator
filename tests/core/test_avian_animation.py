@@ -2,17 +2,22 @@
 import unittest
 
 from object_core.objects import get_provider
-from object_core.providers.avian_animation import generate_avian_flight, generate_avian_idle
+from object_core.providers.avian_animation import (
+    generate_avian_flight,
+    generate_avian_idle,
+    generate_avian_walk,
+)
 
 
 class AvianAnimationTests(unittest.TestCase):
-    def test_provider_exposes_idle_and_flight_without_run(self):
+    def test_provider_exposes_idle_walk_and_flight_without_run(self):
         provider = get_provider("avian")
         self.assertTrue(provider.supports_idle)
         self.assertTrue(provider.supports_locomotion)
         self.assertTrue(provider.supports_flight)
         self.assertFalse(provider.supports_run)
-        self.assertEqual(provider.locomotion_label, "Flight")
+        self.assertEqual(provider.locomotion_label, "Walk")
+        self.assertTrue(callable(provider.flight))
 
     def test_idle_is_closed_and_moves_head_wings_and_tail(self):
         clip = generate_avian_idle(4.0, 1.0)
@@ -22,6 +27,21 @@ class AvianAnimationTests(unittest.TestCase):
                          "tail.1", "tail.2"}.issubset(by_bone))
         for track in clip.tracks:
             self.assertAlmostEqual(track.keys[0][1], track.keys[-1][1])
+
+    def test_walk_is_closed_and_alternates_leg_chains(self):
+        clip = generate_avian_walk(1.2, 1.0)
+        stronger = generate_avian_walk(1.2, 2.0)
+        self.assertEqual(clip, generate_avian_walk(1.2, 1.0))
+        by_bone = {track.bone: track for track in clip.tracks}
+        self.assertTrue({"leg.upper.left", "leg.upper.right",
+                         "leg.lower.left", "leg.lower.right",
+                         "foot.left", "foot.right", "spine", "neck", "head"}.issubset(by_bone))
+        left = by_bone["leg.upper.left"]
+        right = by_bone["leg.upper.right"]
+        self.assertAlmostEqual(left.keys[0][1], -right.keys[0][1])
+        for base, doubled in zip(clip.tracks, stronger.tracks):
+            self.assertAlmostEqual(base.keys[0][1], base.keys[-1][1])
+            self.assertAlmostEqual(doubled.keys[0][1], 2 * base.keys[0][1])
 
     def test_flight_is_closed_symmetric_and_uses_both_wing_segments(self):
         clip = generate_avian_flight(0.9, 1.0)
@@ -42,6 +62,7 @@ class AvianAnimationTests(unittest.TestCase):
 
     def test_animation_validation_rejects_shared_control_outliers(self):
         for generator, bad_durations in ((generate_avian_idle, (0.5, 21.0)),
+                                         (generate_avian_walk, (0.4, 4.1)),
                                          (generate_avian_flight, (0.4, 4.1))):
             for duration in bad_durations:
                 with self.subTest(generator=generator.__name__, duration=duration):

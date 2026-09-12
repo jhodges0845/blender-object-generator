@@ -4,7 +4,7 @@
 from math import ceil
 from bpy.props import EnumProperty
 
-from .animation import activate_generated_action, add_locomotion, generated_action
+from .animation import activate_generated_action, add_flight, generated_action
 
 
 def prepare(ui):
@@ -40,8 +40,8 @@ def prepare(ui):
                 end = max(context.scene.frame_start, ceil(action.frame_range[1]) - 1)
                 message = 'Flight selected. Existing keys were preserved.'
             else:
-                action, end = add_locomotion(root, context.scene,
-                                             settings.walk_duration, settings.walk_strength)
+                action, end = add_flight(root, context.scene,
+                                         settings.walk_duration, settings.walk_strength)
                 message = 'Flight created. Press Play to preview.'
         except (ValueError, TypeError, RuntimeError) as error:
             self.report({'ERROR'}, str(error))
