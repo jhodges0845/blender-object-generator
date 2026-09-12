@@ -21,23 +21,25 @@ Example request fragment:
 ```json
 {
   "operation": "shape",
-  "target": "beak",
+  "target": "face",
   "arguments": {
-    "profile": "hooked",
-    "amount": 0.8
+    "profile": "defined",
+    "amount": 0.6
   }
 }
 ```
 
-The shared planner validates that the selected provider exposes `beak`, allows `shape`, and declares that pair executable. It does not decide what a hooked beak means geometrically.
+The shared planner validates that the selected provider exposes `face`, allows `shape`, and declares that pair executable. It does not decide what a defined face means geometrically.
 
 ## Provider manifests
 
-The semantic target manifest describes the provider's editable vocabulary. Inspection export now distinguishes declared operations from `executable_operations`, so an external editor can avoid returning operations the installed provider cannot yet apply.
+The semantic target manifest describes the provider's editable vocabulary. Inspection export distinguishes declared operations from `executable_operations`, so an external editor can avoid returning operations the installed provider cannot yet apply.
 
-The first concrete semantic geometry executor is Avian. It supports topology-preserving `shape` and `scale` operations over generated body, chest, head, beak, wings, tail, legs, and feet. Provider-owned shape profiles currently include hooked beak, powerful chest, broad wings, and fan tail. Surface/plumage operations remain declared but explicitly blocked until their apply path exists.
+Avian supports topology-preserving `shape` and `scale` operations over generated body, chest, head, beak, wings, tail, legs, and feet. Provider-owned shape profiles include hooked beak, powerful chest, broad wings, and fan tail. Surface/plumage operations remain declared but explicitly blocked until their apply path exists.
 
-Human and Quadruped retain their semantic manifests but remain blocked for semantic mutation until their own provider executors are implemented. Shared Modify code does not infer anatomy for them.
+Human now supports topology-preserving `shape` and `scale` operations over body, torso, shoulders, head, face, left/right arms, and left/right legs. Provider-owned shape profiles currently include athletic torso, broad shoulders, oval head, narrow or defined face, lean arms, and athletic legs. These profiles are building blocks rather than named-character presets; an external Modify file can compose them with direct axis scaling and offsets to describe a specific character.
+
+Human component targets such as hair, clothing, and accessories remain declared but non-executable. They are the next major step required for a complete generic Human -> finished character workflow. Quadruped semantic execution also remains follow-up provider work.
 
 ## Persistent patch state
 
@@ -66,6 +68,6 @@ Modify request JSON v2 adds `semantic_operations` while preserving parameter and
 
 ## Current implementation boundary
 
-Avian geometry semantic edits can now complete the full inspection -> external request -> preview -> apply -> re-inspect round trip. Unsupported operations remain explicit blockers rather than silent no-ops.
+Avian and Human geometry semantic edits can complete the inspection -> external request -> preview -> apply -> re-inspect round trip for their executable region targets. Unsupported operations remain explicit blockers rather than silent no-ops.
 
-This is not yet the full rich-asset goal. Human character shaping, hair, clothing/accessory components, detailed materials, and Quadruped semantic execution remain follow-up provider work. The architecture is intentionally set up so those capabilities can be added provider-by-provider without adding named-character or species logic to the shared Modify engine.
+The next Human milestone is generated component support, beginning with hair and then clothing/accessories. That layer must preserve the same rules as geometry patches: provider-owned execution, stable ownership metadata, persistent/replayable recipes, safe re-inspection, and no named-character logic in shared code.
