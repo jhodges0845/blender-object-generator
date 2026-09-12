@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass
 from math import isfinite
-from typing import Tuple
+from typing import Optional, Tuple
 
 from .components import ComponentRecord, validate_component
 from .objects import get_provider
@@ -13,6 +13,18 @@ from .objects import get_provider
 class AnimationSnapshot:
     clip_id: str
     export_name: str
+    display_name: Optional[str] = None
+    source: Optional[str] = None
+    rig_signature: Optional[str] = None
+    frame_start: Optional[float] = None
+    frame_end: Optional[float] = None
+    fps: Optional[float] = None
+    looping: Optional[bool] = None
+    root_motion: Optional[str] = None
+    owns_curves: Optional[bool] = None
+    source_reference: Optional[str] = None
+    provider_key: Optional[str] = None
+    capability: Optional[str] = None
 
 
 @dataclass(frozen=True)
