@@ -21,6 +21,7 @@ _CREATE_MODES = (
 _WORKFLOW_UI = None
 _ORIGINAL_ASSET_SUMMARY = None
 _ASSET_INSPECTION_UI = None
+_ASSET_FILE_IMPORT_UI = None
 
 
 def _draw_create_mode_nav(layout, settings):
@@ -53,26 +54,41 @@ def _draw_asset_tiles(layout, settings, ui):
 
 
 def _draw_start_options(layout, context, working_asset_ui):
-    """Show artist-owned and saved-asset paths before generation."""
-    if working_asset_ui is None and _ASSET_INSPECTION_UI is None:
+    """Offer file import, in-scene inspection, and checkpoint resume before generation."""
+    if working_asset_ui is None and _ASSET_INSPECTION_UI is None and _ASSET_FILE_IMPORT_UI is None:
         return
     start = layout.box()
     start.label(text="START WITH", icon="FILE_FOLDER")
-    start.label(text="Continue existing work, inspect a selected asset, or build new")
-    row = start.row(align=True)
-    row.scale_y = 1.45
-    if working_asset_ui is not None:
-        row.operator(
-            "asset_assistant.open_editable_checkpoint",
-            text="Open Existing Asset",
-            icon="FILE_FOLDER",
+    start.label(text="Import an asset, inspect scene work, or resume a checkpoint")
+
+    if _ASSET_FILE_IMPORT_UI is not None:
+        import_row = start.row()
+        import_row.scale_y = 1.5
+        import_row.operator(
+            "asset_assistant.preflight_asset_file",
+            text="Import Asset File",
+            icon="IMPORT",
         )
+        start.label(text="Supports .blend, .glb, .gltf and .fbx")
+
+    secondary = start.row(align=True)
+    secondary.scale_y = 1.2
     if _ASSET_INSPECTION_UI is not None:
-        row.operator(
+        secondary.operator(
             "asset_assistant.inspect_selected_asset",
             text="Inspect Selected",
             icon="VIEWZOOM",
         )
+    if working_asset_ui is not None:
+        secondary.operator(
+            "asset_assistant.open_editable_checkpoint",
+            text="Open Checkpoint",
+            icon="FILE_BLEND",
+        )
+
+    if _ASSET_FILE_IMPORT_UI is not None:
+        _ASSET_FILE_IMPORT_UI.draw_file_preflight_report(start, context.scene)
+    if _ASSET_INSPECTION_UI is not None:
         _ASSET_INSPECTION_UI.draw_inspection_report(start, context.scene)
 
 
@@ -83,10 +99,9 @@ def _draw_generate(panel, context, ui, working_asset_ui):
     fields = tuple(provider.parameters)
 
     _draw_start_options(layout, context, working_asset_ui)
-    if working_asset_ui is not None or _ASSET_INSPECTION_UI is not None:
+    if working_asset_ui is not None or _ASSET_INSPECTION_UI is not None or _ASSET_FILE_IMPORT_UI is not None:
         layout.separator(factor=0.6)
 
-    # One dominant card instead of a stack of equally weighted boxes.
     create = layout.box()
     hero = create.row(align=True)
     hero.scale_y = 1.35
@@ -180,11 +195,12 @@ def _draw_contextual_asset_summary(layout, context):
     _ORIGINAL_ASSET_SUMMARY(layout, context)
 
 
-def install(workflow_ui, ui, asset_inspection_ui=None):
+def install(workflow_ui, ui, asset_inspection_ui=None, asset_file_import_ui=None):
     """Install the Create renderer before Blender registers the settings class."""
-    global _WORKFLOW_UI, _ORIGINAL_ASSET_SUMMARY, _ASSET_INSPECTION_UI
+    global _WORKFLOW_UI, _ORIGINAL_ASSET_SUMMARY, _ASSET_INSPECTION_UI, _ASSET_FILE_IMPORT_UI
     _WORKFLOW_UI = workflow_ui
     _ASSET_INSPECTION_UI = asset_inspection_ui
+    _ASSET_FILE_IMPORT_UI = asset_file_import_ui
 
     annotations = ui.HUMANOID_PG_settings.__annotations__
     if "asset_assistant_create_advanced" not in annotations:
