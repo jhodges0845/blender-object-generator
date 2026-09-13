@@ -11,6 +11,7 @@ _FILEPATH_KEY = "asset_assistant_file_preflight_path"
 _STATUS_KEY = "asset_assistant_file_preflight_status"
 _SUMMARY_KEY = "asset_assistant_file_preflight_summary"
 _CANDIDATE_KEY = "asset_assistant_file_preflight_candidate"
+_CANDIDATES_KEY = "asset_assistant_file_preflight_candidates"
 
 _SUPPORTED_EXTENSIONS = {".blend", ".glb", ".gltf", ".fbx"}
 
@@ -34,7 +35,7 @@ def _blend_preflight(filepath):
     elif len(collections) > 1:
         status = "MULTIPLE_CANDIDATES"
         candidate = ""
-        headline = f"{len(collections)} collection candidates found; this may be a project file."
+        headline = f"{len(collections)} collection candidates found; choose the asset you want to import."
     elif meshes or armatures:
         status = "ASSET_CANDIDATE"
         candidate = ""
@@ -48,15 +49,15 @@ def _blend_preflight(filepath):
         headline,
         f"{len(objects)} objects  •  {len(meshes)} meshes  •  {len(armatures)} rigs  •  {len(actions)} actions",
     ]
-    if collections:
-        preview = ", ".join(collections[:4])
-        if len(collections) > 4:
-            preview += ", …"
-        notes.append("Collections: " + preview)
     if project_signals:
-        notes.append("Scene/camera/light content suggests this file may contain more than one asset.")
+        notes.append("Scene/camera/light content suggests this file may contain project-level content too.")
     notes.append("Nothing has been appended to the current Blender scene yet.")
-    return {"status": status, "candidate": candidate, "notes": tuple(notes)}
+    return {
+        "status": status,
+        "candidate": candidate,
+        "candidates": collections,
+        "notes": tuple(notes),
+    }
 
 
 def preflight_asset_file(filepath):
@@ -74,6 +75,7 @@ def preflight_asset_file(filepath):
         report = {
             "status": "EXTERNAL_ASSET",
             "candidate": path.stem,
+            "candidates": (),
             "notes": (
                 extension[1:].upper() + " exchange asset detected.",
                 "Mesh, rig, material, and animation structure will be inspected after import.",
@@ -89,7 +91,27 @@ def _store_report(scene, report):
     scene[_FILEPATH_KEY] = report["filepath"]
     scene[_STATUS_KEY] = report["status"]
     scene[_CANDIDATE_KEY] = report.get("candidate", "")
+    scene[_CANDIDATES_KEY] = "\n".join(report.get("candidates", ()))
     scene[_SUMMARY_KEY] = "\n".join(report["notes"])
+
+
+def _stored_candidates(scene):
+    return tuple(name for name in str(scene.get(_CANDIDATES_KEY, "")).splitlines() if name)
+
+
+def choose_blend_candidate(scene, collection_name):
+    """Select one inspected .blend collection without importing it yet."""
+    candidates = _stored_candidates(scene)
+    if not collection_name or collection_name not in candidates:
+        raise ValueError("Choose one of the collection candidates found during file inspection.")
+    scene[_CANDIDATE_KEY] = collection_name
+    scene[_STATUS_KEY] = "ASSET_CANDIDATE"
+    scene[_SUMMARY_KEY] = (
+        "Selected collection: " + collection_name + "\n"
+        "Ready to import this collection only.\n"
+        "Nothing has been appended to the current Blender scene yet."
+    )
+    return collection_name
 
 
 def _clear_selection(context):
@@ -132,7 +154,7 @@ def _import_external(filepath, extension, context):
 
 def _import_blend_collection(filepath, collection_name, context):
     if not collection_name:
-        raise ValueError("Choose a .blend file with one clear collection asset candidate first.")
+        raise ValueError("Choose a collection asset candidate first.")
     with bpy.data.libraries.load(filepath, link=False) as (_data_from, data_to):
         data_to.collections = [collection_name]
     collection = data_to.collections[0] if data_to.collections else None
@@ -150,8 +172,8 @@ def import_preflight_asset(scene, context):
         raise ValueError("Inspect an asset file first.")
     extension = Path(filepath).suffix.lower()
     if extension == ".blend":
-        if status != "ASSET_CANDIDATE":
-            raise ValueError("This .blend file needs a specific asset candidate before importing.")
+        if status != "ASSET_CANDIDATE" or not candidate:
+            raise ValueError("Choose a specific .blend collection before importing.")
         return _import_blend_collection(filepath, candidate, context)
     if status != "EXTERNAL_ASSET":
         raise ValueError("This file is not ready to import as an asset.")
@@ -165,7 +187,7 @@ def draw_file_preflight_report(layout, scene):
     labels = {
         "ASSET_CANDIDATE": ("ASSET CANDIDATE", "CHECKMARK"),
         "EXTERNAL_ASSET": ("EXTERNAL ASSET", "CHECKMARK"),
-        "MULTIPLE_CANDIDATES": ("MULTIPLE ASSETS FOUND", "INFO"),
+        "MULTIPLE_CANDIDATES": ("CHOOSE AN ASSET", "INFO"),
         "PROJECT_LIKELY": ("LIKELY BLENDER PROJECT", "INFO"),
         "NO_ASSET_FOUND": ("NO CLEAR ASSET FOUND", "ERROR"),
     }
@@ -177,13 +199,35 @@ def draw_file_preflight_report(layout, scene):
         box.label(text=Path(filepath).name)
     for line in str(scene.get(_SUMMARY_KEY, "")).splitlines():
         box.label(text=line)
-    can_import = status in {"ASSET_CANDIDATE", "EXTERNAL_ASSET"}
+
+    if status == "MULTIPLE_CANDIDATES":
+        candidates = _stored_candidates(scene)
+        if candidates:
+            box.separator(factor=0.35)
+            box.label(text="COLLECTIONS", icon="OUTLINER_COLLECTION")
+            for name in candidates:
+                row = box.row()
+                row.scale_y = 1.15
+                op = row.operator(
+                    "asset_assistant.choose_blend_candidate",
+                    text=name,
+                    icon="OUTLINER_COLLECTION",
+                )
+                op.collection_name = name
+        return
+
+    can_import = (
+        status == "EXTERNAL_ASSET"
+        or (status == "ASSET_CANDIDATE" and bool(scene.get(_CANDIDATE_KEY, "")))
+    )
     row = box.row()
     row.scale_y = 1.25
     row.enabled = can_import
     row.operator("asset_assistant.import_preflight_asset", text="Import This Asset", icon="IMPORT")
-    if not can_import:
-        box.label(text="Choose a specific asset candidate before importing.")
+    if status == "ASSET_CANDIDATE" and not can_import:
+        box.label(text="This file has reusable data but no collection wrapper to append safely.")
+    elif not can_import:
+        box.label(text="No importable asset candidate is available yet.")
 
 
 class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator, ImportHelper):
@@ -204,6 +248,23 @@ class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator, ImportHelper):
             return {"CANCELLED"}
         _store_report(context.scene, report)
         self.report({"INFO"}, "File inspected. Nothing was imported yet.")
+        return {"FINISHED"}
+
+
+class ASSET_ASSISTANT_OT_choose_blend_candidate(bpy.types.Operator):
+    bl_idname = "asset_assistant.choose_blend_candidate"
+    bl_label = "Choose Asset Collection"
+    bl_description = "Choose this collection as the asset to import; nothing is imported yet"
+
+    collection_name: bpy.props.StringProperty(name="Collection")
+
+    def execute(self, context):
+        try:
+            choose_blend_candidate(context.scene, self.collection_name)
+        except ValueError as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Asset collection selected. Review it, then import when ready.")
         return {"FINISHED"}
 
 
@@ -235,6 +296,7 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
 
 _CLASSES = (
     ASSET_ASSISTANT_OT_preflight_asset_file,
+    ASSET_ASSISTANT_OT_choose_blend_candidate,
     ASSET_ASSISTANT_OT_import_preflight_asset,
 )
 
@@ -251,6 +313,7 @@ def unregister():
 
 __all__ = [
     "preflight_asset_file",
+    "choose_blend_candidate",
     "import_preflight_asset",
     "draw_file_preflight_report",
     "register",
