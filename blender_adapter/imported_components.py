@@ -3,6 +3,7 @@
 
 import json
 
+from .asset_structure import asset_boundary
 from .components import (
     _COMPONENT_ID_KEY,
     _COMPONENT_RECORD_KEY,
@@ -23,16 +24,16 @@ from .core import (
     validate_component,
 )
 from .skinned_components import _MODIFIER_NAME, _SKIN_KEY, inspect_skinned_component
+from .workflow import is_managed_asset
 
 _PART_NAME_KEY = "component_part_name"
 
 
 def _asset_owner(obj):
-    current = obj
-    while current is not None:
-        if current.get("generator") == "object_generator":
-            return current
-        current = current.parent
+    """Resolve ownership through the logical boundary, including imported sibling hierarchies."""
+    logical_root, _members = asset_boundary(obj)
+    if is_managed_asset(logical_root):
+        return logical_root
     return None
 
 
