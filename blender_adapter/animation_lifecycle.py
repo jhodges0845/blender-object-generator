@@ -3,6 +3,7 @@
 
 from uuid import uuid4
 
+from .asset_structure import asset_rigs
 from .core import AnimationRecord, AnimationSource, RootMotionIntent
 from .animation_records import (
     animation_record,
@@ -18,7 +19,7 @@ _RIG_ID = "asset_assistant_rig_id"
 
 
 def _rig(root):
-    rigs = [child for child in root.children if child.type == "ARMATURE"]
+    rigs = asset_rigs(root)
     if len(rigs) != 1:
         raise ValueError("animation lifecycle requires exactly one Asset Assistant rig")
     return rigs[0]

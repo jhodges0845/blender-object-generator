@@ -3,6 +3,7 @@
 
 import bpy
 
+from .asset_structure import logical_asset
 from .workflow import is_external_asset, is_generated, is_managed_asset
 
 
@@ -12,7 +13,6 @@ _SUMMARY_KEY = "asset_assistant_inspection_summary"
 _METRICS_KEY = "asset_assistant_inspection_metrics"
 _CAN_ADOPT_KEY = "asset_assistant_inspection_can_adopt"
 _IMPORT_GROUP_KEY = "asset_assistant_import_group"
-_IMPORT_ROOT_KEY = "asset_assistant_import_root"
 _EXTERNAL_ASSET_KEY = "asset_assistant_external_asset"
 _EXTERNAL_CAPABILITY_KEY = "asset_assistant_external_capability"
 _INSPECTION_KEYS = (
@@ -26,50 +26,10 @@ _INSPECTION_KEYS = (
 _ORIGINAL_DRAW_ARTIST_MODIFY = None
 
 
-def _root_object(obj):
-    root = obj
-    while getattr(root, "parent", None) is not None:
-        root = root.parent
-    return root
-
-
-def _walk_hierarchy(root):
-    yield root
-    for child in tuple(getattr(root, "children", ())):
-        yield from _walk_hierarchy(child)
-
-
 def _import_group(obj):
     if obj is None:
         return ""
     return str(obj.get(_IMPORT_GROUP_KEY, ""))
-
-
-def _import_boundary(selected):
-    """Return the stable imported asset root and all objects in its import group."""
-    group = _import_group(selected)
-    if not group:
-        root = _root_object(selected)
-        return root, list(_walk_hierarchy(root))
-
-    objects = [obj for obj in bpy.data.objects if _import_group(obj) == group]
-    if not objects:
-        root = _root_object(selected)
-        return root, list(_walk_hierarchy(root))
-    root = next((obj for obj in objects if bool(obj.get(_IMPORT_ROOT_KEY, False))), None)
-    if root is None:
-        roots = [obj for obj in objects if getattr(obj, "parent", None) not in objects]
-        root = roots[0] if roots else selected
-    return root, objects
-
-
-def _animation_count(obj):
-    animation_data = getattr(obj, "animation_data", None)
-    if animation_data is None:
-        return 0
-    count = 1 if getattr(animation_data, "action", None) is not None else 0
-    count += len(tuple(getattr(animation_data, "nla_tracks", ())))
-    return count
 
 
 def inspect_selected_asset(selected):
@@ -77,17 +37,10 @@ def inspect_selected_asset(selected):
     if selected is None:
         raise ValueError("Select an object to inspect first.")
 
-    root, objects = _import_boundary(selected)
-    meshes = [obj for obj in objects if getattr(obj, "type", None) == "MESH"]
-    armatures = {id(obj): obj for obj in objects if getattr(obj, "type", None) == "ARMATURE"}
-
-    for mesh in meshes:
-        for modifier in tuple(getattr(mesh, "modifiers", ())):
-            if getattr(modifier, "type", None) != "ARMATURE":
-                continue
-            rig = getattr(modifier, "object", None)
-            if rig is not None:
-                armatures[id(rig)] = rig
+    structure = logical_asset(selected)
+    root = structure["root"]
+    meshes = structure["meshes"]
+    armatures = structure["rigs"]
 
     material_ids = set()
     for mesh in meshes:
@@ -96,16 +49,11 @@ def inspect_selected_asset(selected):
             if material is not None:
                 material_ids.add(id(material))
 
-    animation_count = sum(_animation_count(obj) for obj in objects)
-    for rig in armatures.values():
-        if rig not in objects:
-            animation_count += _animation_count(rig)
-
     metrics = {
         "meshes": len(meshes),
         "armatures": len(armatures),
         "materials": len(material_ids),
-        "animations": animation_count,
+        "animations": structure["animation_count"],
     }
 
     notes = []
