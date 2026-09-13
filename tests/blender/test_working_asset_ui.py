@@ -77,6 +77,42 @@ class EditableCheckpointTests(unittest.TestCase):
         self.assertEqual("/tmp/hero.blend", filepath)
         self.assertEqual([{"filepath": "/tmp/hero.blend", "copy": True}], calls)
 
+    def test_checkpoint_destination_rechecks_filesystem_after_file_is_deleted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "hero.checkpoint.blend"
+            path.write_bytes(b"old checkpoint")
+
+            normalized, exists = working_asset_ui._checkpoint_destination(path)
+            self.assertEqual(str(path), normalized)
+            self.assertTrue(exists)
+
+            path.unlink()
+
+            normalized, exists = working_asset_ui._checkpoint_destination(path)
+            self.assertEqual(str(path), normalized)
+            self.assertFalse(exists)
+
+    def test_reset_checkpoint_dialog_discards_stale_overwrite_state(self):
+        class _Operator:
+            filepath = ""
+            check_existing = True
+
+        operator = _Operator()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "reusable.checkpoint.blend"
+            path.write_bytes(b"old checkpoint")
+            working_asset_ui._reset_checkpoint_save_dialog(operator, path)
+            self.assertTrue(operator.check_existing)
+
+            path.unlink()
+            # Simulate Blender remembering the previous operator value. A new dialog
+            # invocation must still derive the state from disk and clear it.
+            operator.check_existing = True
+            working_asset_ui._reset_checkpoint_save_dialog(operator, path)
+
+            self.assertEqual(str(path), operator.filepath)
+            self.assertFalse(operator.check_existing)
+
     def test_checkpoint_marks_saved_copy_but_restores_current_scene(self):
         scene = bpy.context.scene
         self._human()
