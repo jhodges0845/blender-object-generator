@@ -16,13 +16,14 @@ from .core import (
 )
 from .external_inspection import BLOCKED, REDUCED, inspect_external_object
 from .imported_components import adopt_rigid_component, adopt_skinned_component
+from .workflow import is_managed_asset
 
 
 def _target(context):
     scene = context.scene if context else None
     settings = getattr(scene, "humanoid_settings", None) if scene else None
     root = settings.target if settings else None
-    if root is None or root.get("generator") != "object_generator":
+    if root is None or not is_managed_asset(root):
         return None
     return root
 
@@ -211,7 +212,7 @@ class ASSET_ASSISTANT_OT_adopt_selected_component(bpy.types.Operator):
             layout.prop(self, "attachment_target")
         else:
             box = layout.box()
-            box.label(text="Binds to the active asset's generated armature.")
+            box.label(text="Binds to the active asset's base armature.")
             box.label(text="Existing vertex-group weights must use matching bone names.")
         layout.prop(self, "component_id")
         box = layout.box()
