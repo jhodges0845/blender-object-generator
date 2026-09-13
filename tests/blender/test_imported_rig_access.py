@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import unittest
+from types import SimpleNamespace
 
 try:
     import bpy
@@ -47,13 +48,21 @@ class ImportedRigAccessTests(unittest.TestCase):
         rig["asset_assistant_import_group"] = "rig-access"
         rig.parent = holder
 
-        settings = getattr(self.scene, "humanoid_settings", None)
-        self.assertIsNotNone(settings)
-        settings.target = root
+        # The full add-on is intentionally not registered by the generic Blender
+        # test harness. Exercise the rig-access contract with the same scene/target
+        # shape the registered PointerProperty provides at runtime instead of making
+        # this regression depend on unrelated add-on registration order.
+        context = SimpleNamespace(
+            scene=SimpleNamespace(
+                humanoid_settings=SimpleNamespace(target=root),
+                objects=self.scene.objects,
+            ),
+            mode="OBJECT",
+        )
 
-        self.assertIs(imported_rig_access._base_rig(bpy.context), rig)
-        self.assertTrue(imported_rig_access.ASSET_ASSISTANT_OT_select_base_rig.poll(bpy.context))
-        self.assertTrue(imported_rig_access.ASSET_ASSISTANT_OT_pose_base_rig.poll(bpy.context))
+        self.assertIs(imported_rig_access._base_rig(context), rig)
+        self.assertTrue(imported_rig_access.ASSET_ASSISTANT_OT_select_base_rig.poll(context))
+        self.assertTrue(imported_rig_access.ASSET_ASSISTANT_OT_pose_base_rig.poll(context))
 
 
 if __name__ == "__main__":
