@@ -131,3 +131,45 @@ def test_choose_blend_candidate_rejects_uninspected_collection():
         assert "collection candidates" in str(error)
     else:
         raise AssertionError("uninspected collection should be rejected")
+
+
+def test_artist_import_clears_stale_asset_assistant_target():
+    stale_target = object()
+
+    class _Settings:
+        target = stale_target
+
+    class _Scene:
+        humanoid_settings = _Settings()
+
+    class _Context:
+        scene = _Scene()
+
+    result = asset_file_import_ui._sync_imported_asset_context(
+        _Context(),
+        {"status": "REVIEW", "root": object()},
+    )
+
+    assert result is None
+    assert _Context.scene.humanoid_settings.target is None
+
+
+def test_recognized_asset_assistant_import_becomes_current_target():
+    imported_root = object()
+
+    class _Settings:
+        target = None
+
+    class _Scene:
+        humanoid_settings = _Settings()
+
+    class _Context:
+        scene = _Scene()
+
+    result = asset_file_import_ui._sync_imported_asset_context(
+        _Context(),
+        {"status": "READY", "root": imported_root},
+    )
+
+    assert result is imported_root
+    assert _Context.scene.humanoid_settings.target is imported_root
