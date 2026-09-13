@@ -45,6 +45,30 @@ def _remove_button_text(action):
     return 'Delete Clip'
 
 
+def _remove_action(root, action, animation_id=''):
+    """Apply ownership-aware removal and return the artist-facing result message."""
+    if root is None or action is None:
+        raise ValueError('Choose a valid asset and animation clip first.')
+
+    if has_animation_record(action):
+        record = animation_record(action)
+        if animation_id and record.animation_id != animation_id:
+            raise ValueError('Animation identity changed; refresh the clip library before removing it.')
+        removed = remove_animation(root, record.animation_id)
+        if removed.owns_curves:
+            return 'Deleted Asset Assistant-owned clip: ' + removed.display_name
+        return 'Removed clip from Asset Assistant; the Blender Action and artist curves were preserved.'
+
+    if not action.get('asset_assistant_generated') or action not in exportable_actions(root):
+        raise ValueError('Only managed or Asset Assistant-owned animations can be removed here.')
+    rigs = asset_rigs(root)
+    if len(rigs) == 1 and rigs[0].animation_data is not None and rigs[0].animation_data.action == action:
+        rigs[0].animation_data.action = None
+    name = action.name
+    bpy.data.actions.remove(action)
+    return 'Deleted legacy Asset Assistant-owned clip: ' + name
+
+
 class ASSET_ASSISTANT_OT_rename_animation_clip(bpy.types.Operator):
     bl_idname = 'asset_assistant.rename_animation_clip'
     bl_label = 'Rename Animation Clip'
@@ -97,28 +121,8 @@ class ASSET_ASSISTANT_OT_remove_animation_clip(bpy.types.Operator):
     def execute(self, context):
         root = _character(context)
         action = bpy.data.actions.get(self.action_name)
-        if root is None or action is None:
-            self.report({'ERROR'}, 'Choose a valid asset and animation clip first.')
-            return {'CANCELLED'}
-
         try:
-            if has_animation_record(action):
-                record = animation_record(action)
-                if self.animation_id and record.animation_id != self.animation_id:
-                    raise ValueError('Animation identity changed; refresh the clip library before removing it.')
-                removed = remove_animation(root, record.animation_id)
-                if removed.owns_curves:
-                    message = 'Deleted Asset Assistant-owned clip: ' + removed.display_name
-                else:
-                    message = 'Removed clip from Asset Assistant; the Blender Action and artist curves were preserved.'
-            else:
-                if not action.get('asset_assistant_generated') or action not in exportable_actions(root):
-                    raise ValueError('Only managed or Asset Assistant-owned animations can be removed here.')
-                rigs = asset_rigs(root)
-                if len(rigs) == 1 and rigs[0].animation_data is not None and rigs[0].animation_data.action == action:
-                    rigs[0].animation_data.action = None
-                bpy.data.actions.remove(action)
-                message = 'Deleted legacy Asset Assistant-owned clip: ' + self.action_name
+            message = _remove_action(root, action, self.animation_id)
         except (ValueError, RuntimeError, AttributeError) as error:
             self.report({'ERROR'}, str(error))
             return {'CANCELLED'}
