@@ -4,7 +4,6 @@
 from pathlib import Path
 
 import bpy
-from bpy_extras.io_utils import ImportHelper
 
 
 _FILEPATH_KEY = "asset_assistant_file_preflight_path"
@@ -14,6 +13,8 @@ _CANDIDATE_KEY = "asset_assistant_file_preflight_candidate"
 _CANDIDATES_KEY = "asset_assistant_file_preflight_candidates"
 
 _SUPPORTED_EXTENSIONS = {".blend", ".glb", ".gltf", ".fbx"}
+_FILTER_GLOB = "*.blend;*.glb;*.gltf;*.fbx"
+_CANDIDATE_SEPARATOR = "\x1f"
 
 
 def _blend_preflight(filepath):
@@ -35,7 +36,7 @@ def _blend_preflight(filepath):
     elif len(collections) > 1:
         status = "MULTIPLE_CANDIDATES"
         candidate = ""
-        headline = f"{len(collections)} collection candidates found; choose the asset you want to import."
+        headline = f"{len(collections)} collection candidates found; this may be a project file."
     elif meshes or armatures:
         status = "ASSET_CANDIDATE"
         candidate = ""
@@ -49,8 +50,13 @@ def _blend_preflight(filepath):
         headline,
         f"{len(objects)} objects  •  {len(meshes)} meshes  •  {len(armatures)} rigs  •  {len(actions)} actions",
     ]
+    if collections:
+        preview = ", ".join(collections[:4])
+        if len(collections) > 4:
+            preview += ", …"
+        notes.append("Collections: " + preview)
     if project_signals:
-        notes.append("Scene/camera/light content suggests this file may contain project-level content too.")
+        notes.append("Scene/camera/light content suggests this file may contain more than one asset.")
     notes.append("Nothing has been appended to the current Blender scene yet.")
     return {
         "status": status,
@@ -91,27 +97,13 @@ def _store_report(scene, report):
     scene[_FILEPATH_KEY] = report["filepath"]
     scene[_STATUS_KEY] = report["status"]
     scene[_CANDIDATE_KEY] = report.get("candidate", "")
-    scene[_CANDIDATES_KEY] = "\n".join(report.get("candidates", ()))
+    scene[_CANDIDATES_KEY] = _CANDIDATE_SEPARATOR.join(report.get("candidates", ()))
     scene[_SUMMARY_KEY] = "\n".join(report["notes"])
 
 
 def _stored_candidates(scene):
-    return tuple(name for name in str(scene.get(_CANDIDATES_KEY, "")).splitlines() if name)
-
-
-def choose_blend_candidate(scene, collection_name):
-    """Select one inspected .blend collection without importing it yet."""
-    candidates = _stored_candidates(scene)
-    if not collection_name or collection_name not in candidates:
-        raise ValueError("Choose one of the collection candidates found during file inspection.")
-    scene[_CANDIDATE_KEY] = collection_name
-    scene[_STATUS_KEY] = "ASSET_CANDIDATE"
-    scene[_SUMMARY_KEY] = (
-        "Selected collection: " + collection_name + "\n"
-        "Ready to import this collection only.\n"
-        "Nothing has been appended to the current Blender scene yet."
-    )
-    return collection_name
+    raw = str(scene.get(_CANDIDATES_KEY, ""))
+    return tuple(name for name in raw.split(_CANDIDATE_SEPARATOR) if name)
 
 
 def _clear_selection(context):
@@ -154,7 +146,7 @@ def _import_external(filepath, extension, context):
 
 def _import_blend_collection(filepath, collection_name, context):
     if not collection_name:
-        raise ValueError("Choose a collection asset candidate first.")
+        raise ValueError("Choose a .blend collection asset candidate first.")
     with bpy.data.libraries.load(filepath, link=False) as (_data_from, data_to):
         data_to.collections = [collection_name]
     collection = data_to.collections[0] if data_to.collections else None
@@ -162,6 +154,14 @@ def _import_blend_collection(filepath, collection_name, context):
         raise RuntimeError("Blender could not append the selected collection.")
     context.scene.collection.children.link(collection)
     return _activate_imported_object(context, tuple(collection.all_objects))
+
+
+def choose_blend_candidate(scene, collection_name):
+    candidates = _stored_candidates(scene)
+    if collection_name not in candidates:
+        raise ValueError("That collection was not found in the inspected .blend file.")
+    scene[_CANDIDATE_KEY] = collection_name
+    scene[_STATUS_KEY] = "ASSET_CANDIDATE"
 
 
 def import_preflight_asset(scene, context):
@@ -173,7 +173,10 @@ def import_preflight_asset(scene, context):
     extension = Path(filepath).suffix.lower()
     if extension == ".blend":
         if status != "ASSET_CANDIDATE" or not candidate:
-            raise ValueError("Choose a specific .blend collection before importing.")
+            raise ValueError("Choose a specific collection asset before importing.")
+        candidates = _stored_candidates(scene)
+        if candidates and candidate not in candidates:
+            raise ValueError("The selected collection is no longer part of this file preflight.")
         return _import_blend_collection(filepath, candidate, context)
     if status != "EXTERNAL_ASSET":
         raise ValueError("This file is not ready to import as an asset.")
@@ -187,7 +190,7 @@ def draw_file_preflight_report(layout, scene):
     labels = {
         "ASSET_CANDIDATE": ("ASSET CANDIDATE", "CHECKMARK"),
         "EXTERNAL_ASSET": ("EXTERNAL ASSET", "CHECKMARK"),
-        "MULTIPLE_CANDIDATES": ("CHOOSE AN ASSET", "INFO"),
+        "MULTIPLE_CANDIDATES": ("MULTIPLE ASSETS FOUND", "INFO"),
         "PROJECT_LIKELY": ("LIKELY BLENDER PROJECT", "INFO"),
         "NO_ASSET_FOUND": ("NO CLEAR ASSET FOUND", "ERROR"),
     }
@@ -200,45 +203,57 @@ def draw_file_preflight_report(layout, scene):
     for line in str(scene.get(_SUMMARY_KEY, "")).splitlines():
         box.label(text=line)
 
-    if status == "MULTIPLE_CANDIDATES":
-        candidates = _stored_candidates(scene)
-        if candidates:
-            box.separator(factor=0.35)
-            box.label(text="COLLECTIONS", icon="OUTLINER_COLLECTION")
-            for name in candidates:
-                row = box.row()
-                row.scale_y = 1.15
-                op = row.operator(
-                    "asset_assistant.choose_blend_candidate",
-                    text=name,
-                    icon="OUTLINER_COLLECTION",
-                )
-                op.collection_name = name
+    candidates = _stored_candidates(scene)
+    if status == "MULTIPLE_CANDIDATES" and candidates:
+        box.separator(factor=0.35)
+        box.label(text="CHOOSE AN ASSET", icon="OUTLINER_COLLECTION")
+        for name in candidates:
+            row = box.row()
+            row.scale_y = 1.1
+            op = row.operator(
+                "asset_assistant.choose_blend_asset_candidate",
+                text=name,
+                icon="OUTLINER_COLLECTION",
+            )
+            op.collection_name = name
+        box.label(text="Selecting a collection does not import it yet.")
         return
 
-    can_import = (
-        status == "EXTERNAL_ASSET"
-        or (status == "ASSET_CANDIDATE" and bool(scene.get(_CANDIDATE_KEY, "")))
+    candidate = str(scene.get(_CANDIDATE_KEY, ""))
+    if status == "ASSET_CANDIDATE" and candidate and len(candidates) > 1:
+        box.label(text="Selected: " + candidate, icon="CHECKMARK")
+
+    can_import = status in {"ASSET_CANDIDATE", "EXTERNAL_ASSET"} and (
+        status == "EXTERNAL_ASSET" or bool(candidate)
     )
     row = box.row()
     row.scale_y = 1.25
     row.enabled = can_import
     row.operator("asset_assistant.import_preflight_asset", text="Import This Asset", icon="IMPORT")
-    if status == "ASSET_CANDIDATE" and not can_import:
-        box.label(text="This file has reusable data but no collection wrapper to append safely.")
-    elif not can_import:
-        box.label(text="No importable asset candidate is available yet.")
+    if not can_import:
+        box.label(text="Choose a specific asset candidate before importing.")
 
 
-class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator, ImportHelper):
+class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator):
+    """Inspect an asset file before importing it into the current scene."""
+
     bl_idname = "asset_assistant.preflight_asset_file"
     bl_label = "Inspect Asset File"
     bl_description = "Inspect a .blend, GLB, glTF, or FBX file before bringing it into this scene"
-    filename_ext = ""
+
+    filepath: bpy.props.StringProperty(name="File Path", subtype="FILE_PATH")
     filter_glob: bpy.props.StringProperty(
-        default="*.blend;*.glb;*.gltf;*.fbx",
+        default=_FILTER_GLOB,
         options={"HIDDEN"},
+        maxlen=255,
     )
+
+    def invoke(self, context, _event):
+        # Use Blender's generic file selector directly instead of ImportHelper.
+        # ImportHelper's extension handling can narrow a multi-format selector to
+        # a single type in newer Blender builds even when filter_glob is broad.
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
 
     def execute(self, context):
         try:
@@ -251,9 +266,9 @@ class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator, ImportHelper):
         return {"FINISHED"}
 
 
-class ASSET_ASSISTANT_OT_choose_blend_candidate(bpy.types.Operator):
-    bl_idname = "asset_assistant.choose_blend_candidate"
-    bl_label = "Choose Asset Collection"
+class ASSET_ASSISTANT_OT_choose_blend_asset_candidate(bpy.types.Operator):
+    bl_idname = "asset_assistant.choose_blend_asset_candidate"
+    bl_label = "Choose Blend Asset"
     bl_description = "Choose this collection as the asset to import; nothing is imported yet"
 
     collection_name: bpy.props.StringProperty(name="Collection")
@@ -264,7 +279,7 @@ class ASSET_ASSISTANT_OT_choose_blend_candidate(bpy.types.Operator):
         except ValueError as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
-        self.report({"INFO"}, "Asset collection selected. Review it, then import when ready.")
+        self.report({"INFO"}, "Asset candidate selected. Import when ready.")
         return {"FINISHED"}
 
 
@@ -296,7 +311,7 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
 
 _CLASSES = (
     ASSET_ASSISTANT_OT_preflight_asset_file,
-    ASSET_ASSISTANT_OT_choose_blend_candidate,
+    ASSET_ASSISTANT_OT_choose_blend_asset_candidate,
     ASSET_ASSISTANT_OT_import_preflight_asset,
 )
 
