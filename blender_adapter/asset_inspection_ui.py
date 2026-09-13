@@ -10,6 +10,8 @@ _STATUS_KEY = "asset_assistant_inspection_status"
 _NAME_KEY = "asset_assistant_inspection_name"
 _SUMMARY_KEY = "asset_assistant_inspection_summary"
 _METRICS_KEY = "asset_assistant_inspection_metrics"
+_IMPORT_GROUP_KEY = "asset_assistant_import_group"
+_IMPORT_ROOT_KEY = "asset_assistant_import_root"
 
 
 def _root_object(obj):
@@ -23,6 +25,36 @@ def _walk_hierarchy(root):
     yield root
     for child in tuple(getattr(root, "children", ())):
         yield from _walk_hierarchy(child)
+
+
+def _import_group(obj):
+    if obj is None:
+        return ""
+    return str(obj.get(_IMPORT_GROUP_KEY, ""))
+
+
+def _import_boundary(selected):
+    """Return the stable imported asset root and all objects in its import group.
+
+    Exchange importers do not guarantee one common parent. A GLB can create sibling
+    meshes/empties while an FBX can make an Empty or Armature the visible root. The
+    import group metadata added by Asset Assistant is therefore the authoritative
+    non-destructive boundary, independent of whichever child the artist selects.
+    """
+    group = _import_group(selected)
+    if not group:
+        root = _root_object(selected)
+        return root, list(_walk_hierarchy(root))
+
+    objects = [obj for obj in bpy.data.objects if _import_group(obj) == group]
+    if not objects:
+        root = _root_object(selected)
+        return root, list(_walk_hierarchy(root))
+    root = next((obj for obj in objects if bool(obj.get(_IMPORT_ROOT_KEY, False))), None)
+    if root is None:
+        roots = [obj for obj in objects if getattr(obj, "parent", None) not in objects]
+        root = roots[0] if roots else selected
+    return root, objects
 
 
 def _animation_count(obj):
@@ -39,13 +71,10 @@ def inspect_selected_asset(selected):
     if selected is None:
         raise ValueError("Select an object to inspect first.")
 
-    root = _root_object(selected)
-    objects = list(_walk_hierarchy(root))
+    root, objects = _import_boundary(selected)
     meshes = [obj for obj in objects if getattr(obj, "type", None) == "MESH"]
     armatures = {id(obj): obj for obj in objects if getattr(obj, "type", None) == "ARMATURE"}
 
-    # Artist meshes are often parented directly to an armature, but an Armature
-    # modifier may also reference a rig outside the selected object's hierarchy.
     for mesh in meshes:
         for modifier in tuple(getattr(mesh, "modifiers", ())):
             if getattr(modifier, "type", None) != "ARMATURE":
@@ -81,11 +110,13 @@ def inspect_selected_asset(selected):
         notes.append("This asset is ready for the existing Asset Assistant workflow.")
     elif not meshes:
         status = "NEEDS_SETUP"
-        notes.append("No mesh geometry was found in the selected hierarchy.")
+        notes.append("No mesh geometry was found in the selected asset boundary.")
         notes.append("Choose a mesh or the root object of an artist-created asset.")
     else:
         status = "REVIEW"
         notes.append("Artist-created asset detected; no Asset Assistant ownership was added.")
+        if _import_group(selected):
+            notes.append("The complete imported file hierarchy is being inspected as one asset candidate.")
         if len(armatures) == 0:
             notes.append("No armature detected; this can still be a static asset.")
         elif len(armatures) == 1:
@@ -116,11 +147,15 @@ def _metric_text(metrics):
     )
 
 
-def _store_report(scene, report):
+def store_inspection_report(scene, report):
     scene[_STATUS_KEY] = report["status"]
     scene[_NAME_KEY] = report["name"]
     scene[_METRICS_KEY] = _metric_text(report["metrics"])
     scene[_SUMMARY_KEY] = "\n".join(report["notes"])
+
+
+# Compatibility alias for older callers/tests while new code uses the public name.
+_store_report = store_inspection_report
 
 
 def draw_inspection_report(layout, scene):
@@ -165,7 +200,7 @@ class ASSET_ASSISTANT_OT_inspect_selected_asset(bpy.types.Operator):
         except (ValueError, TypeError, AttributeError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
-        _store_report(context.scene, report)
+        store_inspection_report(context.scene, report)
         self.report({"INFO"}, "Inspection complete. No changes were made.")
         return {"FINISHED"}
 
@@ -185,6 +220,7 @@ def unregister():
 
 __all__ = [
     "inspect_selected_asset",
+    "store_inspection_report",
     "draw_inspection_report",
     "register",
     "unregister",
