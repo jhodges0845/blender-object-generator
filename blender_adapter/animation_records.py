@@ -5,6 +5,7 @@ import json
 from hashlib import sha256
 from uuid import uuid4
 
+from .asset_structure import asset_rigs
 from .core import (
     AnimationRecord,
     AnimationSource,
@@ -52,6 +53,13 @@ def rig_signature(rig):
     return "sha256:" + sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _single_asset_rig(root, purpose):
+    rigs = asset_rigs(root)
+    if len(rigs) != 1:
+        raise ValueError(purpose + " requires exactly one Asset Assistant rig")
+    return rigs[0]
+
+
 def persist_generated_animation(
     root,
     action,
@@ -65,16 +73,14 @@ def persist_generated_animation(
     capability,
 ):
     """Attach one generated portable animation record to an existing Action."""
-    rigs = [child for child in root.children if child.type == "ARMATURE"]
-    if len(rigs) != 1:
-        raise ValueError("animation persistence requires exactly one Asset Assistant rig")
+    rig = _single_asset_rig(root, "animation persistence")
     animation_id = action.get(_ANIMATION_ID_KEY) or ("animation-" + uuid4().hex)
     record = AnimationRecord(
         animation_id=animation_id,
         display_name=display_name,
         export_name=export_name,
         source=AnimationSource.GENERATED,
-        rig_signature=rig_signature(rigs[0]),
+        rig_signature=rig_signature(rig),
         frame_start=frame_start,
         frame_end=frame_end,
         fps=fps,
@@ -106,10 +112,8 @@ def animation_record(action):
 def inspect_animation_record(root, action):
     """Validate persisted identity, rig compatibility, and generated ownership."""
     record = animation_record(action)
-    rigs = [child for child in root.children if child.type == "ARMATURE"]
-    if len(rigs) != 1:
-        raise ValueError("animation inspection requires exactly one Asset Assistant rig")
-    if record.rig_signature != rig_signature(rigs[0]):
+    rig = _single_asset_rig(root, "animation inspection")
+    if record.rig_signature != rig_signature(rig):
         raise ValueError("animation rig signature no longer matches the current Asset Assistant rig")
     if record.source == AnimationSource.GENERATED and not action.get("asset_assistant_generated"):
         raise ValueError("generated animation record is attached to an Action without generated ownership")
