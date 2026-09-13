@@ -2,6 +2,7 @@
 """Preflight and import existing asset files without silently claiming ownership."""
 
 from pathlib import Path
+from uuid import uuid4
 
 import bpy
 
@@ -11,6 +12,9 @@ _STATUS_KEY = "asset_assistant_file_preflight_status"
 _SUMMARY_KEY = "asset_assistant_file_preflight_summary"
 _CANDIDATE_KEY = "asset_assistant_file_preflight_candidate"
 _CANDIDATES_KEY = "asset_assistant_file_preflight_candidates"
+_IMPORT_GROUP_KEY = "asset_assistant_import_group"
+_IMPORT_ROOT_KEY = "asset_assistant_import_root"
+_IMPORT_SOURCE_KEY = "asset_assistant_import_source"
 
 _SUPPORTED_EXTENSIONS = {".blend", ".glb", ".gltf", ".fbx"}
 _FILTER_GLOB = "*.blend;*.glb;*.gltf;*.fbx"
@@ -58,30 +62,21 @@ def _blend_preflight(filepath):
     if project_signals:
         notes.append("Scene/camera/light content suggests this file also contains project-level content.")
     notes.append("Nothing has been appended to the current Blender scene yet.")
-    return {
-        "status": status,
-        "candidate": candidate,
-        "candidates": collections,
-        "notes": tuple(notes),
-    }
+    return {"status": status, "candidate": candidate, "candidates": collections, "notes": tuple(notes)}
 
 
 def preflight_asset_file(filepath):
-    """Inspect enough file metadata to decide whether importing is sensible."""
     path = Path(filepath)
     if not path.exists():
         raise ValueError("Asset file does not exist: " + str(path))
     extension = path.suffix.lower()
     if extension not in _SUPPORTED_EXTENSIONS:
         raise ValueError("Supported asset files are .blend, .glb, .gltf, and .fbx.")
-
     if extension == ".blend":
         report = _blend_preflight(str(path))
     else:
         report = {
-            "status": "EXTERNAL_ASSET",
-            "candidate": path.stem,
-            "candidates": (),
+            "status": "EXTERNAL_ASSET", "candidate": path.stem, "candidates": (),
             "notes": (
                 extension[1:].upper() + " exchange asset detected.",
                 "Mesh, rig, material, and animation structure will be inspected after import.",
@@ -111,14 +106,37 @@ def _clear_selection(context):
         obj.select_set(False)
 
 
-def _activate_imported_object(context, objects):
+def _choose_import_root(objects):
     roots = [obj for obj in objects if getattr(obj, "parent", None) not in objects]
     candidates = roots or list(objects)
     if not candidates:
         return None
     armatures = [obj for obj in candidates if getattr(obj, "type", None) == "ARMATURE"]
     meshes = [obj for obj in candidates if getattr(obj, "type", None) == "MESH"]
-    active = armatures[0] if len(armatures) == 1 else (meshes[0] if meshes else candidates[0])
+    return armatures[0] if len(armatures) == 1 else (meshes[0] if meshes else candidates[0])
+
+
+def _mark_import_boundary(objects, source):
+    """Record a non-owning boundary for one imported file.
+
+    This metadata describes provenance/grouping only. It deliberately does not use
+    generator/object_type metadata and therefore does not claim artist content as
+    Asset Assistant-managed geometry.
+    """
+    group = uuid4().hex
+    root = _choose_import_root(objects)
+    for obj in objects:
+        obj[_IMPORT_GROUP_KEY] = group
+        obj[_IMPORT_SOURCE_KEY] = source
+        if obj == root:
+            obj[_IMPORT_ROOT_KEY] = True
+    return root
+
+
+def _activate_imported_object(context, objects, source=""):
+    active = _mark_import_boundary(objects, source) if source else _choose_import_root(objects)
+    if active is None:
+        return None
     _clear_selection(context)
     active.select_set(True)
     context.view_layer.objects.active = active
@@ -141,7 +159,7 @@ def _import_external(filepath, extension, context):
     imported = tuple(obj for obj in bpy.data.objects if obj not in before)
     if not imported:
         raise RuntimeError("The file imported without creating any Blender objects.")
-    return _activate_imported_object(context, imported)
+    return _activate_imported_object(context, imported, source=extension[1:].upper())
 
 
 def _import_blend_collection(filepath, collection_name, context):
@@ -153,7 +171,10 @@ def _import_blend_collection(filepath, collection_name, context):
     if collection is None:
         raise RuntimeError("Blender could not append the selected collection.")
     context.scene.collection.children.link(collection)
-    return _activate_imported_object(context, tuple(collection.all_objects))
+    objects = tuple(collection.all_objects)
+    if not objects:
+        raise RuntimeError("The selected collection does not contain any Blender objects.")
+    return _activate_imported_object(context, objects, source="BLEND")
 
 
 def choose_blend_candidate(scene, collection_name):
@@ -188,23 +209,14 @@ def import_preflight_asset(scene, context):
 
 
 def _sync_imported_asset_context(context, inspection):
-    """Keep the main Asset Assistant target consistent with the asset just imported.
-
-    A recognized Asset Assistant asset can safely become the current managed target.
-    Artist-created exchange assets remain inspection-only until explicitly adopted, so
-    clear any previous managed target instead of showing stale identity/rig/clip state.
-    """
     settings = getattr(getattr(context, "scene", None), "humanoid_settings", None)
     if settings is None:
         return None
-
     root = inspection.get("root") if inspection else None
     target = root if inspection and inspection.get("status") == "READY" else None
     try:
         settings.target = target
     except (TypeError, ValueError, AttributeError):
-        # A Blender PointerProperty poll can reject an unexpected object. Falling
-        # back to no current managed target is safer than retaining stale state.
         try:
             settings.target = None
         except (TypeError, ValueError, AttributeError):
@@ -232,52 +244,32 @@ def draw_file_preflight_report(layout, scene):
         box.label(text=Path(filepath).name)
     for line in str(scene.get(_SUMMARY_KEY, "")).splitlines():
         box.label(text=line)
-
     candidates = _stored_candidates(scene)
     if status == "MULTIPLE_CANDIDATES" and candidates:
         box.separator(factor=0.35)
         box.label(text="CHOOSE AN ASSET", icon="OUTLINER_COLLECTION")
         for name in candidates:
-            row = box.row()
-            row.scale_y = 1.1
-            op = row.operator(
-                "asset_assistant.choose_blend_asset_candidate",
-                text=name,
-                icon="OUTLINER_COLLECTION",
-            )
+            row = box.row(); row.scale_y = 1.1
+            op = row.operator("asset_assistant.choose_blend_asset_candidate", text=name, icon="OUTLINER_COLLECTION")
             op.collection_name = name
         box.label(text="Selecting a collection does not import it yet.")
         return
-
     candidate = str(scene.get(_CANDIDATE_KEY, ""))
-    can_import = status in {"ASSET_CANDIDATE", "EXTERNAL_ASSET"} and (
-        status == "EXTERNAL_ASSET" or bool(candidate)
-    )
-    row = box.row()
-    row.scale_y = 1.25
-    row.enabled = can_import
+    can_import = status in {"ASSET_CANDIDATE", "EXTERNAL_ASSET"} and (status == "EXTERNAL_ASSET" or bool(candidate))
+    row = box.row(); row.scale_y = 1.25; row.enabled = can_import
     row.operator("asset_assistant.import_preflight_asset", text="Import This Asset", icon="IMPORT")
     if not can_import:
         box.label(text="Choose a specific asset candidate before importing.")
 
 
 class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator):
-    """Inspect an asset file before importing it into the current scene."""
-
     bl_idname = "asset_assistant.preflight_asset_file"
     bl_label = "Inspect Asset File"
     bl_description = "Inspect a .blend, GLB, glTF, or FBX file before bringing it into this scene"
-
     filepath: bpy.props.StringProperty(name="File Path", subtype="FILE_PATH")
-    filter_glob: bpy.props.StringProperty(
-        default=_FILTER_GLOB,
-        options={"HIDDEN"},
-        maxlen=255,
-    )
+    filter_glob: bpy.props.StringProperty(default=_FILTER_GLOB, options={"HIDDEN"}, maxlen=255)
 
     def invoke(self, context, _event):
-        # Use Blender's generic selector directly so a multi-format chooser keeps
-        # every supported extension visible instead of collapsing to one type.
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
@@ -285,8 +277,7 @@ class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator):
         try:
             report = preflight_asset_file(self.filepath)
         except (ValueError, RuntimeError, OSError) as error:
-            self.report({"ERROR"}, str(error))
-            return {"CANCELLED"}
+            self.report({"ERROR"}, str(error)); return {"CANCELLED"}
         _store_report(context.scene, report)
         self.report({"INFO"}, "File inspected. Nothing was imported yet.")
         return {"FINISHED"}
@@ -296,15 +287,13 @@ class ASSET_ASSISTANT_OT_choose_blend_asset_candidate(bpy.types.Operator):
     bl_idname = "asset_assistant.choose_blend_asset_candidate"
     bl_label = "Choose Blend Asset"
     bl_description = "Choose this collection as the asset to import; nothing is imported yet"
-
     collection_name: bpy.props.StringProperty(name="Collection")
 
     def execute(self, context):
         try:
             choose_blend_candidate(context.scene, self.collection_name)
         except ValueError as error:
-            self.report({"ERROR"}, str(error))
-            return {"CANCELLED"}
+            self.report({"ERROR"}, str(error)); return {"CANCELLED"}
         self.report({"INFO"}, "Asset candidate selected. Import when ready.")
         return {"FINISHED"}
 
@@ -323,13 +312,12 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
         try:
             active = import_preflight_asset(context.scene, context)
         except (ValueError, RuntimeError, OSError, AttributeError) as error:
-            self.report({"ERROR"}, str(error))
-            return {"CANCELLED"}
+            self.report({"ERROR"}, str(error)); return {"CANCELLED"}
         if active is not None:
             try:
-                from .asset_inspection_ui import inspect_selected_asset, _store_report
+                from .asset_inspection_ui import inspect_selected_asset, store_inspection_report
                 inspection = inspect_selected_asset(active)
-                _store_report(context.scene, inspection)
+                store_inspection_report(context.scene, inspection)
                 _sync_imported_asset_context(context, inspection)
             except (ValueError, TypeError, AttributeError):
                 pass
@@ -337,11 +325,7 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
         return {"FINISHED"}
 
 
-_CLASSES = (
-    ASSET_ASSISTANT_OT_preflight_asset_file,
-    ASSET_ASSISTANT_OT_choose_blend_asset_candidate,
-    ASSET_ASSISTANT_OT_import_preflight_asset,
-)
+_CLASSES = (ASSET_ASSISTANT_OT_preflight_asset_file, ASSET_ASSISTANT_OT_choose_blend_asset_candidate, ASSET_ASSISTANT_OT_import_preflight_asset)
 
 
 def register():
@@ -354,11 +338,4 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
-__all__ = [
-    "preflight_asset_file",
-    "choose_blend_candidate",
-    "import_preflight_asset",
-    "draw_file_preflight_report",
-    "register",
-    "unregister",
-]
+__all__ = ["preflight_asset_file", "choose_blend_candidate", "import_preflight_asset", "draw_file_preflight_report", "register", "unregister"]
