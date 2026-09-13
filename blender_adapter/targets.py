@@ -7,6 +7,7 @@ from math import isfinite
 from pathlib import Path
 from typing import Tuple
 
+from .asset_structure import asset_members, asset_rigs
 from .core import ValidationIssue, get_target, validate_for_target
 from .validation import inspect_objects
 
@@ -22,18 +23,15 @@ class ExportResult:
 
 
 def asset_objects(root):
-    """Include the root and all descendants, never unrelated selected objects."""
+    """Return the complete normalized asset boundary used for validation/export."""
     if root is None:
         return ()
-    result = [root]
-    for obj in result:
-        result.extend(obj.children)
-    return tuple(result)
+    return asset_members(root)
 
 
 def base_asset_rig(root):
-    """Return the base asset armature without confusing component-owned rigs for it."""
-    rigs = [child for child in root.children if child.type == 'ARMATURE'] if root is not None else []
+    """Return the one normalized base armature without component-owned rigs."""
+    rigs = asset_rigs(root) if root is not None else ()
     if len(rigs) != 1:
         return None
     return rigs[0]
