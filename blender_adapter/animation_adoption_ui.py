@@ -6,6 +6,7 @@ from bpy.props import BoolProperty, EnumProperty, FloatProperty, StringProperty
 
 from .animation_lifecycle import register_animation_action
 from .animation_records import has_animation_record
+from .asset_structure import asset_rigs
 from .core import AnimationSource, RootMotionIntent
 from .workflow import find_character
 
@@ -50,7 +51,7 @@ class ASSET_ASSISTANT_OT_adopt_animation_action(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         root = _character(context) if context.scene else None
-        return context.mode == "OBJECT" and root is not None and sum(obj.type == "ARMATURE" for obj in root.children) == 1
+        return context.mode == "OBJECT" and root is not None and len(asset_rigs(root)) == 1
 
     def invoke(self, context, event):
         candidates = [action for action in bpy.data.actions
