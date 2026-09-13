@@ -500,8 +500,8 @@ class CuraAdapter(BlenderOutputAdapter):
         issues = list(super().validate(root, context))
         _, components, _ = print_geometry(asset_objects(root), context)
         if components > 1:
-            issues.append(ValidationIssue('cura_solid', 'ERROR',
-                'Cura export requires one connected solid. Join/remesh a copy of the parts and bridge gaps before validation. Joining objects alone does not connect their surfaces.'))
+            issues.append(ValidationIssue('cura_solid', 'INFO',
+                'STL contains ' + str(components) + ' separate closed shells. Cura can slice separate printable shells; review placement, clearances, supports, and whether the parts are intended to print together.'))
         else:
             issues.append(ValidationIssue('cura_pose', 'INFO',
                 'STL uses the evaluated current pose in millimetres; materials, rigs and animation are not needed. Check printer fit, wall thickness and supports in Cura.'))
