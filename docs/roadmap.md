@@ -73,12 +73,14 @@ Generation is not required. Asset Assistant inspects external work before claimi
 - [x] General external-object inspection entry point before ownership transfer — PR #165.
 - [x] Supported / reduced-capability / blocked status surfaced before adoption — PR #166.
 - [x] Reuse first-class imported animation registration for external Actions — PR #167.
+- [ ] Make imported `.blend`, GLB/glTF and FBX base assets retain one stable hierarchy boundary after import so inspection is independent of which child, mesh, empty or armature is selected.
+- [ ] Add an explicit compatibility/onboarding step for imported base assets so supported external work can enter Asset Assistant without silently claiming or rewriting artist geometry, rigs, materials, weights or animation curves.
 - [ ] Expand safe reduced-capability adoption for recognizable external rigs/hierarchies without destructive retargeting. Current reduced cases remain preservation-first and may require artist cleanup.
 
 ### First production proofs
 
 1. **Accessory proof — PR #161:** generated Ring/Bracelet is a separate lightweight component with editable radius/thickness, Static/Rigid behavior and root/bone attachment.
-2. **Hair low-cost proof — PR #162:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length and Static/Rigid behavior.
+2. **Hair low-cost proof — PR #162:** generated Hair Shell is a separate lightweight component with editable width/depth/cap height/back length, Static/Rigid behavior and root/bone attachment.
 3. **Hair bone-driven tier — PR #163:** rigged Humans can choose Parent-Skinned/Bone-Driven hair using head/neck/torso weighting without physics or an extra component rig.
 4. **Clothing proof — PR #164 merged:** generated Basic Shirt is a separate lightweight parent-rig-skinned Human component with fit ease/length controls and torso/neck weighting.
 5. **Self-rigged accessory proof completed:** generic Mechanical Gauntlet owns its own armature and Flex action independently from character locomotion. Lifecycle hardening landed in PR #169; multi-rig export preservation landed in PR #170; real reopen proof landed in PR #171.
@@ -115,6 +117,11 @@ Self-rigged components can own an independent animation/rig lifecycle without be
 - [ ] Verify Godot, Unity and Unreal output from the current packaged build, including Idle/Walk/Run and a self-rigged component case.
 - [ ] Decide whether reduced-capability external-rig adoption needs expansion before alpha.
 - [ ] Explicit version/tag/release decision and explicit approval.
+
+## Post-launch import expansion
+
+- [ ] Add STL import as a first-class **Static Mesh / Print Asset** workflow rather than pretending STL carries character/rig semantics. Inspect geometry, scale, normals, manifold/watertight state, disconnected geometry and Cura-oriented print readiness after import.
+- [ ] Evaluate 3MF import alongside STL so the print workflow can preserve richer manufacturing/material information where Blender support permits.
 
 ## Provider quality follow-ups
 
