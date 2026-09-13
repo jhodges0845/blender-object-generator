@@ -7,9 +7,10 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 
+from .asset_structure import logical_asset
 from .component_modify_exchange import enrich_snapshot
 from .modification import inspect_generated_asset
-from .workflow import is_generated
+from .workflow import is_external_asset, is_generated, is_managed_asset
 
 
 _CHECKPOINT_KIND_KEY = "asset_assistant_working_state_kind"
@@ -49,17 +50,50 @@ def _restore_scene_value(scene, key, previous):
         del scene[key]
 
 
+def _validate_external_working_asset(root):
+    """Validate adopted artist data without treating it as generated-provider state."""
+    structure = logical_asset(root)
+    if structure["root"] is not root:
+        raise ValueError("Imported Asset Assistant target no longer resolves to its enrolled logical root.")
+    if not structure["meshes"]:
+        raise ValueError("Imported Asset Assistant target no longer contains mesh geometry.")
+    if len(structure["rigs"]) > 1:
+        raise ValueError("Imported Asset Assistant target now contains multiple base armatures.")
+
+    capability = str(root.get("asset_assistant_external_capability", "STATIC"))
+    if capability not in {"STATIC", "RIGGED", "ANIMATED"}:
+        raise ValueError("Imported Asset Assistant target has invalid capability metadata.")
+    if capability in {"RIGGED", "ANIMATED"} and len(structure["rigs"]) != 1:
+        raise ValueError("Imported rigged Asset Assistant target is missing its base armature.")
+    if capability == "ANIMATED" and structure["animation_count"] < 1:
+        raise ValueError("Imported animated Asset Assistant target no longer exposes animation data.")
+
+    return {
+        "kind": "external",
+        "root": root,
+        "capability": capability,
+        "meshes": len(structure["meshes"]),
+        "rigs": len(structure["rigs"]),
+        "animations": structure["animation_count"],
+    }
+
+
 def validate_working_state(scene):
-    """Validate Asset Assistant identity/ownership continuity before saving editable state."""
-    roots = tuple(obj for obj in scene.objects if is_generated(obj))
+    """Validate generated and explicitly adopted Asset Assistant state before editable save."""
+    roots = tuple(obj for obj in scene.objects if is_managed_asset(obj))
     if not roots:
         raise ValueError("Editable checkpoint requires at least one recognizable Asset Assistant base asset.")
 
     snapshots = []
     for root in roots:
-        # Inspection validates base identity and provider state. Enrichment walks
-        # managed components/animations and rejects stale or tampered ownership.
-        snapshots.append(enrich_snapshot(root, inspect_generated_asset(root)))
+        if is_generated(root):
+            # Generated assets retain strict provider, component, and animation
+            # ownership validation before a checkpoint can be written.
+            snapshots.append(enrich_snapshot(root, inspect_generated_asset(root)))
+        elif is_external_asset(root):
+            # Adopted artist assets have no generated provider contract. Validate
+            # their normalized boundary/capability without claiming artist data.
+            snapshots.append(_validate_external_working_asset(root))
 
     scene[_CHECKPOINT_STATUS_KEY] = "READY"
     scene[_CHECKPOINT_MESSAGE_KEY] = (
@@ -103,7 +137,7 @@ def validate_checkpoint_scene(scene):
         raise ValueError("This Asset Assistant checkpoint version is not supported by this add-on build.")
 
     snapshots = validate_working_state(scene)
-    roots = tuple(obj for obj in scene.objects if is_generated(obj))
+    roots = tuple(obj for obj in scene.objects if is_managed_asset(obj))
 
     settings = getattr(scene, "humanoid_settings", None)
     if settings is not None:
