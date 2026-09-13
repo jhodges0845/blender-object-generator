@@ -15,6 +15,7 @@ from blender_adapter.core import (
     RigBinding,
     ring_mesh,
 )
+from blender_adapter.external_inspection import BLOCKED, inspect_external_object
 from blender_adapter.imported_components import adopt_rigid_component
 from blender_adapter.working_asset_ui import validate_working_state
 
@@ -104,6 +105,10 @@ class ImportedAssetComponentTests(unittest.TestCase):
 
     def test_imported_base_mesh_cannot_be_reclassified_as_component(self):
         root, mesh, _rig = self._imported_asset()
+        inspection = inspect_external_object(root, mesh)
+        self.assertEqual(BLOCKED, inspection.status)
+        self.assertTrue(any("base-asset geometry" in reason for reason in inspection.reasons))
+
         record = ComponentRecord(
             component_id="do-not-claim-body",
             kind=ComponentKind.ACCESSORY,
