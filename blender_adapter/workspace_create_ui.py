@@ -54,12 +54,18 @@ def _draw_asset_tiles(layout, settings, ui):
 
 
 def _draw_start_options(layout, context, working_asset_ui):
-    """Offer file import, in-scene inspection, and checkpoint resume before generation."""
+    """Offer file import and in-scene inspection before generation.
+
+    Editable checkpoints are complete Blender files, so they can be reopened through
+    Blender's normal File > Open workflow. Keeping a second open-file button here made
+    the distinction between importing an asset and replacing the current session less
+    clear without adding a necessary capability.
+    """
     if working_asset_ui is None and _ASSET_INSPECTION_UI is None and _ASSET_FILE_IMPORT_UI is None:
         return
     start = layout.box()
     start.label(text="START WITH", icon="FILE_FOLDER")
-    start.label(text="Import an asset, inspect scene work, or resume a checkpoint")
+    start.label(text="Import an asset or inspect scene work")
 
     if _ASSET_FILE_IMPORT_UI is not None:
         import_row = start.row()
@@ -71,19 +77,13 @@ def _draw_start_options(layout, context, working_asset_ui):
         )
         start.label(text="Supports .blend, .glb, .gltf and .fbx")
 
-    secondary = start.row(align=True)
-    secondary.scale_y = 1.2
     if _ASSET_INSPECTION_UI is not None:
+        secondary = start.row()
+        secondary.scale_y = 1.2
         secondary.operator(
             "asset_assistant.inspect_selected_asset",
             text="Inspect Selected",
             icon="VIEWZOOM",
-        )
-    if working_asset_ui is not None:
-        secondary.operator(
-            "asset_assistant.open_editable_checkpoint",
-            text="Open Checkpoint",
-            icon="FILE_BLEND",
         )
 
     if _ASSET_FILE_IMPORT_UI is not None:
