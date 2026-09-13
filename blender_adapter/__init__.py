@@ -23,8 +23,8 @@ def register():
         animation_adoption_ui, animation_modify_exchange, animation_names_ui, animation_tuning_ui,
         asset_file_import_ui, asset_identity_ui, asset_inspection_ui, avian_ui,
         checkpoint_component_repair, clothing_component_ui, component_adoption_ui, component_modify_apply,
-        component_modify_exchange, cura_scale_ui, generation_replace_ui, hair_component_ui, modification,
-        modify_fastpath, modify_ui, run_ui, self_rigged_accessory, ui, ui_fastpath,
+        component_modify_exchange, cura_scale_ui, generation_replace_ui, hair_component_ui, import_normalization,
+        modification, modify_fastpath, modify_ui, run_ui, self_rigged_accessory, ui, ui_fastpath,
         workflow_ui, workspace_create_ui, workspace_nav_ui, working_asset_ui,
     )
     run_ui.prepare(ui)
@@ -39,6 +39,7 @@ def register():
         animation_adoption_ui, self_rigged_accessory,
     )
     asset_inspection_ui.install(ui, workflow_ui, modify_ui)
+    import_normalization.install(asset_file_import_ui)
     checkpoint_component_repair.install(working_asset_ui)
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
