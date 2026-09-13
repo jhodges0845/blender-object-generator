@@ -1,11 +1,28 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Operations on an existing generated asset."""
+"""Operations on existing Asset Assistant assets."""
 
 from .core import canonical_provider_key, get_provider
 
 
+_EXTERNAL_ASSET_KEY = "asset_assistant_external_asset"
+
+
 def is_generated(obj):
     return obj is not None and obj.get('generator') in ('humanoid_blockout', 'object_generator')
+
+
+def is_external_asset(obj):
+    return obj is not None and bool(obj.get(_EXTERNAL_ASSET_KEY, False))
+
+
+def is_managed_asset(obj):
+    """Return whether the root is an explicit Asset Assistant workflow target.
+
+    External assets only become managed after the artist explicitly adopts them.
+    This does not make them generated-provider assets and does not transfer ownership
+    of their geometry, rigs, materials, weights, or animation curves.
+    """
+    return is_generated(obj) or is_external_asset(obj)
 
 
 def _migrate_provider_metadata(root, stored_key, canonical_key):
@@ -24,7 +41,7 @@ def _migrate_provider_metadata(root, stored_key, canonical_key):
 
 def provider_for(root):
     if not is_generated(root):
-        raise ValueError('Choose a generated asset first.')
+        raise ValueError('This imported asset is not tied to a generated provider.')
     stored_key = root.get('object_type', 'humanoid')
     canonical_key = canonical_provider_key(stored_key)
     _migrate_provider_metadata(root, stored_key, canonical_key)
@@ -33,7 +50,7 @@ def provider_for(root):
 
 def find_character(obj):
     while obj is not None:
-        if is_generated(obj):
+        if is_managed_asset(obj):
             return obj
         obj = obj.parent
     return None

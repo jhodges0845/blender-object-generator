@@ -38,6 +38,7 @@ def register():
         component_adoption_ui, hair_component_ui, clothing_component_ui,
         animation_adoption_ui, self_rigged_accessory,
     )
+    asset_inspection_ui.install(ui, workflow_ui, modify_ui)
     ui_fastpath.install(ui)
     animation_modify_exchange.install(modification, modify_ui)
     modify_fastpath.install(modify_ui)
