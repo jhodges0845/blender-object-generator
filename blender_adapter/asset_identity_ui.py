@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Artist-facing asset identity without coupling display names to provider identity."""
 
+from .asset_structure import logical_asset
+
 
 def _source_label(target):
     source = str(target.get("asset_assistant_source", "")).strip().upper()
@@ -11,7 +13,6 @@ def _source_label(target):
     }
     if source in labels:
         return labels[source]
-    # Existing Asset Assistant files predate explicit provenance metadata.
     if target.get("generator") in ("humanoid_blockout", "object_generator"):
         return "Generated"
     return "External / Unclassified"
@@ -23,7 +24,10 @@ def _provider_label(target):
         return provider_for(target).label
     except (ValueError, TypeError, AttributeError, KeyError):
         stored = str(target.get("object_type", "")).strip()
-        return stored.replace("_", " ").title() if stored else "Unknown"
+        if stored:
+            return stored.replace("_", " ").title()
+        capability = str(target.get("asset_assistant_external_capability", "")).strip().title()
+        return (capability + " Asset") if capability else "Imported Asset"
 
 
 def _component_label(count):
@@ -40,23 +44,18 @@ def _draw_summary(layout, context):
         card.label(text="Nothing selected yet")
         return None
 
-    title.label(text=target.name)
-    children = tuple(target.children)
-    has_rig = any(obj.type == "ARMATURE" for obj in children)
-    component_count = sum(obj.type == "MESH" for obj in children)
-    animation_count = 0
-    for obj in children:
-        if obj.type != "ARMATURE" or not obj.animation_data:
-            continue
-        if obj.animation_data.action is not None:
-            animation_count += 1
-        animation_count += len(obj.animation_data.nla_tracks)
+    structure = logical_asset(target)
+    logical_root = structure["root"] or target
+    title.label(text=logical_root.name)
+    has_rig = bool(structure["rigs"])
+    mesh_count = len(structure["meshes"])
+    animation_count = structure["animation_count"]
 
     status = card.row(align=True)
     status.label(text="Rigged" if has_rig else "No Rig", icon="ARMATURE_DATA")
     status.label(text=str(animation_count) + (" Clip" if animation_count == 1 else " Clips"), icon="ACTION")
-    status.label(text=_component_label(component_count), icon="CUBE")
-    return target
+    status.label(text=_component_label(mesh_count), icon="CUBE")
+    return logical_root
 
 
 def _draw_identity(layout, target):
