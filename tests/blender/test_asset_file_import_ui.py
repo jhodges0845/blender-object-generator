@@ -133,6 +133,66 @@ def test_choose_blend_candidate_rejects_uninspected_collection():
         raise AssertionError("uninspected collection should be rejected")
 
 
+def test_completed_import_clears_transaction_only_preflight_state():
+    scene = {
+        asset_file_import_ui._FILEPATH_KEY: "/tmp/maxine.glb",
+        asset_file_import_ui._STATUS_KEY: "EXTERNAL_ASSET",
+        asset_file_import_ui._SUMMARY_KEY: "old message",
+        asset_file_import_ui._CANDIDATE_KEY: "maxine",
+        asset_file_import_ui._CANDIDATES_KEY: "",
+    }
+
+    asset_file_import_ui.clear_file_preflight_state(scene)
+
+    assert not any(key in scene for key in asset_file_import_ui._PREFLIGHT_KEYS)
+
+
+def test_successful_reimport_replaces_previous_group_only_after_finalize():
+    scene = {
+        asset_file_import_ui._STATUS_KEY: "EXTERNAL_ASSET",
+        asset_file_import_ui._SUMMARY_KEY: "pending",
+    }
+
+    class _ImportedRoot:
+        def get(self, key, default=None):
+            if key == asset_file_import_ui._IMPORT_GROUP_KEY:
+                return "new-group"
+            return default
+
+    removed = []
+    result = asset_file_import_ui._finalize_import_replacement(
+        scene,
+        _ImportedRoot(),
+        "old-group",
+        remove_group=removed.append,
+    )
+
+    assert result == "new-group"
+    assert removed == ["old-group"]
+    assert scene[asset_file_import_ui._CURRENT_IMPORT_GROUP_KEY] == "new-group"
+    assert asset_file_import_ui._STATUS_KEY not in scene
+    assert asset_file_import_ui._SUMMARY_KEY not in scene
+
+
+def test_first_import_does_not_attempt_to_remove_unrelated_scene_content():
+    scene = {}
+
+    class _ImportedRoot:
+        def get(self, key, default=None):
+            return "first-group" if key == asset_file_import_ui._IMPORT_GROUP_KEY else default
+
+    removed = []
+    asset_file_import_ui._finalize_import_replacement(
+        scene,
+        _ImportedRoot(),
+        "",
+        remove_group=removed.append,
+    )
+
+    assert removed == []
+    assert scene[asset_file_import_ui._CURRENT_IMPORT_GROUP_KEY] == "first-group"
+
+
 def test_artist_import_clears_stale_asset_assistant_target():
     stale_target = object()
 

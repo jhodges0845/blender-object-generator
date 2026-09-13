@@ -12,6 +12,7 @@ _STATUS_KEY = "asset_assistant_file_preflight_status"
 _SUMMARY_KEY = "asset_assistant_file_preflight_summary"
 _CANDIDATE_KEY = "asset_assistant_file_preflight_candidate"
 _CANDIDATES_KEY = "asset_assistant_file_preflight_candidates"
+_CURRENT_IMPORT_GROUP_KEY = "asset_assistant_current_import_group"
 _IMPORT_GROUP_KEY = "asset_assistant_import_group"
 _IMPORT_ROOT_KEY = "asset_assistant_import_root"
 _IMPORT_SOURCE_KEY = "asset_assistant_import_source"
@@ -19,6 +20,13 @@ _IMPORT_SOURCE_KEY = "asset_assistant_import_source"
 _SUPPORTED_EXTENSIONS = {".blend", ".glb", ".gltf", ".fbx"}
 _FILTER_GLOB = "*.blend;*.glb;*.gltf;*.fbx"
 _CANDIDATE_SEPARATOR = "\n"
+_PREFLIGHT_KEYS = (
+    _FILEPATH_KEY,
+    _STATUS_KEY,
+    _SUMMARY_KEY,
+    _CANDIDATE_KEY,
+    _CANDIDATES_KEY,
+)
 
 
 def _blend_preflight(filepath):
@@ -96,6 +104,13 @@ def _store_report(scene, report):
     scene[_SUMMARY_KEY] = "\n".join(report["notes"])
 
 
+def clear_file_preflight_state(scene):
+    """Clear transaction-only file inspection state after an import completes."""
+    for key in _PREFLIGHT_KEYS:
+        if key in scene:
+            del scene[key]
+
+
 def _stored_candidates(scene):
     raw = str(scene.get(_CANDIDATES_KEY, ""))
     return tuple(name for name in raw.split(_CANDIDATE_SEPARATOR) if name)
@@ -117,12 +132,7 @@ def _choose_import_root(objects):
 
 
 def _mark_import_boundary(objects, source):
-    """Record a non-owning boundary for one imported file.
-
-    This metadata describes provenance/grouping only. It deliberately does not use
-    generator/object_type metadata and therefore does not claim artist content as
-    Asset Assistant-managed geometry.
-    """
+    """Record a non-owning boundary for one imported file."""
     group = uuid4().hex
     root = _choose_import_root(objects)
     for obj in objects:
@@ -133,6 +143,12 @@ def _mark_import_boundary(objects, source):
     return root
 
 
+def _import_group(obj):
+    if obj is None:
+        return ""
+    return str(obj.get(_IMPORT_GROUP_KEY, ""))
+
+
 def _activate_imported_object(context, objects, source=""):
     active = _mark_import_boundary(objects, source) if source else _choose_import_root(objects)
     if active is None:
@@ -141,6 +157,59 @@ def _activate_imported_object(context, objects, source=""):
     active.select_set(True)
     context.view_layer.objects.active = active
     return active
+
+
+def _remove_import_group(group):
+    """Remove only objects belonging to one prior imported-file boundary."""
+    if not group:
+        return 0
+    objects = [obj for obj in tuple(bpy.data.objects) if _import_group(obj) == group]
+    if not objects:
+        return 0
+    collections = {
+        collection
+        for obj in objects
+        for collection in tuple(getattr(obj, "users_collection", ()))
+    }
+    data_blocks = [
+        (getattr(obj, "type", None), getattr(obj, "data", None))
+        for obj in objects
+        if getattr(obj, "data", None) is not None
+    ]
+    for obj in reversed(objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+    for object_type, data in data_blocks:
+        if data is None or getattr(data, "users", 0):
+            continue
+        if object_type == "MESH" and data.name in bpy.data.meshes:
+            bpy.data.meshes.remove(data)
+        elif object_type == "ARMATURE" and data.name in bpy.data.armatures:
+            bpy.data.armatures.remove(data)
+    for collection in collections:
+        if collection.name in bpy.data.collections and not collection.objects and not collection.children:
+            bpy.data.collections.remove(collection)
+    return len(objects)
+
+
+def _previous_import_group(scene, context):
+    remembered = str(scene.get(_CURRENT_IMPORT_GROUP_KEY, ""))
+    if remembered:
+        return remembered
+    settings = getattr(scene, "humanoid_settings", None)
+    target = getattr(settings, "target", None) if settings is not None else None
+    return _import_group(target)
+
+
+def _finalize_import_replacement(scene, active, previous_group, remove_group=_remove_import_group):
+    """Commit a successful import, replacing only the previous imported boundary."""
+    new_group = _import_group(active)
+    if not new_group:
+        raise ValueError("Imported asset is missing its stable import boundary.")
+    if previous_group and previous_group != new_group:
+        remove_group(previous_group)
+    scene[_CURRENT_IMPORT_GROUP_KEY] = new_group
+    clear_file_preflight_state(scene)
+    return new_group
 
 
 def _import_external(filepath, extension, context):
@@ -309,23 +378,33 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
         return context.scene is not None and context.mode == "OBJECT"
 
     def execute(self, context):
+        previous_group = _previous_import_group(context.scene, context)
+        active = None
         try:
             active = import_preflight_asset(context.scene, context)
-        except (ValueError, RuntimeError, OSError, AttributeError) as error:
-            self.report({"ERROR"}, str(error)); return {"CANCELLED"}
-        if active is not None:
-            try:
-                from .asset_inspection_ui import inspect_selected_asset, store_inspection_report
-                inspection = inspect_selected_asset(active)
-                store_inspection_report(context.scene, inspection)
-                _sync_imported_asset_context(context, inspection)
-            except (ValueError, TypeError, AttributeError):
-                pass
-        self.report({"INFO"}, "Asset imported. No Asset Assistant ownership was added.")
+            if active is None:
+                raise RuntimeError("The import finished without selecting an imported asset root.")
+            from .asset_inspection_ui import inspect_selected_asset, store_inspection_report
+            inspection = inspect_selected_asset(active)
+            store_inspection_report(context.scene, inspection)
+            _finalize_import_replacement(context.scene, active, previous_group)
+            _sync_imported_asset_context(context, inspection)
+        except (ValueError, RuntimeError, OSError, AttributeError, TypeError) as error:
+            if active is not None:
+                new_group = _import_group(active)
+                if new_group and new_group != previous_group:
+                    _remove_import_group(new_group)
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        self.report({"INFO"}, "Asset imported. Inspect and enroll it when ready.")
         return {"FINISHED"}
 
 
-_CLASSES = (ASSET_ASSISTANT_OT_preflight_asset_file, ASSET_ASSISTANT_OT_choose_blend_asset_candidate, ASSET_ASSISTANT_OT_import_preflight_asset)
+_CLASSES = (
+    ASSET_ASSISTANT_OT_preflight_asset_file,
+    ASSET_ASSISTANT_OT_choose_blend_asset_candidate,
+    ASSET_ASSISTANT_OT_import_preflight_asset,
+)
 
 
 def register():
@@ -338,4 +417,12 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
 
-__all__ = ["preflight_asset_file", "choose_blend_candidate", "import_preflight_asset", "draw_file_preflight_report", "register", "unregister"]
+__all__ = [
+    "preflight_asset_file",
+    "choose_blend_candidate",
+    "import_preflight_asset",
+    "clear_file_preflight_state",
+    "draw_file_preflight_report",
+    "register",
+    "unregister",
+]
