@@ -4,6 +4,7 @@
 import json
 
 from .adapter import _populate_mesh
+from .asset_structure import asset_rigs
 from .core import (
     AttachmentMode,
     ComponentRecord,
@@ -13,6 +14,7 @@ from .core import (
     component_from_document,
     validate_component,
 )
+from .workflow import is_managed_asset
 
 _COMPONENTS_KEY = "asset_assistant_components"
 _COMPONENT_ID_KEY = "asset_assistant_component_id"
@@ -21,10 +23,10 @@ _BONE_PREFIX = "bone:"
 
 
 def _require_asset_root(root):
-    if root is None or root.get("generator") != "object_generator":
-        raise ValueError("components require an Asset Assistant generated asset root")
+    if root is None or not is_managed_asset(root):
+        raise ValueError("components require an enrolled Asset Assistant asset root")
     if not root.get("asset_assistant_asset_id"):
-        raise ValueError("generated asset is missing its stable asset id")
+        raise ValueError("Asset Assistant asset is missing its stable asset id")
 
 
 def _documents(root):
@@ -71,9 +73,9 @@ def _component_root(root, component_id):
 
 
 def _armature(root):
-    armatures = [child for child in root.children if child.type == "ARMATURE"]
+    armatures = asset_rigs(root)
     if len(armatures) != 1:
-        raise ValueError("bone attachment requires exactly one generated armature")
+        raise ValueError("bone attachment requires exactly one base armature")
     return armatures[0]
 
 
@@ -99,7 +101,7 @@ def _validate_attachment(root, component_root, record):
     if armature.data.bones.get(bone_name) is None:
         raise ValueError("attachment bone does not exist: " + bone_name)
     if component_root.parent != armature:
-        raise ValueError("component is no longer attached to the generated armature")
+        raise ValueError("component is no longer attached to the base armature")
     if component_root.parent_type != "BONE" or component_root.parent_bone != bone_name:
         raise ValueError("component bone attachment no longer matches persisted metadata")
 
