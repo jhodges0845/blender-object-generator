@@ -129,12 +129,26 @@ def asset_rigs(root, objects=None):
 
 
 def animation_count_for_object(obj):
+    """Count unique animation Actions referenced by one Blender object.
+
+    Blender's GLB importer can expose the same clip both as the active Action and as
+    an NLA strip. Counting the active slot plus NLA tracks therefore over-reports
+    clips after a round trip. Asset Assistant cares about distinct editable clips,
+    so deduplicate by Action identity across both locations.
+    """
     animation_data = getattr(obj, "animation_data", None)
     if animation_data is None:
         return 0
-    count = 1 if getattr(animation_data, "action", None) is not None else 0
-    count += len(tuple(getattr(animation_data, "nla_tracks", ())))
-    return count
+    actions = {}
+    active = getattr(animation_data, "action", None)
+    if active is not None:
+        actions[id(active)] = active
+    for track in tuple(getattr(animation_data, "nla_tracks", ())):
+        for strip in tuple(getattr(track, "strips", ())):
+            action = getattr(strip, "action", None)
+            if action is not None:
+                actions[id(action)] = action
+    return len(actions)
 
 
 def asset_animation_count(root, objects=None):
