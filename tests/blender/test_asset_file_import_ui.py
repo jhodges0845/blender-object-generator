@@ -54,10 +54,11 @@ def test_blend_with_one_collection_and_no_scene_signals_is_asset_candidate(monke
 
     assert report["status"] == "ASSET_CANDIDATE"
     assert report["candidate"] == "Maxine"
+    assert report["candidates"] == ("Maxine",)
     assert any("Nothing has been appended" in line for line in report["notes"])
 
 
-def test_blend_with_multiple_collections_is_not_auto_imported(monkeypatch, tmp_path):
+def test_blend_with_multiple_collections_returns_explicit_choices(monkeypatch, tmp_path):
     filepath = tmp_path / "project.blend"
     filepath.write_bytes(b"placeholder")
 
@@ -81,4 +82,36 @@ def test_blend_with_multiple_collections_is_not_auto_imported(monkeypatch, tmp_p
 
     assert report["status"] == "MULTIPLE_CANDIDATES"
     assert report["candidate"] == ""
-    assert any("project file" in line.lower() for line in report["notes"])
+    assert report["candidates"] == ("Maxine", "Sword", "Environment")
+    assert any("choose" in line.lower() for line in report["notes"])
+    assert any("project-level" in line.lower() for line in report["notes"])
+
+
+def test_choose_blend_candidate_only_selects_preflighted_collection():
+    scene = {
+        asset_file_import_ui._STATUS_KEY: "MULTIPLE_CANDIDATES",
+        asset_file_import_ui._CANDIDATE_KEY: "",
+        asset_file_import_ui._CANDIDATES_KEY: "Maxine\nSword\nEnvironment",
+        asset_file_import_ui._SUMMARY_KEY: "old summary",
+    }
+
+    selected = asset_file_import_ui.choose_blend_candidate(scene, "Sword")
+
+    assert selected == "Sword"
+    assert scene[asset_file_import_ui._STATUS_KEY] == "ASSET_CANDIDATE"
+    assert scene[asset_file_import_ui._CANDIDATE_KEY] == "Sword"
+    assert "Selected collection: Sword" in scene[asset_file_import_ui._SUMMARY_KEY]
+
+
+def test_choose_blend_candidate_rejects_uninspected_collection():
+    scene = {
+        asset_file_import_ui._STATUS_KEY: "MULTIPLE_CANDIDATES",
+        asset_file_import_ui._CANDIDATES_KEY: "Maxine\nSword",
+    }
+
+    try:
+        asset_file_import_ui.choose_blend_candidate(scene, "Camera")
+    except ValueError as error:
+        assert "collection candidates" in str(error)
+    else:
+        raise AssertionError("uninspected collection should be rejected")
