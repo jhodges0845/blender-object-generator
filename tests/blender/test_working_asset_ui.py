@@ -65,6 +65,27 @@ class EditableCheckpointTests(unittest.TestCase):
             root[key] = value
         return root
 
+    def _external_import(self, capability="STATIC"):
+        scene = bpy.context.scene
+        group = "checkpoint-import-group"
+        root = bpy.data.objects.new("ImportedAsset", None)
+        mesh_data = bpy.data.meshes.new("ImportedAssetMesh")
+        mesh_data.from_pydata(
+            [(0, 0, 0), (1, 0, 0), (0, 1, 0)],
+            [],
+            [(0, 1, 2)],
+        )
+        mesh = bpy.data.objects.new("ImportedMesh", mesh_data)
+        scene.collection.objects.link(root)
+        scene.collection.objects.link(mesh)
+        root["asset_assistant_import_group"] = group
+        root["asset_assistant_import_root"] = True
+        root["asset_assistant_external_asset"] = True
+        root["asset_assistant_source"] = "ADOPTED"
+        root["asset_assistant_external_capability"] = capability
+        mesh["asset_assistant_import_group"] = group
+        return root, mesh
+
     def test_checkpoint_forces_blend_extension_and_saves_copy(self):
         calls = []
 
@@ -105,8 +126,6 @@ class EditableCheckpointTests(unittest.TestCase):
             self.assertTrue(operator.check_existing)
 
             path.unlink()
-            # Simulate Blender remembering the previous operator value. A new dialog
-            # invocation must still derive the state from disk and clear it.
             operator.check_existing = True
             working_asset_ui._reset_checkpoint_save_dialog(operator, path)
 
@@ -131,6 +150,38 @@ class EditableCheckpointTests(unittest.TestCase):
         self.assertNotIn("asset_assistant_working_state_kind", scene)
         self.assertNotIn("asset_assistant_working_state_version", scene)
         self.assertEqual("READY", scene["asset_assistant_working_state_status"])
+
+    def test_adopted_import_group_is_valid_editable_checkpoint_state(self):
+        root, mesh = self._external_import()
+
+        snapshots = validate_working_state(bpy.context.scene)
+
+        self.assertEqual(1, len(snapshots))
+        self.assertEqual("external", snapshots[0]["kind"])
+        self.assertEqual(root, snapshots[0]["root"])
+        self.assertEqual(1, snapshots[0]["meshes"])
+        self.assertIsNone(mesh.parent)
+        self.assertEqual("READY", bpy.context.scene["asset_assistant_working_state_status"])
+
+    def test_reopened_imported_checkpoint_restores_external_target(self):
+        scene = bpy.context.scene
+        root, _mesh = self._external_import()
+        scene["asset_assistant_working_state_kind"] = "asset-assistant-editable-checkpoint"
+        scene["asset_assistant_working_state_version"] = 1
+        scene.humanoid_settings.target = None
+
+        snapshots = validate_checkpoint_scene(scene)
+
+        self.assertEqual(1, len(snapshots))
+        self.assertEqual(root, scene.humanoid_settings.target)
+        self.assertEqual("READY", scene["asset_assistant_working_state_status"])
+
+    def test_external_checkpoint_rejects_lost_import_boundary_mesh(self):
+        root, mesh = self._external_import()
+        del mesh["asset_assistant_import_group"]
+
+        with self.assertRaisesRegex(ValueError, "no longer contains mesh geometry"):
+            validate_working_state(bpy.context.scene)
 
     def test_working_state_requires_recognizable_asset_before_save(self):
         with self.assertRaisesRegex(ValueError, "requires at least one recognizable"):
