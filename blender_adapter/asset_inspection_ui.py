@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Read-only preflight and explicit onboarding for artist-created assets."""
 
+from uuid import uuid4
+
 import bpy
 
 from .asset_structure import logical_asset
@@ -15,6 +17,7 @@ _CAN_ADOPT_KEY = "asset_assistant_inspection_can_adopt"
 _IMPORT_GROUP_KEY = "asset_assistant_import_group"
 _EXTERNAL_ASSET_KEY = "asset_assistant_external_asset"
 _EXTERNAL_CAPABILITY_KEY = "asset_assistant_external_capability"
+_ASSET_ID_KEY = "asset_assistant_asset_id"
 _INSPECTION_KEYS = (
     _STATUS_KEY,
     _NAME_KEY,
@@ -141,6 +144,16 @@ def adopt_external_asset(context, selected):
     root[_EXTERNAL_ASSET_KEY] = True
     root["asset_assistant_source"] = "ADOPTED"
     root[_EXTERNAL_CAPABILITY_KEY] = capability
+    if not root.get(_ASSET_ID_KEY):
+        root[_ASSET_ID_KEY] = uuid4().hex
+    if not isinstance(root.get("coordinate_scale"), (int, float)) or root.get("coordinate_scale") <= 0:
+        unit_settings = getattr(context.scene, "unit_settings", None)
+        meters_per_unit = float(getattr(unit_settings, "scale_length", 1.0) or 1.0)
+        if meters_per_unit <= 0:
+            meters_per_unit = 1.0
+        # Component generators use centimetres internally. Recording this conversion
+        # does not alter imported transforms or claim ownership of artist geometry.
+        root["coordinate_scale"] = 0.01 / meters_per_unit
 
     settings = context.scene.humanoid_settings
     settings.target = root
