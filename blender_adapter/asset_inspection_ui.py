@@ -15,6 +15,13 @@ _IMPORT_GROUP_KEY = "asset_assistant_import_group"
 _IMPORT_ROOT_KEY = "asset_assistant_import_root"
 _EXTERNAL_ASSET_KEY = "asset_assistant_external_asset"
 _EXTERNAL_CAPABILITY_KEY = "asset_assistant_external_capability"
+_INSPECTION_KEYS = (
+    _STATUS_KEY,
+    _NAME_KEY,
+    _SUMMARY_KEY,
+    _METRICS_KEY,
+    _CAN_ADOPT_KEY,
+)
 
 _ORIGINAL_DRAW_ARTIST_MODIFY = None
 
@@ -159,6 +166,13 @@ def store_inspection_report(scene, report):
     scene[_CAN_ADOPT_KEY] = bool(report.get("can_adopt", False))
 
 
+def clear_inspection_report(scene):
+    """Clear transient inspection/onboarding messages once the workflow is complete."""
+    for key in _INSPECTION_KEYS:
+        if key in scene:
+            del scene[key]
+
+
 _store_report = store_inspection_report
 
 
@@ -166,6 +180,7 @@ def adopt_external_asset(context, selected):
     """Explicitly enroll one inspected external base asset without claiming artist data."""
     report = inspect_selected_asset(selected)
     if report["status"] in {"READY", "EXTERNAL_READY"}:
+        clear_inspection_report(context.scene)
         return report["root"]
     if not report.get("can_adopt"):
         if report["metrics"]["armatures"] > 1:
@@ -182,8 +197,7 @@ def adopt_external_asset(context, selected):
     settings = context.scene.humanoid_settings
     settings.target = root
     settings.asset_use = capability
-    refreshed = inspect_selected_asset(root)
-    store_inspection_report(context.scene, refreshed)
+    clear_inspection_report(context.scene)
     return root
 
 
@@ -323,6 +337,7 @@ def unregister():
 __all__ = [
     "inspect_selected_asset",
     "store_inspection_report",
+    "clear_inspection_report",
     "adopt_external_asset",
     "draw_inspection_report",
     "install",
