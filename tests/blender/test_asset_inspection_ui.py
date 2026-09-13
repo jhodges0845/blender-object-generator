@@ -17,6 +17,9 @@ class _Object:
     def get(self, key, default=None):
         return self._metadata.get(key, default)
 
+    def __setitem__(self, key, value):
+        self._metadata[key] = value
+
 
 class _Modifier:
     type = "ARMATURE"
@@ -46,7 +49,7 @@ def test_generated_asset_is_reported_ready_without_using_display_name_as_identit
     assert report["name"] == "Maxine"
     assert report["status"] == "READY"
     assert report["metrics"]["meshes"] == 1
-    assert "Recognized Asset Assistant metadata." in report["notes"]
+    assert "Recognized Asset Assistant generated metadata." in report["notes"]
 
 
 def test_artist_mesh_inspection_detects_external_rig_materials_and_animation_read_only():
@@ -59,9 +62,10 @@ def test_artist_mesh_inspection_detects_external_rig_materials_and_animation_rea
     report = asset_inspection_ui.inspect_selected_asset(mesh)
 
     assert report["status"] == "REVIEW"
+    assert report["can_adopt"] is True
     assert report["metrics"] == {"meshes": 1, "armatures": 1, "materials": 2, "animations": 2}
     assert any("no Asset Assistant ownership was added" in note for note in report["notes"])
-    assert any("Adoption remains optional" in note for note in report["notes"])
+    assert any("Enrollment is always explicit" in note for note in report["notes"])
 
 
 def test_import_group_inspection_uses_whole_file_when_child_is_selected(monkeypatch):
@@ -101,6 +105,52 @@ def test_import_group_inspection_is_stable_when_rig_is_selected(monkeypatch):
     assert from_rig["root"] is root
     assert from_mesh["metrics"] == from_rig["metrics"]
     assert from_rig["metrics"]["animations"] == 2
+
+
+def test_adopt_external_asset_sets_only_workflow_metadata_and_current_target(monkeypatch):
+    group = "import-789"
+    root = _Object("ImportedHuman", asset_assistant_import_group=group, asset_assistant_import_root=True)
+    mesh = _Object("Body", type="MESH", asset_assistant_import_group=group)
+    rig = _Object("Rig", type="ARMATURE", asset_assistant_import_group=group)
+    rig.animation_data = _AnimationData(action=object())
+    mesh.modifiers.append(_Modifier(rig))
+    monkeypatch.setattr(asset_inspection_ui.bpy.data, "objects", (root, mesh, rig))
+
+    class _Settings:
+        target = None
+        asset_use = "STATIC"
+
+    class _Scene(dict):
+        humanoid_settings = _Settings()
+
+    class _Context:
+        scene = _Scene()
+
+    adopted = asset_inspection_ui.adopt_external_asset(_Context(), mesh)
+
+    assert adopted is root
+    assert root.get("asset_assistant_external_asset") is True
+    assert root.get("asset_assistant_source") == "ADOPTED"
+    assert root.get("asset_assistant_external_capability") == "ANIMATED"
+    assert root.get("generator") is None
+    assert _Context.scene.humanoid_settings.target is root
+    assert _Context.scene.humanoid_settings.asset_use == "ANIMATED"
+    assert _Context.scene[asset_inspection_ui._STATUS_KEY] == "EXTERNAL_READY"
+
+
+def test_multiple_external_armatures_block_base_asset_adoption(monkeypatch):
+    group = "import-many-rigs"
+    root = _Object("ImportedHuman", asset_assistant_import_group=group, asset_assistant_import_root=True)
+    mesh = _Object("Body", type="MESH", asset_assistant_import_group=group)
+    rig_a = _Object("RigA", type="ARMATURE", asset_assistant_import_group=group)
+    rig_b = _Object("RigB", type="ARMATURE", asset_assistant_import_group=group)
+    monkeypatch.setattr(asset_inspection_ui.bpy.data, "objects", (root, mesh, rig_a, rig_b))
+
+    report = asset_inspection_ui.inspect_selected_asset(mesh)
+
+    assert report["status"] == "REVIEW"
+    assert report["can_adopt"] is False
+    assert report["metrics"]["armatures"] == 2
 
 
 def test_non_mesh_selection_reports_needs_setup():
