@@ -9,7 +9,10 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 
 from .asset_structure import logical_asset
 from .component_modify_exchange import enrich_snapshot
+from .components import component_records, inspect_component
+from .core import AttachmentMode
 from .modification import inspect_generated_asset
+from .skinned_components import inspect_skinned_component
 from .workflow import is_external_asset, is_generated, is_managed_asset
 
 
@@ -51,7 +54,7 @@ def _restore_scene_value(scene, key, previous):
 
 
 def _validate_external_working_asset(root):
-    """Validate adopted artist data without treating it as generated-provider state."""
+    """Validate adopted artist data and managed additions without provider assumptions."""
     structure = logical_asset(root)
     if structure["root"] is not root:
         raise ValueError("Imported Asset Assistant target no longer resolves to its enrolled logical root.")
@@ -68,6 +71,13 @@ def _validate_external_working_asset(root):
     if capability == "ANIMATED" and structure["animation_count"] < 1:
         raise ValueError("Imported animated Asset Assistant target no longer exposes animation data.")
 
+    records = component_records(root)
+    for record in records:
+        if record.attachment_mode == AttachmentMode.SKINNED:
+            inspect_skinned_component(root, record.component_id)
+        else:
+            inspect_component(root, record.component_id)
+
     return {
         "kind": "external",
         "root": root,
@@ -75,6 +85,7 @@ def _validate_external_working_asset(root):
         "meshes": len(structure["meshes"]),
         "rigs": len(structure["rigs"]),
         "animations": structure["animation_count"],
+        "components": len(records),
     }
 
 
@@ -92,7 +103,7 @@ def validate_working_state(scene):
             snapshots.append(enrich_snapshot(root, inspect_generated_asset(root)))
         elif is_external_asset(root):
             # Adopted artist assets have no generated provider contract. Validate
-            # their normalized boundary/capability without claiming artist data.
+            # their normalized boundary/capability plus any explicit AA components.
             snapshots.append(_validate_external_working_asset(root))
 
     scene[_CHECKPOINT_STATUS_KEY] = "READY"
