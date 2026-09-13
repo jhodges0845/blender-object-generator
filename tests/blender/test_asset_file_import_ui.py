@@ -4,6 +4,11 @@ from pathlib import Path
 from blender_adapter import asset_file_import_ui
 
 
+def test_file_picker_exposes_every_supported_asset_extension():
+    assert asset_file_import_ui._FILTER_GLOB == "*.blend;*.glb;*.gltf;*.fbx"
+    assert asset_file_import_ui._SUPPORTED_EXTENSIONS == {".blend", ".glb", ".gltf", ".fbx"}
+
+
 def test_external_exchange_files_are_preflighted_without_import(tmp_path):
     filepath = tmp_path / "maxine.glb"
     filepath.write_bytes(b"placeholder")
@@ -14,6 +19,17 @@ def test_external_exchange_files_are_preflighted_without_import(tmp_path):
     assert report["candidate"] == "maxine"
     assert report["extension"] == ".glb"
     assert any("ownership" in line.lower() for line in report["notes"])
+
+
+def test_fbx_exchange_files_are_preflighted_without_import(tmp_path):
+    filepath = tmp_path / "maxine.fbx"
+    filepath.write_bytes(b"placeholder")
+
+    report = asset_file_import_ui.preflight_asset_file(filepath)
+
+    assert report["status"] == "EXTERNAL_ASSET"
+    assert report["candidate"] == "maxine"
+    assert report["extension"] == ".fbx"
 
 
 def test_unsupported_file_type_is_rejected(tmp_path):
