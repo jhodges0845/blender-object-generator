@@ -109,7 +109,7 @@ def test_create_generate_uses_four_unified_asset_buttons_and_primary_action():
 
     operators = [call for node in nodes for call in node.operators]
     assert ("asset_assistant.generate_replace_current", {"text": "Generate Human", "icon": "ADD"}) in operators
-    assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Checkpoint", "icon": "FILE_BLEND"}) in operators
+    assert not any(op == "asset_assistant.open_editable_checkpoint" for op, _kwargs in operators)
 
 
 def test_start_options_make_asset_file_import_prominent(monkeypatch):
@@ -130,7 +130,7 @@ def test_start_options_make_asset_file_import_prominent(monkeypatch):
     operators = [call for node in _walk(panel.layout) for call in node.operators]
     assert ("asset_assistant.preflight_asset_file", {"text": "Import Asset File", "icon": "IMPORT"}) in operators
     assert ("asset_assistant.inspect_selected_asset", {"text": "Inspect Selected", "icon": "VIEWZOOM"}) in operators
-    assert ("asset_assistant.open_editable_checkpoint", {"text": "Open Checkpoint", "icon": "FILE_BLEND"}) in operators
+    assert not any(op == "asset_assistant.open_editable_checkpoint" for op, _kwargs in operators)
 
 
 def test_generate_action_becomes_replace_when_a_current_asset_exists():
