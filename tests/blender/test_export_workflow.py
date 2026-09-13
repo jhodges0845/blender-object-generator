@@ -104,14 +104,23 @@ class ExportWorkflowTests(unittest.TestCase):
         vertices = [struct.unpack_from('<12fH', data, 84 + index * 50)[3:12] for index in range(count)]
         height = max(v[i] for v in vertices for i in (2, 5, 8))
         self.assertAlmostEqual(height, 300, places=3)
+
         other = root.children[0].copy()
         other.data = other.data.copy()
         self.scene.collection.objects.link(other)
         other.parent = root
         other.location.x = 2
         bpy.ops.humanoid.validate_character()
-        self.assertFalse(bpy.ops.humanoid.export_asset.poll())
-        self.assertTrue(any(issue.code == 'cura_solid' for issue in get_adapter('CURA').prepare(root, bpy.context)))
+        self.assertTrue(bpy.ops.humanoid.export_asset.poll())
+        issues = get_adapter('CURA').prepare(root, bpy.context)
+        shell_note = next(issue for issue in issues if issue.code == 'cura_solid')
+        self.assertEqual(shell_note.status, 'INFO')
+
+        multi_path = Path(self.temp.name) / 'two-shells.stl'
+        self.assertEqual(bpy.ops.humanoid.export_asset(filepath=str(multi_path)), {'FINISHED'})
+        multi_data = multi_path.read_bytes()
+        multi_count, = struct.unpack_from('<I', multi_data, 80)
+        self.assertEqual(multi_count, 24)
 
     def test_cura_rejects_open_mesh_and_uses_unit_scale(self):
         import bmesh
