@@ -16,10 +16,21 @@ _COMPONENT_ID_KEY = "asset_assistant_component_id"
 _COMPONENT_RIG_KEY = "asset_assistant_component_rig"
 
 
-def _import_group(obj):
+def _metadata(obj, key, default=None):
+    """Read Blender custom properties without requiring a real bpy object.
+
+    Host-side contract tests intentionally use lightweight namespaces. Treat objects
+    without Blender's ``get`` API as unmarked scene objects so normalized traversal
+    keeps the same recursive fallback behavior outside Blender.
+    """
     if obj is None:
-        return ""
-    return str(obj.get(_IMPORT_GROUP_KEY, ""))
+        return default
+    getter = getattr(obj, "get", None)
+    return getter(key, default) if callable(getter) else default
+
+
+def _import_group(obj):
+    return str(_metadata(obj, _IMPORT_GROUP_KEY, ""))
 
 
 def _hierarchy_root(obj):
@@ -39,9 +50,7 @@ def _walk_hierarchy(root):
 
 def _is_component_member(obj):
     """Return whether an object belongs to a first-class component, not the base asset."""
-    if obj is None:
-        return False
-    return bool(obj.get(_COMPONENT_ID_KEY)) or bool(obj.get(_COMPONENT_RIG_KEY, False))
+    return bool(_metadata(obj, _COMPONENT_ID_KEY)) or bool(_metadata(obj, _COMPONENT_RIG_KEY, False))
 
 
 def asset_boundary(selected, objects=None):
@@ -61,7 +70,7 @@ def asset_boundary(selected, objects=None):
         members = tuple(obj for obj in universe if _import_group(obj) == group)
         if members:
             root = next(
-                (obj for obj in members if bool(obj.get(_IMPORT_ROOT_KEY, False))),
+                (obj for obj in members if bool(_metadata(obj, _IMPORT_ROOT_KEY, False))),
                 None,
             )
             if root is None:
