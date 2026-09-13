@@ -23,6 +23,7 @@ _CHECKPOINT_MESSAGE_KEY = "asset_assistant_working_state_message"
 _CHECKPOINT_KIND = "asset-assistant-editable-checkpoint"
 _CHECKPOINT_VERSION = 1
 _OPEN_EXPECTS_CHECKPOINT = False
+_COMPONENTS_KEY = "asset_assistant_components"
 
 
 def _checkpoint_destination(filepath):
@@ -71,7 +72,11 @@ def _validate_external_working_asset(root):
     if capability == "ANIMATED" and structure["animation_count"] < 1:
         raise ValueError("Imported animated Asset Assistant target no longer exposes animation data.")
 
-    records = component_records(root)
+    # Imported assets enrolled before component support did not receive an AA asset
+    # id. Keep those checkpoints valid when they have no component registry. Once
+    # a component registry exists, component_records() deliberately requires the
+    # stable id so ownership cannot become ambiguous.
+    records = component_records(root) if root.get(_COMPONENTS_KEY) is not None else ()
     for record in records:
         if record.attachment_mode == AttachmentMode.SKINNED:
             inspect_skinned_component(root, record.component_id)
@@ -215,9 +220,6 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
     )
     filename_ext = ".blend"
     filter_glob: bpy.props.StringProperty(default="*.blend", options={"HIDDEN"})
-    # ExportHelper's overwrite flag is an operator property and can otherwise be
-    # restored from a previous invocation. SKIP_SAVE makes each dialog start from
-    # the current filesystem state instead of a remembered overwrite decision.
     check_existing: bpy.props.BoolProperty(
         name="Check Existing",
         default=True,
@@ -244,8 +246,6 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
-        # Refresh one final time at execution so a file deleted while the dialog was
-        # open does not leave a stale overwrite state behind.
         self.filepath, self.check_existing = _checkpoint_destination(self.filepath)
         try:
             filepath = save_editable_checkpoint(self.filepath, bpy.ops.wm.save_as_mainfile, context.scene)
