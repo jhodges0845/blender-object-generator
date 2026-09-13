@@ -21,6 +21,26 @@ _CHECKPOINT_VERSION = 1
 _OPEN_EXPECTS_CHECKPOINT = False
 
 
+def _checkpoint_destination(filepath):
+    """Return normalized .blend path and its current filesystem existence.
+
+    The file browser may keep operator properties between invocations, so checkpoint
+    save must derive overwrite state from disk instead of trusting remembered UI state.
+    """
+    path = Path(filepath)
+    if path.suffix.lower() != ".blend":
+        path = path.with_suffix(".blend")
+    return str(path), path.exists()
+
+
+def _reset_checkpoint_save_dialog(operator, filepath):
+    """Reset transient file-browser state for a fresh checkpoint save invocation."""
+    normalized, exists = _checkpoint_destination(filepath)
+    operator.filepath = normalized
+    operator.check_existing = exists
+    return normalized
+
+
 def _restore_scene_value(scene, key, previous):
     existed, value = previous
     if existed:
@@ -50,9 +70,8 @@ def validate_working_state(scene):
 
 def save_editable_checkpoint(filepath, save_operator, scene=None):
     """Validate and write an editable Blender copy without changing the active working file."""
+    filepath, _exists = _checkpoint_destination(filepath)
     path = Path(filepath)
-    if path.suffix.lower() != ".blend":
-        path = path.with_suffix(".blend")
 
     if scene is not None:
         validate_working_state(scene)
@@ -151,17 +170,38 @@ class ASSET_ASSISTANT_OT_save_editable_checkpoint(bpy.types.Operator, ExportHelp
     )
     filename_ext = ".blend"
     filter_glob: bpy.props.StringProperty(default="*.blend", options={"HIDDEN"})
+    # ExportHelper's overwrite flag is an operator property and can otherwise be
+    # restored from a previous invocation. SKIP_SAVE makes each dialog start from
+    # the current filesystem state instead of a remembered overwrite decision.
+    check_existing: bpy.props.BoolProperty(
+        name="Check Existing",
+        default=True,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
     @classmethod
     def poll(cls, context):
         return context.scene is not None and context.mode == "OBJECT"
 
+    def check(self, _context):
+        normalized, exists = _checkpoint_destination(self.filepath)
+        changed = self.filepath != normalized or self.check_existing != exists
+        self.filepath = normalized
+        self.check_existing = exists
+        return changed
+
     def invoke(self, context, event):
         current = Path(bpy.data.filepath).stem if bpy.data.filepath else "asset-assistant-working-asset"
-        self.filepath = current + ".checkpoint.blend"
+        _reset_checkpoint_save_dialog(self, current + ".checkpoint.blend")
+        for key in (_CHECKPOINT_STATUS_KEY, _CHECKPOINT_MESSAGE_KEY):
+            if key in context.scene:
+                del context.scene[key]
         return ExportHelper.invoke(self, context, event)
 
     def execute(self, context):
+        # Refresh one final time at execution so a file deleted while the dialog was
+        # open does not leave a stale overwrite state behind.
+        self.filepath, self.check_existing = _checkpoint_destination(self.filepath)
         try:
             filepath = save_editable_checkpoint(self.filepath, bpy.ops.wm.save_as_mainfile, context.scene)
         except (RuntimeError, OSError, ValueError, TypeError, AttributeError) as error:
