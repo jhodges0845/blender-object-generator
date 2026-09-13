@@ -14,7 +14,7 @@ _CANDIDATES_KEY = "asset_assistant_file_preflight_candidates"
 
 _SUPPORTED_EXTENSIONS = {".blend", ".glb", ".gltf", ".fbx"}
 _FILTER_GLOB = "*.blend;*.glb;*.gltf;*.fbx"
-_CANDIDATE_SEPARATOR = "\x1f"
+_CANDIDATE_SEPARATOR = "\n"
 
 
 def _blend_preflight(filepath):
@@ -36,7 +36,7 @@ def _blend_preflight(filepath):
     elif len(collections) > 1:
         status = "MULTIPLE_CANDIDATES"
         candidate = ""
-        headline = f"{len(collections)} collection candidates found; this may be a project file."
+        headline = f"{len(collections)} collection candidates found; choose the asset you want."
     elif meshes or armatures:
         status = "ASSET_CANDIDATE"
         candidate = ""
@@ -56,7 +56,7 @@ def _blend_preflight(filepath):
             preview += ", …"
         notes.append("Collections: " + preview)
     if project_signals:
-        notes.append("Scene/camera/light content suggests this file may contain more than one asset.")
+        notes.append("Scene/camera/light content suggests this file also contains project-level content.")
     notes.append("Nothing has been appended to the current Blender scene yet.")
     return {
         "status": status,
@@ -159,9 +159,13 @@ def _import_blend_collection(filepath, collection_name, context):
 def choose_blend_candidate(scene, collection_name):
     candidates = _stored_candidates(scene)
     if collection_name not in candidates:
-        raise ValueError("That collection was not found in the inspected .blend file.")
+        raise ValueError("Choose one of the inspected collection candidates.")
     scene[_CANDIDATE_KEY] = collection_name
     scene[_STATUS_KEY] = "ASSET_CANDIDATE"
+    summary = str(scene.get(_SUMMARY_KEY, "")).rstrip()
+    selected_line = "Selected collection: " + collection_name
+    scene[_SUMMARY_KEY] = summary + ("\n" if summary else "") + selected_line
+    return collection_name
 
 
 def import_preflight_asset(scene, context):
@@ -220,9 +224,6 @@ def draw_file_preflight_report(layout, scene):
         return
 
     candidate = str(scene.get(_CANDIDATE_KEY, ""))
-    if status == "ASSET_CANDIDATE" and candidate and len(candidates) > 1:
-        box.label(text="Selected: " + candidate, icon="CHECKMARK")
-
     can_import = status in {"ASSET_CANDIDATE", "EXTERNAL_ASSET"} and (
         status == "EXTERNAL_ASSET" or bool(candidate)
     )
@@ -249,9 +250,8 @@ class ASSET_ASSISTANT_OT_preflight_asset_file(bpy.types.Operator):
     )
 
     def invoke(self, context, _event):
-        # Use Blender's generic file selector directly instead of ImportHelper.
-        # ImportHelper's extension handling can narrow a multi-format selector to
-        # a single type in newer Blender builds even when filter_glob is broad.
+        # Use Blender's generic selector directly so a multi-format chooser keeps
+        # every supported extension visible instead of collapsing to one type.
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
