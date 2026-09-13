@@ -3,7 +3,9 @@
 
 from dataclasses import dataclass
 
+from .asset_structure import asset_boundary
 from .components import _armature, _require_asset_root
+from .workflow import is_managed_asset
 
 
 SUPPORTED = "supported"
@@ -26,12 +28,8 @@ class ExternalObjectInspection:
 
 
 def _asset_owner(obj):
-    current = obj
-    while current is not None:
-        if current.get("generator") == "object_generator":
-            return current
-        current = current.parent
-    return None
+    logical_root, _members = asset_boundary(obj)
+    return logical_root if is_managed_asset(logical_root) else None
 
 
 def inspect_external_object(root, obj):
@@ -81,6 +79,20 @@ def inspect_external_object(root, obj):
         return ExternalObjectInspection(
             BLOCKED,
             ("Generated body geometry cannot be re-adopted as a reusable component.",),
+            "none",
+            materials,
+            bool(armature_modifiers),
+            vertex_groups,
+        )
+    if (
+        owner == root
+        and bool(root.get("asset_assistant_external_asset", False))
+        and obj.get("asset_assistant_import_group")
+        and obj.get("asset_assistant_import_group") == root.get("asset_assistant_import_group")
+    ):
+        return ExternalObjectInspection(
+            BLOCKED,
+            ("Imported base-asset geometry cannot be reclassified as a component.",),
             "none",
             materials,
             bool(armature_modifiers),
