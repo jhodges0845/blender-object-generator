@@ -75,3 +75,42 @@ def test_modifier_referenced_rig_is_part_of_logical_rig_set_without_double_count
 
     assert rigs == (rig,)
     assert count == 1
+
+
+def test_component_owned_rig_does_not_create_false_multi_rig_base_asset():
+    root = _Object("Generated")
+    body = _Object("Body", type="MESH", parent=root)
+    base_rig = _Object("Rig", type="ARMATURE", parent=root)
+    base_rig.animation_data = _AnimationData(action=object())
+
+    component_root = _Object(
+        "Gauntlet",
+        parent=root,
+        asset_assistant_component_id="component-gauntlet",
+    )
+    component_mesh = _Object(
+        "GauntletMesh",
+        type="MESH",
+        parent=component_root,
+        asset_assistant_component_id="component-gauntlet",
+    )
+    component_rig = _Object(
+        "GauntletRig",
+        type="ARMATURE",
+        parent=component_root,
+        asset_assistant_component_id="component-gauntlet",
+        asset_assistant_component_rig=True,
+    )
+    component_rig.animation_data = _AnimationData(action=object())
+    component_mesh.modifiers.append(_Modifier(component_rig))
+
+    structure = asset_structure.logical_asset(
+        root,
+        objects=(root, body, base_rig, component_root, component_mesh, component_rig),
+    )
+
+    assert structure["objects"] == (root, body, base_rig, component_root, component_mesh, component_rig)
+    assert structure["base_objects"] == (root, body, base_rig)
+    assert structure["meshes"] == (body,)
+    assert structure["rigs"] == (base_rig,)
+    assert structure["animation_count"] == 1

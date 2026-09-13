@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Normalized logical structure for generated and imported Asset Assistant assets.
 
-Blender importers are allowed to create different raw object hierarchies.  Downstream
-Asset Assistant workflows should ask this module for an asset boundary, meshes, rigs,
-and animation-bearing objects instead of assuming direct children of one particular
-importer root.
+Blender importers are allowed to create different raw object hierarchies. Downstream
+Asset Assistant workflows should ask this module for an asset boundary, base meshes,
+base rigs, and animation-bearing objects instead of assuming direct children of one
+particular importer root.
 """
 
 import bpy
@@ -12,6 +12,8 @@ import bpy
 
 _IMPORT_GROUP_KEY = "asset_assistant_import_group"
 _IMPORT_ROOT_KEY = "asset_assistant_import_root"
+_COMPONENT_ID_KEY = "asset_assistant_component_id"
+_COMPONENT_RIG_KEY = "asset_assistant_component_rig"
 
 
 def _import_group(obj):
@@ -35,12 +37,19 @@ def _walk_hierarchy(root):
         yield from _walk_hierarchy(child)
 
 
+def _is_component_member(obj):
+    """Return whether an object belongs to a first-class component, not the base asset."""
+    if obj is None:
+        return False
+    return bool(obj.get(_COMPONENT_ID_KEY)) or bool(obj.get(_COMPONENT_RIG_KEY, False))
+
+
 def asset_boundary(selected, objects=None):
     """Return ``(logical_root, members)`` for one asset candidate.
 
     Imported files use the non-owning import-group metadata established at import
     time, so sibling meshes/rigs remain in one logical asset even when Blender's
-    importer did not parent them under the same Empty.  Ordinary/generated assets
+    importer did not parent them under the same Empty. Ordinary/generated assets
     fall back to their complete parent hierarchy.
     """
     if selected is None:
@@ -67,25 +76,45 @@ def asset_boundary(selected, objects=None):
 
 
 def asset_members(root, objects=None):
-    """Return every Blender object that belongs to the logical asset boundary."""
+    """Return every Blender object in the logical asset boundary, including components."""
     _logical_root, members = asset_boundary(root, objects=objects)
     return members
 
 
+def base_asset_members(root, objects=None):
+    """Return base-asset objects while keeping first-class components in a separate scope."""
+    return tuple(
+        obj for obj in asset_members(root, objects=objects)
+        if not _is_component_member(obj)
+    )
+
+
 def asset_meshes(root, objects=None):
-    return tuple(obj for obj in asset_members(root, objects=objects) if getattr(obj, "type", None) == "MESH")
+    return tuple(
+        obj for obj in base_asset_members(root, objects=objects)
+        if getattr(obj, "type", None) == "MESH"
+    )
 
 
 def asset_rigs(root, objects=None):
-    """Return unique armatures used by the asset, including modifier-referenced rigs."""
-    members = asset_members(root, objects=objects)
-    rigs = {id(obj): obj for obj in members if getattr(obj, "type", None) == "ARMATURE"}
+    """Return unique base armatures, including modifier-referenced imported rigs.
+
+    Component-owned armatures intentionally stay out of the base-rig set. A generated
+    asset may legally contain a self-rigged component, and that must not make base
+    animation validation look like the character suddenly has multiple rigs.
+    """
+    members = base_asset_members(root, objects=objects)
+    rigs = {
+        id(obj): obj
+        for obj in members
+        if getattr(obj, "type", None) == "ARMATURE" and not _is_component_member(obj)
+    }
     for mesh in (obj for obj in members if getattr(obj, "type", None) == "MESH"):
         for modifier in tuple(getattr(mesh, "modifiers", ())):
             if getattr(modifier, "type", None) != "ARMATURE":
                 continue
             rig = getattr(modifier, "object", None)
-            if rig is not None:
+            if rig is not None and not _is_component_member(rig):
                 rigs[id(rig)] = rig
     return tuple(rigs.values())
 
@@ -100,7 +129,7 @@ def animation_count_for_object(obj):
 
 
 def asset_animation_count(root, objects=None):
-    members = asset_members(root, objects=objects)
+    members = base_asset_members(root, objects=objects)
     count = sum(animation_count_for_object(obj) for obj in members)
     for rig in asset_rigs(root, objects=objects):
         if rig not in members:
@@ -109,13 +138,21 @@ def asset_animation_count(root, objects=None):
 
 
 def logical_asset(root, objects=None):
-    """Return one small normalized view consumed by UI/workflow code."""
+    """Return one normalized base-asset view consumed by UI/workflow code.
+
+    ``objects`` retains the complete boundary for ownership/traversal work, while
+    ``meshes``, ``rigs``, and ``animation_count`` describe the base asset only.
+    First-class components remain a separate concern and cannot create false
+    multi-rig or extra-animation results for the character itself.
+    """
     logical_root, members = asset_boundary(root, objects=objects)
-    meshes = tuple(obj for obj in members if getattr(obj, "type", None) == "MESH")
+    base_members = tuple(obj for obj in members if not _is_component_member(obj))
+    meshes = tuple(obj for obj in base_members if getattr(obj, "type", None) == "MESH")
     rigs = asset_rigs(logical_root, objects=objects) if logical_root is not None else ()
     return {
         "root": logical_root,
         "objects": members,
+        "base_objects": base_members,
         "meshes": meshes,
         "rigs": rigs,
         "animation_count": asset_animation_count(logical_root, objects=objects) if logical_root is not None else 0,
@@ -129,5 +166,6 @@ __all__ = [
     "asset_members",
     "asset_meshes",
     "asset_rigs",
+    "base_asset_members",
     "logical_asset",
 ]
