@@ -107,7 +107,7 @@ def test_import_group_inspection_is_stable_when_rig_is_selected(monkeypatch):
     assert from_rig["metrics"]["animations"] == 2
 
 
-def test_adopt_external_asset_sets_only_workflow_metadata_and_current_target(monkeypatch):
+def test_adopt_external_asset_sets_only_workflow_metadata_and_clears_completed_messages(monkeypatch):
     group = "import-789"
     root = _Object("ImportedHuman", asset_assistant_import_group=group, asset_assistant_import_root=True)
     mesh = _Object("Body", type="MESH", asset_assistant_import_group=group)
@@ -126,6 +126,9 @@ def test_adopt_external_asset_sets_only_workflow_metadata_and_current_target(mon
     class _Context:
         scene = _Scene()
 
+    _Context.scene[asset_inspection_ui._STATUS_KEY] = "REVIEW"
+    _Context.scene[asset_inspection_ui._SUMMARY_KEY] = "temporary import guidance"
+
     adopted = asset_inspection_ui.adopt_external_asset(_Context(), mesh)
 
     assert adopted is root
@@ -135,7 +138,23 @@ def test_adopt_external_asset_sets_only_workflow_metadata_and_current_target(mon
     assert root.get("generator") is None
     assert _Context.scene.humanoid_settings.target is root
     assert _Context.scene.humanoid_settings.asset_use == "ANIMATED"
-    assert _Context.scene[asset_inspection_ui._STATUS_KEY] == "EXTERNAL_READY"
+    assert not any(key in _Context.scene for key in asset_inspection_ui._INSPECTION_KEYS)
+
+
+def test_clear_inspection_report_removes_only_transient_report_keys():
+    scene = {
+        asset_inspection_ui._STATUS_KEY: "REVIEW",
+        asset_inspection_ui._NAME_KEY: "ImportedHuman",
+        asset_inspection_ui._SUMMARY_KEY: "temporary",
+        asset_inspection_ui._METRICS_KEY: "1 Mesh",
+        asset_inspection_ui._CAN_ADOPT_KEY: True,
+        "persistent_asset_state": "keep-me",
+    }
+
+    asset_inspection_ui.clear_inspection_report(scene)
+
+    assert not any(key in scene for key in asset_inspection_ui._INSPECTION_KEYS)
+    assert scene["persistent_asset_state"] == "keep-me"
 
 
 def test_multiple_external_armatures_block_base_asset_adoption(monkeypatch):
