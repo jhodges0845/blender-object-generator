@@ -187,6 +187,32 @@ def import_preflight_asset(scene, context):
     return _import_external(filepath, extension, context)
 
 
+def _sync_imported_asset_context(context, inspection):
+    """Keep the main Asset Assistant target consistent with the asset just imported.
+
+    A recognized Asset Assistant asset can safely become the current managed target.
+    Artist-created exchange assets remain inspection-only until explicitly adopted, so
+    clear any previous managed target instead of showing stale identity/rig/clip state.
+    """
+    settings = getattr(getattr(context, "scene", None), "humanoid_settings", None)
+    if settings is None:
+        return None
+
+    root = inspection.get("root") if inspection else None
+    target = root if inspection and inspection.get("status") == "READY" else None
+    try:
+        settings.target = target
+    except (TypeError, ValueError, AttributeError):
+        # A Blender PointerProperty poll can reject an unexpected object. Falling
+        # back to no current managed target is safer than retaining stale state.
+        try:
+            settings.target = None
+        except (TypeError, ValueError, AttributeError):
+            return None
+        return None
+    return target
+
+
 def draw_file_preflight_report(layout, scene):
     status = scene.get(_STATUS_KEY)
     if not status:
@@ -302,7 +328,9 @@ class ASSET_ASSISTANT_OT_import_preflight_asset(bpy.types.Operator):
         if active is not None:
             try:
                 from .asset_inspection_ui import inspect_selected_asset, _store_report
-                _store_report(context.scene, inspect_selected_asset(active))
+                inspection = inspect_selected_asset(active)
+                _store_report(context.scene, inspection)
+                _sync_imported_asset_context(context, inspection)
             except (ValueError, TypeError, AttributeError):
                 pass
         self.report({"INFO"}, "Asset imported. No Asset Assistant ownership was added.")
